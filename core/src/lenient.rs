@@ -24,6 +24,11 @@ pub fn opt_i64<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error>
     Ok(value_to_i64(&Value::deserialize(d)?))
 }
 
+/// Identifiant numérique obligatoire : une entrée sans lui est illisible.
+pub fn required_i64<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+    opt_i64(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
+}
+
 /// Booléen exprimé en `1`, `"1"`, `true` ou `"true"`.
 pub fn flag<'de, D: Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
     Ok(match Value::deserialize(d)? {

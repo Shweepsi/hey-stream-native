@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::lenient::{flag, opt_i64, opt_string};
+use crate::lenient::{flag, opt_i64, opt_string, required_i64};
 
 /// Identifiants d'une source Xtream.
 #[derive(Clone, PartialEq, Eq)]
@@ -140,8 +140,4 @@ pub(crate) struct RawAuth {
 
 fn required_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
     opt_string(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
-}
-
-fn required_i64<'de, D: serde::Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
-    opt_i64(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
 }

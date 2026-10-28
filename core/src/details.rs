@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
-use crate::lenient::{list, opt_i64, opt_string};
+use crate::lenient::{list, opt_i64, opt_string, required_i64};
 
 /// Fiche d'un film.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -162,10 +162,6 @@ struct RawEpisode {
     container_extension: Option<String>,
     #[serde(default)]
     info: Value,
-}
-
-fn required_i64<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<i64, D::Error> {
-    opt_i64(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
 }
 
 /// `info` est un objet, mais certains panneaux envoient `[]` ou `null`.
