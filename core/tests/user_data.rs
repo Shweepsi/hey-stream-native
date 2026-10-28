@@ -74,9 +74,9 @@ fn favorites_toggle_and_survive_refresh() {
 #[test]
 fn recents_are_ordered_deduplicated_and_capped() {
     let mut catalog = catalog_with_content();
-    catalog.mark_watched(Section::Live, 1, 10).unwrap();
-    catalog.mark_watched(Section::Live, 2, 20).unwrap();
-    catalog.mark_watched(Section::Live, 1, 30).unwrap();
+    catalog.add_recent(Section::Live, 1, 10).unwrap();
+    catalog.add_recent(Section::Live, 2, 20).unwrap();
+    catalog.add_recent(Section::Live, 1, 30).unwrap();
     let ids: Vec<_> = catalog
         .recents(Section::Live, 10)
         .unwrap()
@@ -87,10 +87,10 @@ fn recents_are_ordered_deduplicated_and_capped() {
 
     for id in 0..(RECENTS_LIMIT as i64 + 10) {
         catalog
-            .mark_watched(Section::Movies, 1_000 + id, 100 + id)
+            .add_recent(Section::Movies, 1_000 + id, 100 + id)
             .unwrap();
     }
-    catalog.mark_watched(Section::Movies, 10, 10_000).unwrap();
+    catalog.add_recent(Section::Movies, 10, 10_000).unwrap();
     let recent_movies = catalog.recents(Section::Movies, 100).unwrap();
     // Seul le film 10 existe dans le catalogue ; les autres sont masqués.
     assert_eq!(recent_movies.len(), 1);
@@ -189,7 +189,7 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
         conn.execute_batch(
             "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume;
              DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
-             DROP TABLE watched;
+             DROP TABLE watched; DROP TABLE series_episode;
              ALTER TABLE item DROP COLUMN is_adult;
              PRAGMA user_version = 1;",
         )
@@ -344,28 +344,79 @@ fn watched_marks_survive_rewatching_and_can_be_undone() {
         [(10, false), (11, false)]
     );
 
-    // Série : vue seulement quand tous ses épisodes connus le sont.
+    // Série : vue quand tous ses épisodes connus le sont, mise à jour à
+    // chaque épisode vu ou non vu, sans recharger la fiche.
+    let series = |c: &Catalog| watched(c, Section::Series);
     catalog
         .set_watched(PlaybackKind::Episode, 501, Some(50), true, 60)
         .unwrap();
-    assert!(!catalog.update_series_watched(50, &[501, 502], 70).unwrap());
-    assert!(!catalog.update_series_watched(50, &[], 70).unwrap());
+    assert_eq!(series(&catalog), [(70, false), (50, false)]); // fiche jamais chargée
+    catalog.remember_episodes(50, &[501, 502]).unwrap();
+    assert_eq!(series(&catalog), [(70, false), (50, false)]);
     catalog
         .set_watched(PlaybackKind::Episode, 502, Some(50), true, 80)
         .unwrap();
-    assert!(catalog.update_series_watched(50, &[501, 502], 90).unwrap());
-    assert_eq!(
-        watched(&catalog, Section::Series),
-        [(70, false), (50, true)]
-    );
+    assert_eq!(series(&catalog), [(70, false), (50, true)]);
+    catalog
+        .set_watched(PlaybackKind::Episode, 502, Some(50), false, 85)
+        .unwrap();
+    assert_eq!(series(&catalog), [(70, false), (50, false)]);
+    catalog
+        .set_watched(PlaybackKind::Episode, 502, Some(50), true, 90)
+        .unwrap();
     // Nouvel épisode publié : la série n'est plus vue.
-    assert!(
-        !catalog
-            .update_series_watched(50, &[501, 502, 503], 100)
+    catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    assert_eq!(series(&catalog), [(70, false), (50, false)]);
+    // Fiche sans épisode : jamais « vue ».
+    catalog.remember_episodes(70, &[]).unwrap();
+    assert_eq!(series(&catalog), [(70, false), (50, false)]);
+}
+
+#[test]
+fn short_content_is_not_watched_at_start() {
+    let mut catalog = catalog_with_content();
+    let clip = |position_ms| Resume {
+        duration_ms: 90_000,
+        ..resume(PlaybackKind::Movie, 11, position_ms, None)
+    };
+    catalog.save_progress(&clip(0), 10).unwrap();
+    catalog.save_progress(&clip(20_000), 20).unwrap();
+    assert!(!catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
+    // Au-delà de la moitié, à moins de 2 min de la fin : vu.
+    catalog.save_progress(&clip(50_000), 30).unwrap();
+    assert!(catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
+}
+
+#[test]
+fn finished_episode_supersedes_older_series_progress() {
+    let mut catalog = catalog_with_content();
+    // E1 abandonné à 10 %, puis E2 vu jusqu'au bout.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 600_000, Some(50)), 10)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 5_990_000, Some(50)), 20)
+        .unwrap();
+    let series_progress = |c: &Catalog| {
+        c.item(Section::Series, 50)
             .unwrap()
-    );
+            .unwrap()
+            .progress
+            .map(|p| p.position_ms)
+    };
+    assert_eq!(series_progress(&catalog), None);
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+
+    // Marquer à la main un vieil épisode ne cache pas la reprise en cours.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 503, 900_000, Some(50)), 30)
+        .unwrap();
+    catalog
+        .set_watched(PlaybackKind::Episode, 501, Some(50), true, 40)
+        .unwrap();
+    assert_eq!(series_progress(&catalog), Some(900_000));
     assert_eq!(
-        watched(&catalog, Section::Series),
-        [(70, false), (50, false)]
+        catalog.continue_watching(None, 10).unwrap()[0].resume.id,
+        503
     );
 }

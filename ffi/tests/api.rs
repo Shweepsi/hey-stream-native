@@ -210,21 +210,19 @@ fn series_and_next_episode() {
     assert_eq!(core.next_episode(7, 1).unwrap().unwrap().id, 2);
     assert!(core.next_episode(7, 2).unwrap().is_none());
 
-    // Série vue quand tous ses épisodes le sont, recalculé à l'ouverture de la
-    // fiche.
+    // Série vue quand tous les épisodes de sa fiche (déjà chargée plus haut)
+    // le sont, à jour à chaque épisode vu ou non vu.
     core.refresh(true).unwrap();
     let series_watched = || core.items(Section::Series, None, 0, 10).unwrap()[0].watched;
     core.set_watched(PlaybackKind::Episode, 1, Some(7), true)
         .unwrap();
+    assert!(!series_watched());
     core.set_watched(PlaybackKind::Episode, 2, Some(7), true)
         .unwrap();
     assert!(core.is_watched(PlaybackKind::Episode, 2).unwrap());
-    assert!(!series_watched());
-    core.series_info(7).unwrap();
     assert!(series_watched());
     core.set_watched(PlaybackKind::Episode, 2, Some(7), false)
         .unwrap();
-    core.series_info(7).unwrap();
     assert!(!series_watched());
     std::fs::remove_dir_all(&dir).unwrap();
 }

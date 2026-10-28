@@ -44,6 +44,7 @@ const TABLES: &[&str] = &[
     "recent",
     "resume",
     "watched",
+    "series_episode",
     "setting",
     "hidden_category",
     "epg",

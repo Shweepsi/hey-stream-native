@@ -52,7 +52,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
 
     // Favori, récent et reprise d'un film adulte : masqués aussi.
     c.toggle_favorite(Section::Movies, 20, 1).unwrap();
-    c.mark_watched(Section::Movies, 20, 1).unwrap();
+    c.add_recent(Section::Movies, 20, 1).unwrap();
     let resume = Resume {
         kind: PlaybackKind::Movie,
         id: 20,

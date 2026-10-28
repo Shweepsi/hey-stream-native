@@ -188,8 +188,8 @@ pub struct CatalogItem {
     pub number: Option<i64>,
     /// Lecture commencée : le film, ou le dernier épisode commencé de la série.
     pub progress: Option<Progress>,
-    /// Film vu, ou série dont tous les épisodes connus sont vus (marque
-    /// recalculée à chaque ouverture de sa fiche).
+    /// Film vu, ou série dont tous les épisodes connus (dernière fiche
+    /// chargée) sont vus.
     pub watched: bool,
 }
 
@@ -779,8 +779,8 @@ impl HeyStreamCore {
         )?))
     }
 
-    pub fn mark_watched(&self, section: Section, id: i64) -> Result<()> {
-        Ok(self.lock()?.mark_watched(section.into(), id, now())?)
+    pub fn add_recent(&self, section: Section, id: i64) -> Result<()> {
+        Ok(self.lock()?.add_recent(section.into(), id, now())?)
     }
 
     pub fn recents(&self, section: Section, limit: u32) -> Result<Vec<CatalogItem>> {
@@ -908,8 +908,11 @@ impl HeyStreamCore {
             .iter()
             .flat_map(|s| s.episodes.iter().map(|e| e.id))
             .collect();
-        self.lock()?
-            .update_series_watched(series_id, &episodes, now())?;
+        // Pour la marque « vue » de la série. Secondaire : un échec (cache
+        // occupé, déconnexion) n'empêche pas d'ouvrir la fiche.
+        if let Ok(mut store) = self.lock() {
+            let _ = store.remember_episodes(series_id, &episodes);
+        }
         *self.last_series_lock() = Some((series_id, info.clone()));
         Ok(info)
     }
