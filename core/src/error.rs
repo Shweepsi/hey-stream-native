@@ -32,4 +32,12 @@ pub enum Error {
     Network(#[source] reqwest::Error),
 }
 
+impl Error {
+    /// Erreur réseau sans l'URL de la requête : elle contient l'identifiant
+    /// et le mot de passe, et `reqwest::Error` l'affiche dans son `Debug`.
+    pub(crate) fn network(error: reqwest::Error) -> Self {
+        Error::Network(error.without_url())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
