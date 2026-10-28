@@ -30,6 +30,7 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` : infos abonnement hors ligne, format du direct selon le fournisseur (TS / HLS) | ✅ testé |
 | `core` : numéro de chaîne, progression dans les listes, « Continuer » par section, programme en cours lu dans le cache, éléments vus | ✅ testé |
 | Liaisons UniFFI (Kotlin, Swift) : `ffi/`, `scripts/bindings.sh` | ✅ testé |
+| `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
 | Android (Compose + Compose for TV + Media3) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |
 
