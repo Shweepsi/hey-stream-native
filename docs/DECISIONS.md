@@ -64,3 +64,23 @@ Constats :
   complète à l'essai suivant : une liste vide n'est pas fiable, le cache ne
   doit jamais écraser un catalogue connu par une réponse vide.
 - L'ordre des catégories varie d'une requête à l'autre : trier côté app.
+
+## Identité et publication (2026-10-28)
+
+- **Nom affiché : « Hey Stream »**, conservé par choix du propriétaire.
+  Risque connu : un fournisseur IPTV tiers utilise un nom de domaine très
+  proche. Un examinateur de store pourrait prendre l'app pour l'app
+  officielle de ce fournisseur. À réévaluer avant la
+  publication. En attendant, **aucune URL de panneau n'apparaît dans l'app,
+  le dépôt ni les captures d'écran**.
+- **Identifiant d'app : `io.github.shweepsi.heystream`** (Android
+  `applicationId` et Apple bundle ID), définitif une fois publié.
+- **Nouvelle identité visuelle**, distincte de hey-stream web et de Smarters :
+  logo et palette à proposer avant les premiers écrans.
+- **Tests** : le propriétaire installe les APK produits par la CI sur sa
+  Mi Box S 2e génération et rapporte les résultats.
+- **Comptes développeur (Google Play, Apple) : pas encore.** Distribution des
+  versions de test par APK uniquement.
+- **Rapports de plantage : GlitchTip** (compatible avec le SDK Sentry, libre,
+  auto-hébergeable). Anonymes : ni identifiants ni URL de flux.
+- **Politique de confidentialité : GitHub Pages** du dépôt.
