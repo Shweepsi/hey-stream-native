@@ -1,5 +1,7 @@
 //! Vérification contre un vrai panneau, identifiants lus dans l'environnement
-//! (jamais dans le dépôt) :
+//! (jamais dans le dépôt). À lancer à la main, depuis son propre réseau
+//! uniquement : jamais en CI ni depuis un serveur (risque de bannissement du
+//! compte par le fournisseur). Environ 15 requêtes par exécution.
 //!
 //! ```sh
 //! XTREAM_URL=… XTREAM_USER=… XTREAM_PASS=… cargo run --example smoke

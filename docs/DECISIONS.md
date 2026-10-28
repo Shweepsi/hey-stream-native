@@ -56,6 +56,9 @@ dans le dépôt : variables `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, voir
 | Films | 50 | 29 372 | ~4 s |
 | Séries | 33 | 8 637 | ~2 s |
 
+Règle : **aucun appel automatique** au panneau (CI, cloud, scripts) ; essais
+réels uniquement à la main par le propriétaire, depuis son réseau.
+
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux
   en même temps (aperçu + plein écran compris).
