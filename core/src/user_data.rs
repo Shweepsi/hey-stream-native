@@ -7,7 +7,7 @@
 
 use rusqlite::{OptionalExtension, params};
 
-use crate::catalog::{Catalog, CatalogItem, Section, row_to_item};
+use crate::catalog::{Catalog, CatalogItem, ITEM_COLUMNS, Section, row_to_item};
 use crate::error::Result;
 
 pub(crate) const MIGRATION: &str = "
@@ -142,9 +142,12 @@ impl Catalog {
         limit: usize,
     ) -> Result<Vec<CatalogItem>> {
         self.joined_items(
-            "SELECT i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot
-             FROM favorite f JOIN item i ON i.section = f.section AND i.id = f.id
-             WHERE f.section = ?1 ORDER BY f.added_at DESC, f.id LIMIT ?2 OFFSET ?3",
+            &format!(
+                "SELECT {ITEM_COLUMNS}
+                 FROM favorite f JOIN item i ON i.section = f.section AND i.id = f.id
+                 WHERE f.section = ?1{} ORDER BY f.added_at DESC, f.id LIMIT ?2 OFFSET ?3",
+                self.visibility("i", false)
+            ),
             section,
             offset,
             limit,
@@ -174,9 +177,12 @@ impl Catalog {
     /// Récents présents dans le catalogue, du plus récent au plus ancien.
     pub fn recents(&self, section: Section, limit: usize) -> Result<Vec<CatalogItem>> {
         self.joined_items(
-            "SELECT i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot
-             FROM recent r JOIN item i ON i.section = r.section AND i.id = r.id
-             WHERE r.section = ?1 ORDER BY r.watched_at DESC, r.id LIMIT ?2 OFFSET ?3",
+            &format!(
+                "SELECT {ITEM_COLUMNS}
+                 FROM recent r JOIN item i ON i.section = r.section AND i.id = r.id
+                 WHERE r.section = ?1{} ORDER BY r.watched_at DESC, r.id LIMIT ?2 OFFSET ?3",
+                self.visibility("i", false)
+            ),
             section,
             0,
             limit,
@@ -236,7 +242,7 @@ impl Catalog {
     /// Rangée « Continuer » : une seule entrée par série (son dernier épisode),
     /// de la plus récente à la plus ancienne.
     pub fn continue_watching(&self, limit: usize) -> Result<Vec<ResumeEntry>> {
-        let mut stmt = self.conn.prepare_cached(
+        let mut stmt = self.conn.prepare_cached(&format!(
             // Une ligne par film, et une par série : la dernière écrite (rowid le
             // plus grand), même si deux épisodes ont été enregistrés dans la
             // même seconde.
@@ -248,11 +254,12 @@ impl Catalog {
                     ORDER BY r.updated_at DESC, r.rowid DESC
                 ) AS rank
                 FROM resume r
-             )
-             WHERE rank = 1
+             ) r
+             WHERE r.rank = 1{}
              ORDER BY updated_at DESC, id
              LIMIT ?1",
-        )?;
+            self.resume_lock_filter()
+        ))?;
         let rows = stmt.query_map([limit as i64], |r| {
             let kind: String = r.get(0)?;
             Ok((

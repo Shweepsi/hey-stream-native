@@ -18,6 +18,14 @@ pub enum Error {
     UnexpectedStatus(u16),
     #[error("réponse illisible")]
     InvalidResponse,
+    #[error("catégorie verrouillée par le contrôle parental")]
+    ParentalLock,
+    #[error("le code doit comporter 4 chiffres")]
+    InvalidPin,
+    #[error("code incorrect")]
+    WrongPin,
+    #[error("trop de codes incorrects, réessayez dans {retry_in_secs} s")]
+    TooManyAttempts { retry_in_secs: i64 },
     #[error("erreur du cache local : {0}")]
     Storage(String),
     #[error("erreur réseau")]

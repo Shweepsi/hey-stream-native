@@ -8,9 +8,11 @@
 
 mod catalog;
 mod client;
+mod epg;
 mod error;
 mod lenient;
 mod model;
+mod parental;
 mod url;
 mod user_data;
 
@@ -18,6 +20,7 @@ pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, refresh_section,
 };
 pub use client::XtreamClient;
+pub use epg::{EPG_MIN_INTERVAL_SECS, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
 pub use url::{StreamKind, normalize_server_url};

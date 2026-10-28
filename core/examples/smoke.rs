@@ -50,11 +50,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let t = Instant::now();
-    let first = catalog.categories(Section::Movies)?;
-    let page = catalog.items(Section::Movies, first.first().map(|c| c.id.as_str()), 0, 60)?;
+    let categories = catalog.categories(Section::Movies)?;
+    // Première catégorie ouverte sans code : une catégorie adulte peut être
+    // classée en tête (« +18 … »).
+    let first = categories.iter().find(|c| !c.locked);
+    let page = catalog.items(Section::Movies, first.map(|c| c.id.as_str()), 0, 60)?;
     println!(
         "lecture : {} catégories + page de {} films en {:?}",
-        first.len(),
+        categories.len(),
         page.len(),
         t.elapsed()
     );

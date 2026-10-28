@@ -1,5 +1,7 @@
 use serde_json::{from_value, json};
-use xtream_core::{Catalog, LiveStream, Movie, PlaybackKind, RECENTS_LIMIT, Resume, Section};
+use xtream_core::{
+    Catalog, LiveStream, Movie, PlaybackKind, RECENTS_LIMIT, Resume, Section, Series,
+};
 
 fn catalog_with_content() -> Catalog {
     let mut catalog = Catalog::open_in_memory().unwrap();
@@ -16,6 +18,14 @@ fn catalog_with_content() -> Catalog {
     ]))
     .unwrap();
     catalog.store_movies(&[], &movies, 0).unwrap();
+    // Séries au catalogue : « Continuer » n'affiche, verrou parental fermé,
+    // que des contenus connus.
+    let series: Vec<Series> = from_value(json!([
+        {"series_id": 50, "name": "Lupin"},
+        {"series_id": 70, "name": "Dix pour cent"}
+    ]))
+    .unwrap();
+    catalog.store_series(&[], &series, 0).unwrap();
     catalog
 }
 
@@ -177,7 +187,10 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
     {
         let conn = rusqlite::Connection::open(&path).unwrap();
         conn.execute_batch(
-            "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume; PRAGMA user_version = 1;",
+            "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume;
+             DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
+             ALTER TABLE item DROP COLUMN is_adult;
+             PRAGMA user_version = 1;",
         )
         .unwrap();
     }

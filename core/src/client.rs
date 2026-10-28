@@ -111,7 +111,7 @@ impl XtreamClient {
 
     /// Requête JSON lue entièrement en `Value` : réservée aux petites
     /// réponses (authentification, fiches, EPG).
-    async fn get(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<Value> {
+    pub(crate) async fn get(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<Value> {
         let body = self.fetch(action, extra).await?;
         if body.iter().all(u8::is_ascii_whitespace) {
             return Ok(Value::Null);

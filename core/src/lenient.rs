@@ -88,6 +88,20 @@ pub fn parse_list<T: DeserializeOwned>(body: &[u8]) -> Result<Vec<T>, Error> {
         .collect())
 }
 
+/// Même tolérance pour une liste déjà lue en `Value` (petites réponses comme
+/// l'EPG ou les épisodes d'une série).
+pub fn list<T: DeserializeOwned>(value: Value) -> Vec<T> {
+    let items = match value {
+        Value::Array(items) => items,
+        Value::Object(map) => map.into_iter().map(|(_, v)| v).collect(),
+        _ => Vec::new(),
+    };
+    items
+        .into_iter()
+        .filter_map(|item| serde_json::from_value(item).ok())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
