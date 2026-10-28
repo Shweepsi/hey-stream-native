@@ -1,0 +1,194 @@
+package io.github.shweepsi.heystream.data
+
+import android.content.Context
+import io.github.shweepsi.heystream.core.AccountInfo
+import io.github.shweepsi.heystream.core.HeyStreamCore
+import io.github.shweepsi.heystream.core.HeyStreamException
+import io.github.shweepsi.heystream.core.SectionRefresh
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+/** État de la session : l'app s'ouvre sur l'accueil (cache) ou sur la connexion. */
+sealed interface SessionState {
+    data object Starting : SessionState
+
+    data object SignedOut : SessionState
+
+    data object Ready : SessionState
+}
+
+/** Rafraîchissement du catalogue en cours ou terminé. */
+sealed interface RefreshState {
+    data object Idle : RefreshState
+
+    data object Running : RefreshState
+
+    data class Done(val sections: List<SectionRefresh>) : RefreshState
+
+    data class Failed(val error: Throwable) : RefreshState
+}
+
+/**
+ * Le cœur de l'abonnement, unique dans l'app. Ses méthodes sont bloquantes :
+ * [withCore] les appelle hors du fil principal.
+ */
+class CoreSession(
+    private val context: Context,
+    private val credentials: CredentialStore,
+    private val scope: CoroutineScope,
+) {
+    private val lock = Mutex()
+
+    @Volatile
+    private var core: HeyStreamCore? = null
+
+    private val _state = MutableStateFlow<SessionState>(SessionState.Starting)
+    val state: StateFlow<SessionState> = _state.asStateFlow()
+
+    private val _refresh = MutableStateFlow<RefreshState>(RefreshState.Idle)
+    val refresh: StateFlow<RefreshState> = _refresh.asStateFlow()
+
+    /** Infos de la dernière authentification réussie (accueil), connues hors ligne. */
+    private val _account = MutableStateFlow<AccountInfo?>(null)
+    val account: StateFlow<AccountInfo?> = _account.asStateFlow()
+
+    /** Change quand le catalogue en cache change : les listes se rechargent. */
+    private val _catalogVersion = MutableStateFlow(0L)
+    val catalogVersion: StateFlow<Long> = _catalogVersion.asStateFlow()
+
+    /**
+     * Change quand les données de l'utilisateur changent (favoris, vus,
+     * reprise, catégories masquées, déverrouillage parental) : les listes
+     * qui les montrent se rechargent.
+     */
+    private val _userDataVersion = MutableStateFlow(0L)
+    val userDataVersion: StateFlow<Long> = _userDataVersion.asStateFlow()
+
+    /** Ouvre le cache de l'abonnement enregistré, sans requête réseau. */
+    suspend fun start() {
+        lock.withLock {
+            if (_state.value != SessionState.Starting) return
+            val saved = withContext(Dispatchers.IO) { credentials.load() }
+            if (saved == null) {
+                _state.value = SessionState.SignedOut
+                return
+            }
+            core = runCatching { withContext(Dispatchers.IO) { open(saved) } }.getOrNull()
+            _state.value = if (core != null) SessionState.Ready else SessionState.SignedOut
+        }
+        if (core != null) {
+            _account.value = runCatching { withCore { it.accountInfo() } }.getOrNull()
+            // Infos de l'abonnement et catalogue de plus de 24 h, en arrière-plan.
+            scope.launch { runCatching { _account.value = withCore { it.authenticate() } } }
+            refreshInBackground(force = false)
+        }
+    }
+
+    /**
+     * Formulaire de connexion : vérifie les identifiants avant de les
+     * enregistrer. En cas d'échec, rien n'est enregistré ni effacé.
+     */
+    suspend fun signIn(server: String, username: String, password: String): AccountInfo {
+        val result = lock.withLock {
+            withContext(Dispatchers.IO) {
+                val candidate = Credentials(server.trim(), username.trim(), password)
+                val opened = open(candidate)
+                try {
+                    val account = opened.authenticate()
+                    credentials.save(candidate)
+                    core?.close()
+                    core = opened
+                    account
+                } catch (error: Throwable) {
+                    opened.close()
+                    throw error
+                }
+            }
+        }
+        _account.value = result
+        _state.value = SessionState.Ready
+        _catalogVersion.update { it + 1 }
+        _userDataVersion.update { it + 1 }
+        refreshInBackground(force = false)
+        return result
+    }
+
+    /** Déconnexion : efface identifiants, catalogue et données de l'abonnement. */
+    suspend fun signOut() {
+        lock.withLock {
+            withContext(Dispatchers.IO) {
+                core?.let { current ->
+                    runCatching { current.signOut() }
+                    current.close()
+                }
+                core = null
+                credentials.clear()
+            }
+            _refresh.value = RefreshState.Idle
+            _account.value = null
+            _state.value = SessionState.SignedOut
+        }
+    }
+
+    /**
+     * Appelle le cœur hors du fil principal. Lève [HeyStreamException] (dont
+     * `SignedOut` sans session).
+     */
+    suspend fun <T> withCore(block: (HeyStreamCore) -> T): T = withContext(Dispatchers.IO) {
+        block(core ?: throw HeyStreamException.SignedOut())
+    }
+
+    /** À appeler après un changement de favoris, vus, reprise, masquage ou code PIN. */
+    fun notifyUserDataChanged() {
+        _userDataVersion.update { it + 1 }
+    }
+
+    /** Rafraîchit le catalogue (sections de plus de 24 h, toutes si [force]). */
+    fun refreshInBackground(force: Boolean) {
+        scope.launch { runCatching { refreshNow(force) } }
+    }
+
+    /** Rafraîchissement attendu (bouton manuel, tâche quotidienne). */
+    suspend fun refreshNow(force: Boolean): List<SectionRefresh> {
+        _refresh.value = RefreshState.Running
+        return try {
+            val sections = withCore { it.refresh(force) }
+            if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
+            _refresh.value = RefreshState.Done(sections)
+            sections
+        } catch (error: Throwable) {
+            _refresh.value = RefreshState.Failed(error)
+            throw error
+        }
+    }
+
+    private fun open(saved: Credentials): HeyStreamCore {
+        loadNativeLibrary()
+        return HeyStreamCore(saved.server, saved.username, saved.password, context.filesDir.absolutePath)
+    }
+
+    private companion object {
+        @Volatile
+        private var loaded = false
+
+        /**
+         * Charge `libheystream.so` par le chargeur d'Android avant JNA : la
+         * bibliothèque reste dans l'APK (non extraite) et JNA la retrouve
+         * ensuite par son nom.
+         */
+        fun loadNativeLibrary() {
+            if (!loaded) {
+                System.loadLibrary("heystream")
+                loaded = true
+            }
+        }
+    }
+}
