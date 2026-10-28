@@ -11,7 +11,7 @@ identifiants restent sur votre appareil.
 
 ```
 core/      Rust — API Xtream, cache, recherche, contrôle parental, logique de lecture
-android/   Kotlin + Jetpack Compose — téléphone, tablette, TV (un seul APK)   [à venir]
+android/   Kotlin + Jetpack Compose — téléphone, tablette, TV (un seul APK)   voir android/README.md
 apple/     SwiftUI — iPhone, iPad, Apple TV                                    [à venir]
 ```
 
@@ -31,7 +31,8 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` : numéro de chaîne, progression dans les listes, « Continuer » par section, programme en cours lu dans le cache, éléments vus | ✅ testé |
 | Liaisons UniFFI (Kotlin, Swift) : `ffi/`, `scripts/bindings.sh` | ✅ testé |
 | `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
-| Android (Compose + Compose for TV + Media3) | à faire |
+| Android : socle (Gradle + cœur Rust, design, session, lecteur Media3), connexion, accueil | ✅ CI (JVM + émulateur) |
+| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | en cours |
 | Apple (SwiftUI + AVPlayer) | à faire |
 
 ## Développer

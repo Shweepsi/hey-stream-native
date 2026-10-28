@@ -14,7 +14,11 @@ plugins {
 // versionnées.
 
 val rustRoot: File = rootDir.parentFile
-val rustAbis = listOf("arm64-v8a", "armeabi-v7a")
+// arm64-v8a : Xiaomi Pad 7 ; armeabi-v7a : Mi Box S (espace utilisateur 32 bits).
+// La CI ajoute x86_64 pour l'émulateur (-Pheystream.abis=x86_64).
+val rustAbis: List<String> = providers.gradleProperty("heystream.abis").orNull
+    ?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+    ?: listOf("arm64-v8a", "armeabi-v7a")
 
 /** Sources dont dépend le cœur : un changement relance cargo. */
 fun rustSources() = files(
@@ -148,6 +152,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += rustAbis }
     }
 
@@ -230,4 +235,11 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    // Test de bout en bout sur émulateur (CI) : faux panneau local.
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.mockwebserver)
 }

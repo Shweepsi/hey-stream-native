@@ -1,6 +1,6 @@
 package io.github.shweepsi.heystream.ui
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.ui.home.HomeContent
 import io.github.shweepsi.heystream.ui.home.Subscription
