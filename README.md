@@ -26,7 +26,8 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` : cache SQLite du catalogue, recherche, détection adulte | ✅ testé |
 | `core` : favoris, récents, reprise de lecture | ✅ testé |
 | `core` : contrôle parental (PIN), catégories masquées, EPG court | ✅ testé |
-| `core` : User-Agent `HeyStream`, épisodes de série (`get_series_info`) | à faire |
+| `core` : User-Agent `HeyStream`, fiches film et série (saisons, épisodes) | ✅ testé |
+| Liaisons UniFFI (Kotlin, Swift) | à faire |
 | Liaisons UniFFI | à faire |
 | Android (Compose + Compose for TV + Media3) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |

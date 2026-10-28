@@ -7,6 +7,10 @@ use crate::lenient::list;
 use crate::model::{AccountInfo, Category, Credentials, LiveStream, Movie, RawAuth, Series};
 use crate::url::{StreamKind, normalize_server_url};
 
+/// Identifiant honnête envoyé aux serveurs : certains panneaux refusent les
+/// requêtes sans User-Agent. On n'imite jamais une autre application.
+pub const USER_AGENT: &str = concat!("HeyStream/", env!("CARGO_PKG_VERSION"));
+
 /// Client d'une source Xtream Codes.
 #[derive(Debug, Clone)]
 pub struct XtreamClient {
@@ -24,6 +28,7 @@ impl XtreamClient {
             return Err(Error::MissingCredentials);
         }
         let http = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(60))
             .build()
