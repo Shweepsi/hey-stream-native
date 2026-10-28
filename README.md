@@ -35,7 +35,7 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-Voir [`docs/DECISIONS.md`](docs/DECISIONS.md) et [`docs/MATERIEL.md`](docs/MATERIEL.md).
+Voir [`docs/SPEC_V1.md`](docs/SPEC_V1.md), [`docs/DECISIONS.md`](docs/DECISIONS.md) et [`docs/MATERIEL.md`](docs/MATERIEL.md).
 
 ## Licence
 
