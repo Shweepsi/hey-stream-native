@@ -1,0 +1,37 @@
+name: bindings
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  kotlin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - run: scripts/bindings.sh kotlin
+      - run: gradle -p ffi/smoke/kotlin run --no-daemon
+
+  swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: scripts/bindings.sh swift
+      - name: Compiler et lancer le test Swift
+        run: |
+          swiftc -o smoke \
+            -Xcc -fmodule-map-file=bindings/swift/HeyStreamCoreFFI.modulemap \
+            -I bindings/swift \
+            -L target/debug -lheystream \
+            bindings/swift/HeyStreamCore.swift ffi/smoke/swift/main.swift
+          DYLD_LIBRARY_PATH=target/debug ./smoke

@@ -417,6 +417,44 @@ impl Catalog {
     }
 }
 
+/// Contenu d'une section tel que reçu du fournisseur, pas encore enregistré.
+#[derive(Debug, Clone)]
+pub enum SectionData {
+    Live(Vec<Category>, Vec<LiveStream>),
+    Movies(Vec<Category>, Vec<Movie>),
+    Series(Vec<Category>, Vec<Series>),
+}
+
+/// Télécharge une section chez le fournisseur, sans toucher au cache : le
+/// cache reste lisible pendant les quelques secondes de téléchargement.
+pub async fn fetch_section(client: &XtreamClient, section: Section) -> Result<SectionData> {
+    Ok(match section {
+        Section::Live => SectionData::Live(
+            categories_with_retry(|| client.live_categories()).await?,
+            client.live_streams(None).await?,
+        ),
+        Section::Movies => SectionData::Movies(
+            categories_with_retry(|| client.movie_categories()).await?,
+            client.movies(None).await?,
+        ),
+        Section::Series => SectionData::Series(
+            categories_with_retry(|| client.series_categories()).await?,
+            client.series(None).await?,
+        ),
+    })
+}
+
+impl Catalog {
+    /// Enregistre une section téléchargée par [`fetch_section`].
+    pub fn store_section(&mut self, data: &SectionData, now: i64) -> Result<RefreshOutcome> {
+        match data {
+            SectionData::Live(categories, items) => self.store_live(categories, items, now),
+            SectionData::Movies(categories, items) => self.store_movies(categories, items, now),
+            SectionData::Series(categories, items) => self.store_series(categories, items, now),
+        }
+    }
+}
+
 /// Télécharge une section chez le fournisseur et l'enregistre dans le cache.
 /// En cas d'erreur réseau, le cache reste intact.
 pub async fn refresh_section(
@@ -425,23 +463,8 @@ pub async fn refresh_section(
     section: Section,
     now: i64,
 ) -> Result<RefreshOutcome> {
-    match section {
-        Section::Live => {
-            let categories = categories_with_retry(|| client.live_categories()).await?;
-            let streams = client.live_streams(None).await?;
-            catalog.store_live(&categories, &streams, now)
-        }
-        Section::Movies => {
-            let categories = categories_with_retry(|| client.movie_categories()).await?;
-            let movies = client.movies(None).await?;
-            catalog.store_movies(&categories, &movies, now)
-        }
-        Section::Series => {
-            let categories = categories_with_retry(|| client.series_categories()).await?;
-            let series = client.series(None).await?;
-            catalog.store_series(&categories, &series, now)
-        }
-    }
+    let data = fetch_section(client, section).await?;
+    catalog.store_section(&data, now)
 }
 
 /// Tentatives pour une liste de catégories vide. Le panneau de référence

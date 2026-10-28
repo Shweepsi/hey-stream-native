@@ -142,7 +142,8 @@ impl Catalog {
         Ok(self.now_next(stream_id, now)?.next.is_none())
     }
 
-    fn mark_epg_attempt(&mut self, stream_id: i64, now: i64) -> Result<()> {
+    /// Note une demande d'EPG échouée : pas de nouvel essai avant 15 min.
+    pub fn mark_epg_attempt(&mut self, stream_id: i64, now: i64) -> Result<()> {
         self.conn.execute(
             "INSERT OR REPLACE INTO epg_fetch (stream_id, fetched_at) VALUES (?1, ?2)",
             params![stream_id, now],

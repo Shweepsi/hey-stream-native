@@ -7,3 +7,7 @@ local.properties
 build/
 .gradle/
 xcuserdata/
+/bindings
+ffi/smoke/kotlin/.gradle/
+ffi/smoke/kotlin/build/
+ffi/smoke/kotlin/.kotlin/
