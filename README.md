@@ -25,7 +25,8 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` : client Xtream tolérant (auth, catégories, direct, films, séries, URL de lecture) | ✅ testé |
 | `core` : cache SQLite du catalogue, recherche, détection adulte | ✅ testé |
 | `core` : favoris, récents, reprise de lecture | ✅ testé |
-| `core` : contrôle parental (PIN), catégories masquées, EPG court | à faire |
+| `core` : contrôle parental (PIN), catégories masquées, EPG court | ✅ testé |
+| `core` : User-Agent `HeyStream`, épisodes de série (`get_series_info`) | à faire |
 | Liaisons UniFFI | à faire |
 | Android (Compose + Compose for TV + Media3) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |

@@ -163,7 +163,9 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
     {
         let conn = rusqlite::Connection::open(&path).unwrap();
         conn.execute_batch(
-            "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume; PRAGMA user_version = 1;",
+            "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume;
+             DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
+             PRAGMA user_version = 1;",
         )
         .unwrap();
     }

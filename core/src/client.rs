@@ -107,7 +107,7 @@ impl XtreamClient {
         url
     }
 
-    async fn get(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<Value> {
+    pub(crate) async fn get(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<Value> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("URL http(s) validée")

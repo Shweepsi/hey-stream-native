@@ -27,7 +27,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 ## Direct
 
 - Trois panneaux : catégories | chaînes | **aperçu vidéo** + programme
-  **en cours et suivant** (EPG court).
+  **en cours et suivant** (EPG court, demandé à la sélection d'une chaîne,
+  mis en cache, jamais plus d'une fois toutes les 15 min par chaîne).
 - Sélectionner une chaîne lance l'aperçu ; **OK** passe en plein écran ;
   **Retour** quitte le plein écran et revient à l'aperçu.
 - Pas de zapping en plein écran, pas de guide en grille, pas de replay.
@@ -59,7 +60,13 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - **Masquer des catégories** (pas de réordonnancement).
 - **Contrôle parental** : PIN à 4 chiffres ; les catégories **adultes sont
   détectées automatiquement** (marquage du fournisseur ou nom contenant
-  « XXX », « Adult », « +18 »…) et verrouillées par défaut.
+  « XXX », « Adult », « +18 »…) et verrouillées par défaut. Verrouillées,
+  elles restent listées mais leur contenu n'apparaît nulle part (listes,
+  recherche, favoris, récents, « Continuer »). Tant qu'aucun code n'est
+  défini, ouvrir une catégorie adulte propose d'en créer un. Le
+  déverrouillage vaut pour la session ; 5 codes faux bloquent 30 s.
+- Les catégories masquées quittent la navigation et la recherche ; leurs
+  favoris et récents restent visibles.
 - Langue, mise à jour manuelle du catalogue, déconnexion.
 
 ## Catalogue

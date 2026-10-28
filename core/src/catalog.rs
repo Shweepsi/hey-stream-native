@@ -38,6 +38,10 @@ pub struct CachedCategory {
     pub id: String,
     pub name: String,
     pub is_adult: bool,
+    /// Adulte et code PIN pas saisi : l'ouvrir demande le code.
+    pub locked: bool,
+    /// Masquée par l'utilisateur dans les réglages.
+    pub hidden: bool,
 }
 
 /// Entrée d'une liste (chaîne, film ou série), commune aux trois sections.
@@ -100,11 +104,17 @@ const MIGRATIONS: &[&str] = &[
     );",
     // 2 : données de l'utilisateur, conservées d'un rafraîchissement à l'autre
     crate::user_data::MIGRATION,
+    // 3 : contrôle parental, catégories masquées, EPG court
+    crate::parental::MIGRATION,
 ];
 
 /// Cache du catalogue d'un abonnement.
 pub struct Catalog {
     pub(crate) conn: Connection,
+    /// Catégories adultes déverrouillées par le code PIN, pour cette session
+    /// seulement : chaque ouverture repart verrouillée.
+    pub(crate) parental_unlocked: bool,
+    pub(crate) pin_attempts: crate::parental::PinAttempts,
 }
 
 impl Catalog {
@@ -126,7 +136,11 @@ impl Catalog {
             tx.pragma_update(None, "user_version", index as i64 + 1)?;
         }
         tx.commit()?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            parental_unlocked: false,
+            pin_attempts: Default::default(),
+        })
     }
 
     /// Vrai si la section n'a jamais été chargée ou date de plus de 24 h.
@@ -148,34 +162,56 @@ impl Catalog {
             .optional()?)
     }
 
-    /// Catégories d'une section, triées par nom (l'ordre du fournisseur varie
-    /// d'une requête à l'autre).
+    /// Catégories visibles d'une section, triées par nom (l'ordre du
+    /// fournisseur varie d'une requête à l'autre). Les catégories masquées
+    /// sont exclues ; les catégories adultes restent listées, verrouillées.
     pub fn categories(&self, section: Section) -> Result<Vec<CachedCategory>> {
+        Ok(self
+            .all_categories(section)?
+            .into_iter()
+            .filter(|c| !c.hidden)
+            .collect())
+    }
+
+    /// Toutes les catégories, masquées comprises (écran des réglages).
+    pub fn all_categories(&self, section: Section) -> Result<Vec<CachedCategory>> {
         let mut stmt = self.conn.prepare_cached(
-            "SELECT id, name, is_adult FROM category WHERE section = ?1 ORDER BY sort_key, id",
+            "SELECT c.id, c.name, c.is_adult, h.id IS NOT NULL
+             FROM category c
+             LEFT JOIN hidden_category h ON h.section = c.section AND h.id = c.id
+             WHERE c.section = ?1 ORDER BY c.sort_key, c.id",
         )?;
+        let unlocked = self.parental_unlocked;
         let rows = stmt.query_map([section.key()], |r| {
+            let is_adult: bool = r.get(2)?;
             Ok(CachedCategory {
                 id: r.get(0)?,
                 name: r.get(1)?,
-                is_adult: r.get(2)?,
+                is_adult,
+                locked: is_adult && !unlocked,
+                hidden: r.get(3)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Nombre d'entrées d'une section, éventuellement limité à une catégorie.
+    /// Nombre d'entrées visibles d'une section, éventuellement limité à une
+    /// catégorie.
     pub fn count(&self, section: Section, category_id: Option<&str>) -> Result<usize> {
-        let n: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM item WHERE section = ?1 AND (?2 IS NULL OR category_id = ?2)",
-            params![section.key(), category_id],
-            |r| r.get(0),
-        )?;
+        self.check_category(section, category_id)?;
+        let sql = format!(
+            "SELECT COUNT(*) FROM item i WHERE i.section = ?1 AND (?2 IS NULL OR i.category_id = ?2){}",
+            self.visibility("i", category_id.is_none()),
+        );
+        let n: i64 = self
+            .conn
+            .query_row(&sql, params![section.key(), category_id], |r| r.get(0))?;
         Ok(n as usize)
     }
 
     /// Une page d'entrées. Le direct suit la numérotation du fournisseur, les
-    /// films et séries l'ordre alphabétique.
+    /// films et séries l'ordre alphabétique. Ouvrir une catégorie verrouillée
+    /// renvoie [`Error::ParentalLock`].
     pub fn items(
         &self,
         section: Section,
@@ -183,13 +219,15 @@ impl Catalog {
         offset: usize,
         limit: usize,
     ) -> Result<Vec<CatalogItem>> {
-        let mut stmt = self.conn.prepare_cached(
-            "SELECT id, name, image, category_id, extension, epg_channel_id, rating, plot
-             FROM item
-             WHERE section = ?1 AND (?2 IS NULL OR category_id = ?2)
-             ORDER BY num IS NULL, num, sort_key, id
+        self.check_category(section, category_id)?;
+        let sql = format!(
+            "SELECT {ITEM_COLUMNS} FROM item i
+             WHERE i.section = ?1 AND (?2 IS NULL OR i.category_id = ?2){}
+             ORDER BY i.num IS NULL, i.num, i.sort_key, i.id
              LIMIT ?3 OFFSET ?4",
-        )?;
+            self.visibility("i", category_id.is_none()),
+        );
+        let mut stmt = self.conn.prepare_cached(&sql)?;
         let rows = stmt.query_map(
             params![section.key(), category_id, limit as i64, offset as i64],
             |r| row_to_item(section, r),
@@ -197,33 +235,34 @@ impl Catalog {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    /// Une entrée, sauf si elle appartient à une catégorie verrouillée.
     pub fn item(&self, section: Section, id: i64) -> Result<Option<CatalogItem>> {
+        let sql = format!(
+            "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = ?1 AND i.id = ?2{}",
+            self.visibility("i", false),
+        );
         Ok(self
             .conn
-            .query_row(
-                "SELECT id, name, image, category_id, extension, epg_channel_id, rating, plot
-                 FROM item WHERE section = ?1 AND id = ?2",
-                params![section.key(), id],
-                |r| row_to_item(section, r),
-            )
+            .query_row(&sql, params![section.key(), id], |r| {
+                row_to_item(section, r)
+            })
             .optional()?)
     }
 
     /// Recherche par nom, insensible à la casse et aux accents. Chaque mot de
-    /// la requête doit apparaître dans le nom.
+    /// la requête doit apparaître dans le nom. Les catégories masquées et
+    /// verrouillées sont exclues.
     pub fn search(&self, section: Section, query: &str, limit: usize) -> Result<Vec<CatalogItem>> {
         let words: Vec<String> = fold(query).split_whitespace().map(like_pattern).collect();
         if words.is_empty() {
             return Ok(Vec::new());
         }
-        let mut sql = String::from(
-            "SELECT id, name, image, category_id, extension, epg_channel_id, rating, plot
-             FROM item WHERE section = ?1",
-        );
+        let mut sql = format!("SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = ?1");
         for i in 0..words.len() {
-            sql.push_str(&format!(" AND search_key LIKE ?{} ESCAPE '\\'", i + 2));
+            sql.push_str(&format!(" AND i.search_key LIKE ?{} ESCAPE '\\'", i + 2));
         }
-        sql.push_str(&format!(" ORDER BY sort_key, id LIMIT {limit}"));
+        sql.push_str(&self.visibility("i", true));
+        sql.push_str(&format!(" ORDER BY i.sort_key, i.id LIMIT {limit}"));
         let mut stmt = self.conn.prepare(&sql)?;
         let key = section.key();
         let mut values: Vec<&dyn rusqlite::ToSql> = vec![&key];
@@ -425,6 +464,9 @@ where
     }
     Ok(categories)
 }
+
+pub(crate) const ITEM_COLUMNS: &str =
+    "i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot";
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, num, image, category_id, extension,
