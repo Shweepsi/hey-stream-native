@@ -27,6 +27,11 @@ func run() throws {
     try core.unlockParental(pin: "1234")
     precondition(core.isParentalUnlocked())
     precondition(core.streamUrl(kind: .live, id: 5, extension: nil) == "http://127.0.0.1:9/live/u/p/5.ts")
+    // `precondition` n'accepte pas `try` : appels sortis de la condition.
+    let liveUrl = try core.liveUrl(streamId: 5, preferred: .hls)
+    precondition(liveUrl == "http://127.0.0.1:9/live/u/p/5.m3u8")
+    let account = try core.accountInfo()
+    precondition(account == nil)
 
     try core.signOut()
     do {

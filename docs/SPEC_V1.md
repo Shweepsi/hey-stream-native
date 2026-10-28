@@ -21,7 +21,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 - Trois grandes tuiles : **Direct**, **Films**, **Séries**.
 - Rangée **Continuer** (reprise de lecture des films et épisodes).
-- **Infos abonnement** : date d'expiration.
+- **Infos abonnement** : date d'expiration (celle de la dernière connexion
+  réussie, affichée aussi hors ligne).
 - Boutons **Recherche** et **Réglages**.
 
 ## Direct

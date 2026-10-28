@@ -407,3 +407,44 @@ fn account_key_ignores_password_but_not_server_or_user() {
     let text = format!("{a:?}");
     assert!(!text.contains("panel") && !text.contains("p1"));
 }
+
+#[test]
+fn account_info_is_cached_for_offline_use() {
+    use xtream_core::{AccountInfo, AccountMatch, LiveFormat, ServerInfo};
+    let dir = std::env::temp_dir().join(format!("hs-account-info-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    let a = key("panel.example", "alice", "p");
+    let mut c = Catalog::open(&path).unwrap();
+    assert_eq!(c.bind_account(&a).unwrap(), AccountMatch::Unbound);
+    assert_eq!(c.cached_account().unwrap(), None);
+    assert_eq!(c.live_format(LiveFormat::Ts).unwrap(), LiveFormat::Ts);
+
+    let info = AccountInfo {
+        expires_at: Some(1_893_456_000),
+        max_connections: Some(1),
+        active_connections: Some(0),
+        allowed_output_formats: vec!["m3u8".into()],
+        server: ServerInfo::default(),
+    };
+    c.save_account(&info, 500).unwrap();
+    drop(c);
+
+    // Rouvert sans réseau : l'accueil a sa date d'expiration.
+    let mut c = Catalog::open(&path).unwrap();
+    let cached = c.cached_account().unwrap().unwrap();
+    assert_eq!(cached.expires_at, Some(1_893_456_000));
+    assert_eq!(cached.checked_at, 500);
+    // Le fournisseur n'autorise que le HLS.
+    assert_eq!(c.live_format(LiveFormat::Ts).unwrap(), LiveFormat::Hls);
+
+    // Même identifiant, autre adresse : gardé ; déconnexion : effacé.
+    let a2 = key("autre.example", "alice", "p");
+    assert_eq!(c.bind_account(&a2).unwrap(), AccountMatch::OtherServer);
+    assert!(c.cached_account().unwrap().is_some());
+    c.clear_all().unwrap();
+    assert_eq!(c.cached_account().unwrap(), None);
+    drop(c);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

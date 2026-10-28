@@ -4,7 +4,9 @@
 use std::sync::Arc;
 use std::thread;
 
-use heystream::{HeyStreamCore, HeyStreamError, PlaybackKind, Resume, Section, StreamKind};
+use heystream::{
+    HeyStreamCore, HeyStreamError, LiveFormat, PlaybackKind, Resume, Section, StreamKind,
+};
 use serde_json::json;
 use wiremock::matchers::{method, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -32,13 +34,16 @@ impl Panel {
 
     /// Accepte la connexion de `user` (les autres reçoivent un 404).
     fn accept(&self, user: &str) {
+        self.accept_with(user, json!({"auth": 1, "status": "Active"}));
+    }
+
+    fn accept_with(&self, user: &str, user_info: serde_json::Value) {
         self.runtime.block_on(
             Mock::given(method("GET"))
                 .and(query_param_is_missing("action"))
                 .and(query_param("username", user))
                 .respond_with(
-                    ResponseTemplate::new(200)
-                        .set_body_json(json!({"user_info": {"auth": 1, "status": "Active"}})),
+                    ResponseTemplate::new(200).set_body_json(json!({"user_info": user_info})),
                 )
                 .mount(&self.server),
         );
@@ -319,6 +324,7 @@ fn account_changes_erase_only_after_a_successful_login() {
     // rafraîchi.
     let typo = open_as(&url, "uu", &dir);
     assert!(typo.authenticate().is_err());
+    assert!(typo.account_info().unwrap().is_none());
     assert!(typo.refresh(true).is_err());
     drop(typo);
     assert!(
@@ -423,5 +429,49 @@ fn a_failed_section_is_not_downloaded_again_at_once() {
     core.refresh(false).unwrap();
     drop(core);
     drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn account_info_and_live_format_work_offline() {
+    let panel = panel(vec![]);
+    panel.accept_with(
+        "u",
+        json!({"auth": 1, "status": "Active", "exp_date": "1893456000",
+               "max_connections": "1", "allowed_output_formats": ["m3u8"]}),
+    );
+    let url = panel.server.uri();
+    let dir = temp_dir("account-info");
+    let core = open(&panel, &dir);
+    assert!(core.account_info().unwrap().is_none());
+    // Formats encore inconnus : la préférence du lecteur.
+    assert!(
+        core.live_url(5, LiveFormat::Ts)
+            .unwrap()
+            .ends_with("/live/u/p/5.ts")
+    );
+    let info = core.authenticate().unwrap();
+    assert_eq!(info.expires_at, Some(1_893_456_000));
+    drop(core);
+
+    // Fournisseur injoignable : l'accueil a toujours la date d'expiration, et
+    // le direct est demandé dans le seul format autorisé.
+    drop(panel);
+    let core = open_as(&url, "u", &dir);
+    assert!(core.authenticate().is_err());
+    let cached = core.account_info().unwrap().unwrap();
+    assert_eq!(cached.expires_at, Some(1_893_456_000));
+    assert_eq!(cached.max_connections, Some(1));
+    assert_eq!(cached.checked_at, info.checked_at);
+    assert!(
+        core.live_url(5, LiveFormat::Ts)
+            .unwrap()
+            .ends_with("/live/u/p/5.m3u8")
+    );
+    assert!(
+        core.live_url(5, LiveFormat::Hls)
+            .unwrap()
+            .ends_with("/live/u/p/5.m3u8")
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }

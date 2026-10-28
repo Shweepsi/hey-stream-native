@@ -28,7 +28,8 @@ async fn authenticate_reads_string_numbers() {
     let server = MockServer::start().await;
     let body = json!({
         "user_info": {"auth": 1, "status": "Active", "exp_date": "1893456000",
-                      "max_connections": "2", "active_cons": 0},
+                      "max_connections": "2", "active_cons": 0,
+                      "allowed_output_formats": ["M3U8", " ts ", ""]},
         "server_info": {"url": "example.com", "port": 8080, "timezone": "Europe/Paris"}
     });
     mock(
@@ -40,6 +41,7 @@ async fn authenticate_reads_string_numbers() {
 
     let account = client(&server).authenticate().await.unwrap();
     assert_eq!(account.expires_at, Some(1_893_456_000));
+    assert_eq!(account.allowed_output_formats, ["m3u8", "ts"]);
     assert_eq!(account.max_connections, Some(2));
     assert_eq!(account.server.port.as_deref(), Some("8080"));
 }

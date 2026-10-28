@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::lenient::{flag, opt_i64, opt_string, required_i64};
+use crate::lenient::{flag, opt_i64, opt_string, required_i64, string_list};
 
 /// Identifiants d'une source Xtream.
 #[derive(Clone, PartialEq, Eq)]
@@ -100,6 +100,9 @@ pub struct AccountInfo {
     pub expires_at: Option<i64>,
     pub max_connections: Option<i64>,
     pub active_connections: Option<i64>,
+    /// Formats de flux autorisés par le fournisseur (`ts`, `m3u8`…), en
+    /// minuscules ; vide s'il ne le précise pas.
+    pub allowed_output_formats: Vec<String>,
     pub server: ServerInfo,
 }
 
@@ -129,6 +132,8 @@ pub(crate) struct RawUserInfo {
     pub max_connections: Option<i64>,
     #[serde(default, deserialize_with = "opt_i64")]
     pub active_cons: Option<i64>,
+    #[serde(default, deserialize_with = "string_list")]
+    pub allowed_output_formats: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

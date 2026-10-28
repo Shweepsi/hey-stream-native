@@ -18,7 +18,7 @@ mod parental;
 mod url;
 mod user_data;
 
-pub use account::{AccountKey, AccountMatch};
+pub use account::{AccountKey, AccountMatch, CachedAccount};
 pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, SectionData,
     fetch_section, refresh_section,
@@ -28,5 +28,5 @@ pub use details::{Episode, MovieInfo, Season, SeriesInfo};
 pub use epg::{EPG_MIN_INTERVAL_SECS, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
-pub use url::{StreamKind, normalize_server_url};
+pub use url::{LiveFormat, StreamKind, normalize_server_url};
 pub use user_data::{PlaybackKind, RECENTS_LIMIT, Resume, ResumeEntry};
