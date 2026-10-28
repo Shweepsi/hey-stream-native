@@ -18,6 +18,7 @@ mod parental;
 mod url;
 mod user_data;
 
+pub use account::{AccountKey, AccountMatch};
 pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, SectionData,
     fetch_section, refresh_section,

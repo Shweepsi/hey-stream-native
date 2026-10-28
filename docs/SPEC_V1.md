@@ -71,6 +71,11 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - Les catégories masquées quittent la navigation et la recherche ; leurs
   favoris et récents restent visibles.
 - Langue, mise à jour manuelle du catalogue, déconnexion.
+- Les données (catalogue, favoris, récents, reprise, code PIN, catégories
+  masquées) appartiennent à l'identifiant : se connecter avec un autre
+  identifiant les efface, le même identifiant sur une autre adresse du
+  fournisseur les garde et recharge seulement le catalogue. Rien n'est
+  effacé avant une connexion réussie (une faute de frappe n'efface rien).
 
 ## Catalogue
 

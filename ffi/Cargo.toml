@@ -11,11 +11,17 @@ crate-type = ["cdylib", "staticlib", "lib"]
 [[bin]]
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+# Générateur des liaisons (scripts/bindings.sh) : absent de la bibliothèque
+# livrée dans les apps.
+bindgen = ["uniffi/cli"]
 
 [dependencies]
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", features = ["rt-multi-thread"] }
-uniffi = { version = "0.32.2", features = ["cli"] }
+uniffi = "0.32.2"
 xtream-core = { path = "../core" }
 
 [dev-dependencies]

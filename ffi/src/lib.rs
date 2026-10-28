@@ -6,8 +6,10 @@
 //! du cache répondent en millisecondes ; seules les méthodes réseau
 //! (`authenticate`, `refresh*`, `now_next`, `movie_info`, `series_info`)
 //! peuvent durer quelques secondes, et le cache reste lisible pendant ce
-//! temps : le téléchargement se fait hors du verrou.
+//! temps : le téléchargement se fait hors du verrou, et l'enregistrement
+//! d'une section passe par une seconde connexion SQLite.
 
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -50,6 +52,9 @@ pub enum HeyStreamError {
     WrongPin,
     #[error("trop de codes incorrects")]
     TooManyAttempts { retry_in_secs: i64 },
+    /// Après `sign_out` : l'objet ne sert plus, en créer un nouveau.
+    #[error("abonnement déconnecté")]
+    SignedOut,
 }
 
 impl From<xc::Error> for HeyStreamError {
@@ -359,26 +364,69 @@ fn now() -> i64 {
 // --- Objet principal -----------------------------------------------------------
 
 /// Un abonnement Xtream et son cache local.
+///
+/// Verrous, toujours pris dans cet ordre : `refresh_gate`, `writer`, `store`.
 #[derive(uniffi::Object)]
 pub struct HeyStreamCore {
     client: xc::XtreamClient,
-    catalog: Mutex<xc::Catalog>,
+    account: xc::AccountKey,
+    /// Lectures du cache et petites écritures (favoris, reprise, EPG…).
+    store: Mutex<Store>,
+    /// Seconde connexion au même fichier, réservée à l'enregistrement des
+    /// sections : des dizaines de milliers de lignes écrites sans bloquer les
+    /// lectures (SQLite en WAL).
+    writer: Mutex<xc::Catalog>,
     runtime: tokio::runtime::Runtime,
     /// Un seul rafraîchissement à la fois : deux appels simultanés (lancement
     /// et bouton manuel) ne téléchargent pas deux fois le catalogue.
     refresh_gate: Mutex<()>,
+    /// Dernière tentative de téléchargement de chaque section, réussie ou non.
+    attempts: Mutex<[Option<i64>; 3]>,
     /// Dernière fiche série chargée, pour l'épisode suivant sans requête.
     last_series: Mutex<Option<(i64, xc::SeriesInfo)>>,
 }
 
-/// Un rafraîchissement forcé juste après un autre (moins d'une minute) ne
-/// retélécharge pas la section.
-const FORCE_MIN_INTERVAL_SECS: i64 = 60;
+/// Cache et lien avec l'abonnement, sous le même verrou.
+struct Store {
+    catalog: xc::Catalog,
+    account: AccountState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AccountState {
+    /// Le cache est celui de cet abonnement.
+    Bound,
+    /// Le cache est celui d'un autre identifiant ou d'une autre adresse : il
+    /// n'est ni effacé ni rafraîchi avant qu'`authenticate` réussisse.
+    Pending,
+    /// Après `sign_out`.
+    SignedOut,
+}
+
+impl Deref for Store {
+    type Target = xc::Catalog;
+    fn deref(&self) -> &xc::Catalog {
+        &self.catalog
+    }
+}
+
+impl DerefMut for Store {
+    fn deref_mut(&mut self) -> &mut xc::Catalog {
+        &mut self.catalog
+    }
+}
+
+/// Une section tentée il y a moins d'une minute (réussite ou échec) n'est
+/// pas retéléchargée, même si le rafraîchissement est forcé.
+const MIN_ATTEMPT_INTERVAL_SECS: i64 = 60;
 
 #[uniffi::export]
 impl HeyStreamCore {
     /// Ouvre l'abonnement ; le cache est stocké dans `data_dir/catalog.db`.
-    /// Ne fait aucune requête réseau.
+    /// Ne fait aucune requête réseau. Si le cache est celui d'un autre
+    /// identifiant ou d'une autre adresse, il n'est effacé (autre
+    /// identifiant) ou rechargé (autre adresse) qu'après un `authenticate`
+    /// réussi : une faute de frappe dans le formulaire n'efface rien.
     #[uniffi::constructor]
     pub fn new(
         server_url: String,
@@ -392,9 +440,18 @@ impl HeyStreamCore {
             password,
         })?;
         let path = PathBuf::from(data_dir).join("catalog.db");
-        let mut catalog = xc::Catalog::open(path)?;
-        // Cache d'un autre abonnement : effacé avant usage.
-        catalog.bind_account(&client.account_key())?;
+        let mut catalog = xc::Catalog::open(&path)?;
+        let account = client.account_key();
+        let state = match catalog.account_match(&account)? {
+            xc::AccountMatch::Same => AccountState::Bound,
+            // Cache neuf, ou restes d'une déconnexion : ils ne sont à personne.
+            xc::AccountMatch::Unbound => {
+                catalog.bind_account(&account)?;
+                AccountState::Bound
+            }
+            xc::AccountMatch::OtherServer | xc::AccountMatch::OtherUser => AccountState::Pending,
+        };
+        let writer = xc::Catalog::open(&path)?;
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -402,9 +459,15 @@ impl HeyStreamCore {
             .map_err(|_| HeyStreamError::Storage)?;
         Ok(std::sync::Arc::new(Self {
             client,
-            catalog: Mutex::new(catalog),
+            account,
+            store: Mutex::new(Store {
+                catalog,
+                account: state,
+            }),
+            writer: Mutex::new(writer),
             runtime,
             refresh_gate: Mutex::new(()),
+            attempts: Mutex::new([None; 3]),
             last_series: Mutex::new(None),
         }))
     }
@@ -412,8 +475,11 @@ impl HeyStreamCore {
     // Réseau -----------------------------------------------------------------
 
     /// Vérifie les identifiants (formulaire de connexion, infos abonnement).
+    /// Réussi, il lie le cache à cet abonnement.
     pub fn authenticate(&self) -> Result<AccountInfo> {
+        self.check_signed_in()?;
         let account = self.runtime.block_on(self.client.authenticate())?;
+        self.bind_if_pending()?;
         Ok(AccountInfo {
             expires_at: account.expires_at,
             max_connections: account.max_connections,
@@ -429,6 +495,11 @@ impl HeyStreamCore {
             .refresh_gate
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // Cache d'un autre abonnement : identifiants vérifiés avant de le
+        // remplacer.
+        if self.lock()?.account == AccountState::Pending {
+            self.authenticate()?;
+        }
         let mut results = Vec::new();
         let mut first_error = None;
         let (mut attempted, mut succeeded) = (0, 0);
@@ -442,11 +513,15 @@ impl HeyStreamCore {
             };
             if self.refresh_due(section, force)? {
                 attempted += 1;
+                self.attempts_lock()[section as usize] = Some(now());
                 // Téléchargement hors verrou : le cache reste lisible.
                 let fetched = self
                     .runtime
                     .block_on(xc::fetch_section(&self.client, section.into()));
-                match fetched.and_then(|data| self.lock().store_section(&data, now())) {
+                match fetched
+                    .map_err(HeyStreamError::from)
+                    .and_then(|data| self.store_section(&data))
+                {
                     Ok(xc::RefreshOutcome::Updated { items, .. }) => {
                         succeeded += 1;
                         entry.refreshed = true;
@@ -465,7 +540,7 @@ impl HeyStreamCore {
             results.push(entry);
         }
         match first_error {
-            Some(error) if attempted > 0 && succeeded == 0 => Err(error.into()),
+            Some(error) if attempted > 0 && succeeded == 0 => Err(error),
             _ => Ok(results),
         }
     }
@@ -477,12 +552,11 @@ impl HeyStreamCore {
         // La demande est réservée sous le verrou : un appel simultané pour la
         // même chaîne lit le cache sans envoyer de seconde requête. En cas
         // d'erreur réseau, le cache reste tel quel.
-        if self.lock().claim_epg_fetch(stream_id, t)?
-            && let Ok(programmes) = self.runtime.block_on(self.client.short_epg(stream_id))
-        {
-            self.lock().store_epg(stream_id, &programmes, t)?;
+        let claimed = self.lock()?.claim_epg_fetch(stream_id, t)?;
+        if claimed && let Ok(programmes) = self.runtime.block_on(self.client.short_epg(stream_id)) {
+            self.lock()?.store_epg(stream_id, &programmes, t)?;
         }
-        let nn = self.lock().now_next(stream_id, t)?;
+        let nn = self.lock()?.now_next(stream_id, t)?;
         Ok(NowNext {
             now: nn.now.map(Into::into),
             next: nn.next.map(Into::into),
@@ -503,9 +577,7 @@ impl HeyStreamCore {
     }
 
     pub fn series_info(&self, series_id: i64) -> Result<SeriesInfo> {
-        let info = self.runtime.block_on(self.client.series_info(series_id))?;
-        *self.last_series_lock() = Some((series_id, info.clone()));
-        Ok(info.into())
+        Ok(self.load_series(series_id)?.into())
     }
 
     /// Épisode qui suit `episode_id` (lecture automatique), d'après la fiche
@@ -518,21 +590,24 @@ impl HeyStreamCore {
             .map(|(_, info)| info.next_episode(episode_id).cloned());
         let next = match cached {
             Some(next) => next,
-            None => {
-                self.series_info(series_id)?;
-                self.last_series_lock()
-                    .as_ref()
-                    .and_then(|(_, info)| info.next_episode(episode_id).cloned())
-            }
+            None => self
+                .load_series(series_id)?
+                .next_episode(episode_id)
+                .cloned(),
         };
         Ok(next.map(Into::into))
     }
 
     /// Déconnexion : efface catalogue, favoris, reprise, code PIN et EPG de
-    /// cet abonnement.
+    /// cet abonnement. Un enregistrement en cours se termine d'abord ; un
+    /// téléchargement en cours ne sera pas enregistré. L'objet ne sert plus
+    /// ensuite (`SignedOut`).
     pub fn sign_out(&self) -> Result<()> {
+        let _writer = self.writer_lock();
+        let mut store = self.lock_any();
+        store.account = AccountState::SignedOut;
         *self.last_series_lock() = None;
-        Ok(self.lock().clear_all()?)
+        Ok(store.clear_all()?)
     }
 
     /// URL de lecture, à donner au lecteur uniquement (jamais journalisée).
@@ -546,7 +621,7 @@ impl HeyStreamCore {
 
     pub fn categories(&self, section: Section) -> Result<Vec<CategoryEntry>> {
         Ok(self
-            .lock()
+            .lock()?
             .categories(section.into())?
             .into_iter()
             .map(Into::into)
@@ -555,7 +630,7 @@ impl HeyStreamCore {
 
     pub fn all_categories(&self, section: Section) -> Result<Vec<CategoryEntry>> {
         Ok(self
-            .lock()
+            .lock()?
             .all_categories(section.into())?
             .into_iter()
             .map(Into::into)
@@ -563,7 +638,7 @@ impl HeyStreamCore {
     }
 
     pub fn count(&self, section: Section, category_id: Option<String>) -> Result<u64> {
-        Ok(self.lock().count(section.into(), category_id.as_deref())? as u64)
+        Ok(self.lock()?.count(section.into(), category_id.as_deref())? as u64)
     }
 
     pub fn items(
@@ -573,7 +648,7 @@ impl HeyStreamCore {
         offset: u32,
         limit: u32,
     ) -> Result<Vec<CatalogItem>> {
-        Ok(items(self.lock().items(
+        Ok(items(self.lock()?.items(
             section.into(),
             category_id.as_deref(),
             offset as usize,
@@ -582,11 +657,11 @@ impl HeyStreamCore {
     }
 
     pub fn item(&self, section: Section, id: i64) -> Result<Option<CatalogItem>> {
-        Ok(self.lock().item(section.into(), id)?.map(Into::into))
+        Ok(self.lock()?.item(section.into(), id)?.map(Into::into))
     }
 
     pub fn search(&self, section: Section, query: String, limit: u32) -> Result<Vec<CatalogItem>> {
-        Ok(items(self.lock().search(
+        Ok(items(self.lock()?.search(
             section.into(),
             &query,
             limit as usize,
@@ -596,15 +671,15 @@ impl HeyStreamCore {
     // Favoris, récents, reprise ---------------------------------------------
 
     pub fn toggle_favorite(&self, section: Section, id: i64) -> Result<bool> {
-        Ok(self.lock().toggle_favorite(section.into(), id, now())?)
+        Ok(self.lock()?.toggle_favorite(section.into(), id, now())?)
     }
 
     pub fn is_favorite(&self, section: Section, id: i64) -> Result<bool> {
-        Ok(self.lock().is_favorite(section.into(), id)?)
+        Ok(self.lock()?.is_favorite(section.into(), id)?)
     }
 
     pub fn favorites(&self, section: Section, offset: u32, limit: u32) -> Result<Vec<CatalogItem>> {
-        Ok(items(self.lock().favorites(
+        Ok(items(self.lock()?.favorites(
             section.into(),
             offset as usize,
             limit as usize,
@@ -612,28 +687,28 @@ impl HeyStreamCore {
     }
 
     pub fn mark_watched(&self, section: Section, id: i64) -> Result<()> {
-        Ok(self.lock().mark_watched(section.into(), id, now())?)
+        Ok(self.lock()?.mark_watched(section.into(), id, now())?)
     }
 
     pub fn recents(&self, section: Section, limit: u32) -> Result<Vec<CatalogItem>> {
-        Ok(items(self.lock().recents(section.into(), limit as usize)?))
+        Ok(items(self.lock()?.recents(section.into(), limit as usize)?))
     }
 
     pub fn save_progress(&self, resume: Resume) -> Result<()> {
-        Ok(self.lock().save_progress(&resume.into(), now())?)
+        Ok(self.lock()?.save_progress(&resume.into(), now())?)
     }
 
     pub fn progress(&self, kind: PlaybackKind, id: i64) -> Result<Option<i64>> {
-        Ok(self.lock().progress(kind.into(), id)?)
+        Ok(self.lock()?.progress(kind.into(), id)?)
     }
 
     pub fn clear_progress(&self, kind: PlaybackKind, id: i64) -> Result<()> {
-        Ok(self.lock().clear_progress(kind.into(), id)?)
+        Ok(self.lock()?.clear_progress(kind.into(), id)?)
     }
 
     pub fn continue_watching(&self, limit: u32) -> Result<Vec<ResumeEntry>> {
         Ok(self
-            .lock()
+            .lock()?
             .continue_watching(limit as usize)?
             .into_iter()
             .map(|e| ResumeEntry {
@@ -646,28 +721,28 @@ impl HeyStreamCore {
     // Contrôle parental ------------------------------------------------------
 
     pub fn has_pin(&self) -> Result<bool> {
-        Ok(self.lock().has_pin()?)
+        Ok(self.lock()?.has_pin()?)
     }
 
     pub fn set_pin(&self, new_pin: String, current: Option<String>) -> Result<()> {
-        Ok(self.lock().set_pin(&new_pin, current.as_deref(), now())?)
+        Ok(self.lock()?.set_pin(&new_pin, current.as_deref(), now())?)
     }
 
     pub fn unlock_parental(&self, pin: String) -> Result<()> {
-        Ok(self.lock().unlock_parental(&pin, now())?)
+        Ok(self.lock()?.unlock_parental(&pin, now())?)
     }
 
     pub fn lock_parental(&self) {
-        self.lock().lock_parental();
+        self.lock_any().lock_parental();
     }
 
     pub fn is_parental_unlocked(&self) -> bool {
-        self.lock().is_parental_unlocked()
+        self.lock_any().is_parental_unlocked()
     }
 
     pub fn set_category_hidden(&self, section: Section, id: String, hidden: bool) -> Result<()> {
         Ok(self
-            .lock()
+            .lock()?
             .set_category_hidden(section.into(), &id, hidden)?)
     }
 }
@@ -675,16 +750,44 @@ impl HeyStreamCore {
 impl HeyStreamCore {
     fn refresh_due(&self, section: Section, force: bool) -> Result<bool> {
         let t = now();
-        let catalog = self.lock();
-        if catalog.needs_refresh(section.into(), t)? {
-            return Ok(true);
+        if !force && !self.lock()?.needs_refresh(section.into(), t)? {
+            return Ok(false);
         }
-        // Forcé : sauf si la section vient d'être rafraîchie (par exemple par
-        // un appel qui attendait derrière le même verrou).
-        Ok(force
-            && catalog
-                .refreshed_at(section.into())?
-                .is_none_or(|at| t - at >= FORCE_MIN_INTERVAL_SECS))
+        // Tentée il y a moins d'une minute, par exemple par un appel qui
+        // attendait derrière le même verrou : pas de nouveau téléchargement,
+        // même après un échec.
+        Ok(self.attempts_lock()[section as usize]
+            .is_none_or(|at| t < at || t - at >= MIN_ATTEMPT_INTERVAL_SECS))
+    }
+
+    /// Enregistre une section sur la connexion d'écriture, sauf après une
+    /// déconnexion survenue pendant le téléchargement.
+    fn store_section(&self, data: &xc::SectionData) -> Result<xc::RefreshOutcome> {
+        let mut writer = self.writer_lock();
+        self.check_signed_in()?;
+        Ok(writer.store_section(data, now())?)
+    }
+
+    /// Lie le cache à cet abonnement après une authentification réussie :
+    /// cache d'un autre identifiant effacé, d'une autre adresse à recharger.
+    fn bind_if_pending(&self) -> Result<()> {
+        if self.lock()?.account != AccountState::Pending {
+            return Ok(());
+        }
+        let _writer = self.writer_lock();
+        let mut store = self.lock()?;
+        if store.account == AccountState::Pending {
+            store.bind_account(&self.account)?;
+            store.account = AccountState::Bound;
+            *self.attempts_lock() = [None; 3];
+        }
+        Ok(())
+    }
+
+    fn load_series(&self, series_id: i64) -> Result<xc::SeriesInfo> {
+        let info = self.runtime.block_on(self.client.series_info(series_id))?;
+        *self.last_series_lock() = Some((series_id, info.clone()));
+        Ok(info)
     }
 
     fn last_series_lock(&self) -> MutexGuard<'_, Option<(i64, xc::SeriesInfo)>> {
@@ -693,10 +796,35 @@ impl HeyStreamCore {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
+    fn attempts_lock(&self) -> MutexGuard<'_, [Option<i64>; 3]> {
+        self.attempts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn writer_lock(&self) -> MutexGuard<'_, xc::Catalog> {
+        self.writer
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Le cache, sauf après `sign_out`.
+    fn lock(&self) -> Result<MutexGuard<'_, Store>> {
+        let store = self.lock_any();
+        if store.account == AccountState::SignedOut {
+            return Err(HeyStreamError::SignedOut);
+        }
+        Ok(store)
+    }
+
+    fn check_signed_in(&self) -> Result<()> {
+        self.lock().map(drop)
+    }
+
     /// Un panic pendant une écriture ne doit pas rendre le cache inutilisable :
     /// SQLite garantit déjà la cohérence des transactions.
-    fn lock(&self) -> MutexGuard<'_, xc::Catalog> {
-        self.catalog
+    fn lock_any(&self) -> MutexGuard<'_, Store> {
+        self.store
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }

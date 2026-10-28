@@ -127,6 +127,10 @@ impl Catalog {
     }
 
     fn init(mut conn: Connection) -> Result<Self> {
+        // Le même fichier peut être ouvert deux fois (lectures, et
+        // enregistrement d'une section) : une écriture attend la fin de
+        // l'autre au lieu d'échouer.
+        conn.busy_timeout(std::time::Duration::from_secs(30))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;

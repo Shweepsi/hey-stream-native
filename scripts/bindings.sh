@@ -9,7 +9,7 @@ lib="target/debug/libheystream.so"
 [[ "$(uname)" == "Darwin" ]] && lib="target/debug/libheystream.dylib"
 for l in kotlin swift; do
   if [[ "$lang" == "all" || "$lang" == "$l" ]]; then
-    cargo run -q -p heystream-ffi --bin uniffi-bindgen -- generate \
+    cargo run -q -p heystream-ffi --features bindgen --bin uniffi-bindgen -- generate \
       --library "$lib" --language "$l" \
       --out-dir "bindings/$l" --no-format
   fi

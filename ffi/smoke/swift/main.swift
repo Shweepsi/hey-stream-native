@@ -27,6 +27,12 @@ func run() throws {
     try core.unlockParental(pin: "1234")
     precondition(core.isParentalUnlocked())
     precondition(core.streamUrl(kind: .live, id: 5, extension: nil) == "http://127.0.0.1:9/live/u/p/5.ts")
+
+    try core.signOut()
+    do {
+        _ = try core.categories(section: .live)
+        preconditionFailure("objet utilisable après la déconnexion")
+    } catch HeyStreamError.SignedOut {}
     print("liaisons Swift : OK")
 }
 

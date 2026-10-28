@@ -6,32 +6,53 @@ use std::thread;
 
 use heystream::{HeyStreamCore, HeyStreamError, PlaybackKind, Resume, Section, StreamKind};
 use serde_json::json;
-use wiremock::matchers::{method, query_param};
+use wiremock::matchers::{method, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 struct Panel {
     server: MockServer,
     // Garde le runtime du faux serveur en vie pendant le test.
-    _runtime: tokio::runtime::Runtime,
+    runtime: tokio::runtime::Runtime,
+}
+
+impl Panel {
+    /// Répond à `action` après `delay_ms`.
+    fn route(&self, action: &str, body: serde_json::Value, delay_ms: u64) {
+        self.runtime.block_on(
+            Mock::given(method("GET"))
+                .and(query_param("action", action))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_json(body)
+                        .set_delay(std::time::Duration::from_millis(delay_ms)),
+                )
+                .mount(&self.server),
+        );
+    }
+
+    /// Accepte la connexion de `user` (les autres reçoivent un 404).
+    fn accept(&self, user: &str) {
+        self.runtime.block_on(
+            Mock::given(method("GET"))
+                .and(query_param_is_missing("action"))
+                .and(query_param("username", user))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_json(json!({"user_info": {"auth": 1, "status": "Active"}})),
+                )
+                .mount(&self.server),
+        );
+    }
 }
 
 fn panel(routes: Vec<(&str, serde_json::Value)>) -> Panel {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let server = runtime.block_on(async {
-        let server = MockServer::start().await;
-        for (action, body) in routes {
-            Mock::given(method("GET"))
-                .and(query_param("action", action))
-                .respond_with(ResponseTemplate::new(200).set_body_json(body))
-                .mount(&server)
-                .await;
-        }
-        server
-    });
-    Panel {
-        server,
-        _runtime: runtime,
+    let server = runtime.block_on(MockServer::start());
+    let panel = Panel { server, runtime };
+    for (action, body) in routes {
+        panel.route(action, body, 0);
     }
+    panel
 }
 
 fn open(panel: &Panel, dir: &std::path::Path) -> std::sync::Arc<HeyStreamCore> {
@@ -197,10 +218,7 @@ fn counting_panel(action: &str, body: serde_json::Value, expected: u64) -> Panel
             .await;
         server
     });
-    Panel {
-        server,
-        _runtime: runtime,
-    }
+    Panel { server, runtime }
 }
 
 #[test]
@@ -255,9 +273,8 @@ fn simultaneous_refresh_downloads_once() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
-#[test]
-fn other_account_and_sign_out_start_from_an_empty_cache() {
-    let panel = panel(vec![
+fn live_panel() -> Panel {
+    panel(vec![
         (
             "get_live_categories",
             json!([{"category_id": "1", "category_name": "Infos"}]),
@@ -266,33 +283,145 @@ fn other_account_and_sign_out_start_from_an_empty_cache() {
             "get_live_streams",
             json!([{"stream_id": 5, "name": "France Info", "category_id": "1"}]),
         ),
-    ]);
+    ])
+}
+
+fn open_as(url: &str, user: &str, dir: &std::path::Path) -> Arc<HeyStreamCore> {
+    HeyStreamCore::new(
+        url.into(),
+        user.into(),
+        "p".into(),
+        dir.to_string_lossy().into(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn account_changes_erase_only_after_a_successful_login() {
+    let panel = live_panel();
+    panel.accept("u");
+    panel.accept("autre");
+    let url = panel.server.uri();
     let dir = temp_dir("account");
-    let core = open(&panel, &dir);
+    let core = open_as(&url, "u", &dir);
     core.refresh(true).unwrap();
     core.toggle_favorite(Section::Live, 5).unwrap();
     drop(core);
 
     // Même abonnement : tout est conservé.
-    let core = open(&panel, &dir);
+    assert!(
+        open_as(&url, "u", &dir)
+            .is_favorite(Section::Live, 5)
+            .unwrap()
+    );
+
+    // Identifiant mal tapé : connexion refusée, rien n'est effacé ni
+    // rafraîchi.
+    let typo = open_as(&url, "uu", &dir);
+    assert!(typo.authenticate().is_err());
+    assert!(typo.refresh(true).is_err());
+    drop(typo);
+    assert!(
+        open_as(&url, "u", &dir)
+            .is_favorite(Section::Live, 5)
+            .unwrap()
+    );
+
+    // Même identifiant, autre adresse du même fournisseur : favoris gardés,
+    // catalogue rechargé.
+    let other_address = url.replace("127.0.0.1", "localhost");
+    let core = open_as(&other_address, "u", &dir);
+    core.authenticate().unwrap();
     assert!(core.is_favorite(Section::Live, 5).unwrap());
+    let report = core.refresh(false).unwrap();
+    assert!(
+        report
+            .iter()
+            .any(|r| r.section == Section::Live && r.refreshed)
+    );
     drop(core);
 
-    // Autre identifiant sur le même appareil : cache vidé.
-    let other = HeyStreamCore::new(
-        panel.server.uri(),
-        "autre".into(),
-        "p".into(),
-        dir.to_string_lossy().into(),
-    )
-    .unwrap();
+    // Autre identifiant : tout est effacé une fois la connexion réussie.
+    let other = open_as(&url, "autre", &dir);
+    other.authenticate().unwrap();
     assert!(!other.is_favorite(Section::Live, 5).unwrap());
     assert_eq!(other.count(Section::Live, None).unwrap(), 0);
     other.refresh(true).unwrap();
     other.toggle_favorite(Section::Live, 5).unwrap();
 
+    // Déconnexion : l'objet ne sert plus, et le cache repart de zéro.
     other.sign_out().unwrap();
-    assert_eq!(other.count(Section::Live, None).unwrap(), 0);
-    assert!(!other.is_favorite(Section::Live, 5).unwrap());
+    assert!(matches!(
+        other.count(Section::Live, None),
+        Err(HeyStreamError::SignedOut)
+    ));
+    let again = open_as(&url, "autre", &dir);
+    assert_eq!(again.count(Section::Live, None).unwrap(), 0);
+    assert!(!again.is_favorite(Section::Live, 5).unwrap());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn sign_out_during_a_refresh_stores_nothing() {
+    let panel = panel(vec![(
+        "get_live_categories",
+        json!([{"category_id": "1", "category_name": "Infos"}]),
+    )]);
+    // Liste lente : la déconnexion arrive pendant le téléchargement.
+    panel.route(
+        "get_live_streams",
+        json!([{"stream_id": 5, "name": "France Info", "category_id": "1"}]),
+        800,
+    );
+    panel.accept("b");
+    let url = panel.server.uri();
+    let dir = temp_dir("sign-out-race");
+    let a = open_as(&url, "a", &dir);
+    let refreshing = {
+        let a = Arc::clone(&a);
+        thread::spawn(move || a.refresh(true))
+    };
+    thread::sleep(std::time::Duration::from_millis(200));
+    a.sign_out().unwrap();
+    // Un autre compte se connecte pendant que le téléchargement de A finit.
+    let b = open_as(&url, "b", &dir);
+    b.authenticate().unwrap();
+    assert!(matches!(
+        refreshing.join().unwrap(),
+        Err(HeyStreamError::SignedOut)
+    ));
+    assert_eq!(b.count(Section::Live, None).unwrap(), 0);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_failed_section_is_not_downloaded_again_at_once() {
+    let panel = live_panel();
+    panel.route(
+        "get_vod_categories",
+        json!([{"category_id": "2", "category_name": "Films"}]),
+        0,
+    );
+    panel.runtime.block_on(
+        Mock::given(method("GET"))
+            .and(query_param("action", "get_vod_streams"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&panel.server),
+    );
+    let dir = temp_dir("retry");
+    let core = open(&panel, &dir);
+    let report = core.refresh(true).unwrap();
+    assert!(
+        report
+            .iter()
+            .any(|r| r.section == Section::Movies && r.failed)
+    );
+    // Le bouton manuel juste après, ou un appel qui attendait : pas de
+    // nouvelle requête pour les films.
+    assert!(core.refresh(true).unwrap().iter().all(|r| !r.failed));
+    core.refresh(false).unwrap();
+    drop(core);
+    drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();
 }
