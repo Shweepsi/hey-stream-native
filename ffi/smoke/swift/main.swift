@@ -10,7 +10,8 @@ func run() throws {
 
     // Serveur injoignable : chargement, cache et erreurs typées.
     let core = try HeyStreamCore(serverUrl: "http://127.0.0.1:9", username: "u", password: "p", dataDir: dir)
-    precondition(try core.categories(section: .live).isEmpty)
+    let categories = try core.categories(section: .live)
+    precondition(categories.isEmpty)
 
     do {
         _ = try core.authenticate()
