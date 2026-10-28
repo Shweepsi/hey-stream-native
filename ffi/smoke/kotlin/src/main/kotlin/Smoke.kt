@@ -16,6 +16,8 @@ fun main() {
     check(core.streamUrl(StreamKind.LIVE, 5L, null) == "http://127.0.0.1:9/live/u/p/5.ts")
     check(core.liveUrl(5L, LiveFormat.TS) == "http://127.0.0.1:9/live/u/p/5.ts")
     check(core.accountInfo() == null)
+    check(core.cachedNow(listOf(5L)).isEmpty())
+    check(core.continueWatching(PlaybackKind.MOVIE, 10u).isEmpty())
     core.signOut()
     check(runCatching { core.categories(Section.LIVE) }.exceptionOrNull() is HeyStreamException.SignedOut)
     println("liaisons Kotlin : OK")

@@ -184,6 +184,16 @@ pub struct CatalogItem {
     pub epg_channel_id: Option<String>,
     pub rating: Option<String>,
     pub plot: Option<String>,
+    /// Numéro donné par le fournisseur (chaînes).
+    pub number: Option<i64>,
+    /// Lecture commencée : le film, ou le dernier épisode commencé de la série.
+    pub progress: Option<Progress>,
+}
+
+#[derive(Debug, Clone, Copy, uniffi::Record)]
+pub struct Progress {
+    pub position_ms: i64,
+    pub duration_ms: i64,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -205,6 +215,13 @@ pub struct Programme {
     pub description: Option<String>,
     pub start: i64,
     pub stop: i64,
+}
+
+/// Programme en cours d'une chaîne, lu dans le cache.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ChannelNow {
+    pub stream_id: i64,
+    pub programme: Programme,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -299,6 +316,11 @@ impl From<xc::CatalogItem> for CatalogItem {
             epg_channel_id: i.epg_channel_id,
             rating: i.rating,
             plot: i.plot,
+            number: i.number,
+            progress: i.progress.map(|p| Progress {
+                position_ms: p.position_ms,
+                duration_ms: p.duration_ms,
+            }),
         }
     }
 }
@@ -602,6 +624,21 @@ impl HeyStreamCore {
         })
     }
 
+    /// Programme en cours des chaînes d'une liste, seulement s'il est déjà en
+    /// cache : aucune requête au fournisseur. Les chaînes sans rien en cache
+    /// sont absentes du résultat.
+    pub fn cached_now(&self, stream_ids: Vec<i64>) -> Result<Vec<ChannelNow>> {
+        Ok(self
+            .lock()?
+            .cached_now(&stream_ids, now())?
+            .into_iter()
+            .map(|(stream_id, programme)| ChannelNow {
+                stream_id,
+                programme: programme.into(),
+            })
+            .collect())
+    }
+
     pub fn movie_info(&self, stream_id: i64) -> Result<MovieInfo> {
         let info = self.runtime.block_on(self.client.movie_info(stream_id))?;
         Ok(MovieInfo {
@@ -758,10 +795,16 @@ impl HeyStreamCore {
         Ok(self.lock()?.clear_progress(kind.into(), id)?)
     }
 
-    pub fn continue_watching(&self, limit: u32) -> Result<Vec<ResumeEntry>> {
+    /// Catégorie « Continuer » : `Movie` pour Films, `Episode` pour Séries
+    /// (une entrée par série), `None` pour tout.
+    pub fn continue_watching(
+        &self,
+        kind: Option<PlaybackKind>,
+        limit: u32,
+    ) -> Result<Vec<ResumeEntry>> {
         Ok(self
             .lock()?
-            .continue_watching(limit as usize)?
+            .continue_watching(kind.map(Into::into), limit as usize)?
             .into_iter()
             .map(|e| ResumeEntry {
                 resume: e.resume.into(),

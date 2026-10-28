@@ -57,6 +57,17 @@ pub struct CatalogItem {
     pub epg_channel_id: Option<String>,
     pub rating: Option<String>,
     pub plot: Option<String>,
+    /// Numéro donné par le fournisseur (chaînes) ; `None` s'il n'en donne pas.
+    pub number: Option<i64>,
+    /// Lecture commencée : le film, ou le dernier épisode commencé d'une série.
+    pub progress: Option<Progress>,
+}
+
+/// Position d'une lecture commencée, pour la barre de progression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Progress {
+    pub position_ms: i64,
+    pub duration_ms: i64,
 }
 
 /// Résultat d'un rafraîchissement.
@@ -107,6 +118,8 @@ const MIGRATIONS: &[&str] = &[
     crate::user_data::MIGRATION,
     // 3 : contrôle parental, catégories masquées, EPG court
     crate::parental::MIGRATION,
+    // 4 : progression des séries dans les listes
+    "CREATE INDEX resume_by_series ON resume (series_id, updated_at);",
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -534,8 +547,24 @@ where
 /// Rang des entrées sans numéro : après toutes les chaînes numérotées.
 const NO_NUM: i64 = i64::MAX;
 
-pub(crate) const ITEM_COLUMNS: &str =
-    "i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot";
+/// Colonnes d'une entrée de liste. La progression vient de la reprise : le
+/// film lui-même, ou l'épisode le plus récemment regardé de la série.
+pub(crate) const ITEM_COLUMNS: &str = "i.id, i.name, i.image, i.category_id, i.extension,
+    i.epg_channel_id, i.rating, i.plot, i.sort_num,
+    CASE i.section
+        WHEN 'movies' THEN (SELECT r.position_ms FROM resume r
+                            WHERE r.kind = 'movie' AND r.id = i.id)
+        WHEN 'series' THEN (SELECT r.position_ms FROM resume r
+                            WHERE r.series_id = i.id AND r.kind = 'episode'
+                            ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
+    END,
+    CASE i.section
+        WHEN 'movies' THEN (SELECT r.duration_ms FROM resume r
+                            WHERE r.kind = 'movie' AND r.id = i.id)
+        WHEN 'series' THEN (SELECT r.duration_ms FROM resume r
+                            WHERE r.series_id = i.id AND r.kind = 'episode'
+                            ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
+    END";
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
@@ -556,6 +585,14 @@ pub(crate) fn row_to_item(
         epg_channel_id: r.get(5)?,
         rating: r.get(6)?,
         plot: r.get(7)?,
+        number: Some(r.get::<_, i64>(8)?).filter(|&n| n != NO_NUM),
+        progress: match (r.get(9)?, r.get(10)?) {
+            (Some(position_ms), Some(duration_ms)) => Some(Progress {
+                position_ms,
+                duration_ms,
+            }),
+            _ => None,
+        },
     })
 }
 

@@ -32,6 +32,10 @@ func run() throws {
     precondition(liveUrl == "http://127.0.0.1:9/live/u/p/5.m3u8")
     let account = try core.accountInfo()
     precondition(account == nil)
+    let cachedNow = try core.cachedNow(streamIds: [5])
+    precondition(cachedNow.isEmpty)
+    let started = try core.continueWatching(kind: .episode, limit: 10)
+    precondition(started.isEmpty)
 
     try core.signOut()
     do {

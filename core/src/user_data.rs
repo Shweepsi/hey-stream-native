@@ -239,9 +239,14 @@ impl Catalog {
             .optional()?)
     }
 
-    /// Rangée « Continuer » : une seule entrée par série (son dernier épisode),
-    /// de la plus récente à la plus ancienne.
-    pub fn continue_watching(&self, limit: usize) -> Result<Vec<ResumeEntry>> {
+    /// Catégorie « Continuer » : une seule entrée par série (son dernier
+    /// épisode), de la plus récente à la plus ancienne. `kind` garde seulement
+    /// les films (`Movie`) ou les séries (`Episode`), avant la limite.
+    pub fn continue_watching(
+        &self,
+        kind: Option<PlaybackKind>,
+        limit: usize,
+    ) -> Result<Vec<ResumeEntry>> {
         let mut stmt = self.conn.prepare_cached(&format!(
             // Une ligne par film, et une par série : la dernière écrite (rowid le
             // plus grand), même si deux épisodes ont été enregistrés dans la
@@ -255,12 +260,12 @@ impl Catalog {
                 ) AS rank
                 FROM resume r
              ) r
-             WHERE r.rank = 1{}
+             WHERE r.rank = 1 AND (?2 IS NULL OR r.kind = ?2){}
              ORDER BY updated_at DESC, id
              LIMIT ?1",
             self.resume_lock_filter()
         ))?;
-        let rows = stmt.query_map([limit as i64], |r| {
+        let rows = stmt.query_map(params![limit as i64, kind.map(PlaybackKind::key)], |r| {
             let kind: String = r.get(0)?;
             Ok((
                 kind,

@@ -66,7 +66,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
     c.save_progress(&resume, 1).unwrap();
     assert!(c.favorites(Section::Movies, 0, 10).unwrap().is_empty());
     assert!(c.recents(Section::Movies, 10).unwrap().is_empty());
-    assert!(c.continue_watching(10).unwrap().is_empty());
+    assert!(c.continue_watching(None, 10).unwrap().is_empty());
 
     // Pas de code défini : impossible de déverrouiller.
     assert!(matches!(c.unlock_parental("1234", 0), Err(Error::WrongPin)));
@@ -80,7 +80,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
     );
     assert_eq!(c.items(Section::Movies, Some("2"), 0, 10).unwrap().len(), 1);
     assert_eq!(c.favorites(Section::Movies, 0, 10).unwrap().len(), 1);
-    assert_eq!(c.continue_watching(10).unwrap().len(), 1);
+    assert_eq!(c.continue_watching(None, 10).unwrap().len(), 1);
 
     c.lock_parental();
     assert!(matches!(
@@ -202,7 +202,7 @@ fn continue_watching_is_locked_like_the_lists() {
 
     let shown = |c: &Catalog| {
         let mut ids: Vec<i64> = c
-            .continue_watching(20)
+            .continue_watching(None, 20)
             .unwrap()
             .into_iter()
             .map(|e| e.resume.id)

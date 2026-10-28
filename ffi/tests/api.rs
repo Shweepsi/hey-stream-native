@@ -78,6 +78,26 @@ fn temp_dir(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
+fn cached_now_never_asks_the_provider() {
+    let listings = json!({"epg_listings": [{"title": "QQ==", "start_timestamp": 0, "stop_timestamp": 9_999_999_999i64}]});
+    let panel = counting_panel("get_short_epg", listings, 1);
+    let dir = temp_dir("cached-now");
+    let core = open(&panel, &dir);
+    assert!(core.cached_now(vec![7, 8]).unwrap().is_empty());
+    core.now_next(7).unwrap();
+    let found = core.cached_now(vec![7, 8]).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        (found[0].stream_id, found[0].programme.title.as_str()),
+        (7, "A")
+    );
+    // `expect(1)` : seul `now_next` a interrogé le fournisseur.
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn refresh_browse_and_user_data() {
     let panel = panel(vec![
         (
@@ -153,7 +173,7 @@ fn refresh_browse_and_user_data() {
     let core = open(&panel, &dir);
     assert!(core.is_favorite(Section::Live, 5).unwrap());
     assert!(!core.is_parental_unlocked());
-    assert!(core.continue_watching(10).unwrap().is_empty());
+    assert!(core.continue_watching(None, 10).unwrap().is_empty());
 
     assert_eq!(
         core.stream_url(StreamKind::Live, 5, None),
@@ -454,9 +474,11 @@ fn account_info_and_live_format_work_offline() {
     assert_eq!(info.expires_at, Some(1_893_456_000));
     drop(core);
 
-    // Fournisseur injoignable : l'accueil a toujours la date d'expiration, et
-    // le direct est demandé dans le seul format autorisé.
-    drop(panel);
+    // Fournisseur qui ne répond plus : l'accueil a toujours la date
+    // d'expiration, et le direct est demandé dans le seul format autorisé.
+    // Le faux serveur reste ouvert (404 partout) : arrêté, son port pourrait
+    // être repris par un autre test lancé en parallèle.
+    panel.runtime.block_on(panel.server.reset());
     let core = open_as(&url, "u", &dir);
     assert!(core.authenticate().is_err());
     let cached = core.account_info().unwrap().unwrap();

@@ -138,7 +138,7 @@ fn continue_watching_keeps_last_episode_per_series() {
         .unwrap();
 
     let row: Vec<_> = catalog
-        .continue_watching(10)
+        .continue_watching(None, 10)
         .unwrap()
         .into_iter()
         .map(|e| (e.resume.kind, e.resume.id))
@@ -151,14 +151,14 @@ fn continue_watching_keeps_last_episode_per_series() {
             (PlaybackKind::Episode, 701)
         ]
     );
-    assert_eq!(catalog.continue_watching(1).unwrap().len(), 1);
+    assert_eq!(catalog.continue_watching(None, 1).unwrap().len(), 1);
     // Deux épisodes de la même série enregistrés dans la même seconde : une
     // seule entrée, la dernière écrite.
     catalog
         .save_progress(&resume(PlaybackKind::Episode, 503, 300_000, Some(50)), 30)
         .unwrap();
     let series_50: Vec<_> = catalog
-        .continue_watching(10)
+        .continue_watching(None, 10)
         .unwrap()
         .into_iter()
         .filter(|e| e.resume.series_id == Some(50))
@@ -198,4 +198,102 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
     assert_eq!(catalog.count(Section::Live, None).unwrap(), 1);
     assert!(catalog.toggle_favorite(Section::Live, 1, 0).unwrap());
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn continue_watching_filters_by_kind_before_the_limit() {
+    let mut catalog = catalog_with_content();
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 600_000, None), 10)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 600_000, Some(50)), 20)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 600_000, Some(50)), 30)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 701, 600_000, Some(70)), 40)
+        .unwrap();
+
+    let ids = |kind| -> Vec<i64> {
+        catalog
+            .continue_watching(Some(kind), 1)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.resume.id)
+            .collect()
+    };
+    // Les épisodes sont plus récents : le film reste trouvé avec une limite de 1.
+    assert_eq!(ids(PlaybackKind::Movie), [11]);
+    assert_eq!(ids(PlaybackKind::Episode), [701]);
+    let series: Vec<_> = catalog
+        .continue_watching(Some(PlaybackKind::Episode), 10)
+        .unwrap()
+        .into_iter()
+        .map(|e| e.resume.id)
+        .collect();
+    assert_eq!(series, [701, 502]);
+}
+
+#[test]
+fn lists_carry_number_and_progress() {
+    let mut catalog = catalog_with_content();
+    let live: Vec<LiveStream> = from_value(json!([
+        {"stream_id": 1, "name": "TF1", "num": 1},
+        {"stream_id": 2, "name": "Sans numéro"}
+    ]))
+    .unwrap();
+    catalog.store_live(&[], &live, 0).unwrap();
+    let numbers: Vec<_> = catalog
+        .items(Section::Live, None, 0, 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| (i.id, i.number))
+        .collect();
+    assert_eq!(numbers, [(1, Some(1)), (2, None)]);
+
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 600_000, None), 10)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 900_000, Some(50)), 20)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 300_000, Some(50)), 30)
+        .unwrap();
+
+    let progress = |catalog: &Catalog, section| -> Vec<(i64, Option<i64>)> {
+        catalog
+            .items(section, None, 0, 10)
+            .unwrap()
+            .into_iter()
+            .map(|i| (i.id, i.progress.map(|p| p.position_ms)))
+            .collect()
+    };
+    assert_eq!(
+        progress(&catalog, Section::Movies),
+        [(10, None), (11, Some(600_000))]
+    );
+    // Série : le dernier épisode regardé, pas le plus avancé.
+    assert_eq!(
+        progress(&catalog, Section::Series),
+        [(70, None), (50, Some(300_000))]
+    );
+    let movie = catalog.item(Section::Movies, 11).unwrap().unwrap();
+    assert_eq!(movie.progress.unwrap().duration_ms, 6_000_000);
+    assert!(
+        catalog.items(Section::Live, None, 0, 10).unwrap()[0]
+            .progress
+            .is_none()
+    );
+
+    // Terminé : la barre disparaît.
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 5_990_000, None), 40)
+        .unwrap();
+    assert_eq!(
+        progress(&catalog, Section::Movies),
+        [(10, None), (11, None)]
+    );
 }

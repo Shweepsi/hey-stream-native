@@ -206,3 +206,33 @@ fn a_claimed_fetch_is_not_claimed_twice() {
     assert!(!catalog.claim_epg_fetch(7, 100).unwrap());
     assert!(catalog.claim_epg_fetch(8, 100).unwrap());
 }
+
+#[test]
+fn cached_now_reads_only_the_cache() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let programme = |title: &str, start: i64, stop: i64| Programme {
+        title: title.into(),
+        description: None,
+        start,
+        stop,
+    };
+    catalog
+        .store_epg(
+            7,
+            &[
+                programme("Le 20h", 2000, 2600),
+                programme("Météo", 2600, 2700),
+            ],
+            1000,
+        )
+        .unwrap();
+    // Chaîne 8 : seulement un programme à venir ; chaîne 9 : rien en cache.
+    catalog
+        .store_epg(8, &[programme("Plus tard", 3000, 4000)], 1000)
+        .unwrap();
+
+    let found = catalog.cached_now(&[7, 8, 9], 2100).unwrap();
+    assert_eq!(found, [(7, programme("Le 20h", 2000, 2600))]);
+    assert_eq!(catalog.cached_now(&[7], 2650).unwrap()[0].1.title, "Météo");
+    assert!(catalog.cached_now(&[], 2100).unwrap().is_empty());
+}
