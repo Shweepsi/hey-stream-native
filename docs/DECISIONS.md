@@ -12,6 +12,7 @@ nouvelle décision.
 - **Lecteur intégré** : la vidéo se lit dans l'app (zapping rapide). Pas de
   renvoi vers un lecteur externe en v1.
 - **Tout en local** : pas de compte, pas de serveur, pas de synchronisation.
+- **Pas de multi-écran**, ni en v1 ni plus tard sans nouvelle décision.
 - **Pas de TMDB** : on affiche les données du fournisseur.
 - **Gratuit, open source (GPL-3.0)**, sans publicité ni version payante.
 - **Langues** : multilingue ouvert — français et anglais d'abord, traductions
@@ -42,3 +43,24 @@ On reproduit ces *qualités*, pas l'apparence :
 - **Lecteurs** : Media3/ExoPlayer (décodage matériel) sur Android, AVPlayer
   (+ VLCKit pour MKV/TS si besoin) sur Apple.
 - **Minimum** : voir `MATERIEL.md` — appareil de référence Xiaomi Mi Box S 2e gén.
+
+## Panneau de référence
+
+Un abonnement réel sert de référence pour les essais (identifiants **jamais**
+dans le dépôt : variables `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, voir
+`core/examples/smoke.rs`). Mesures du 2026-10-28 depuis un serveur cloud :
+
+| | Catégories | Entrées | Temps |
+|---|---|---|---|
+| Direct | 63 | 3 330 | ~2 s |
+| Films | 50 | 29 372 | ~4 s |
+| Séries | 33 | 8 637 | ~2 s |
+
+Constats :
+- 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux
+  en même temps (aperçu + plein écran compris).
+- Deux adresses (« private » et « generated ») servent le même compte.
+- Une requête a renvoyé une fois **0 catégorie de films** puis la liste
+  complète à l'essai suivant : une liste vide n'est pas fiable, le cache ne
+  doit jamais écraser un catalogue connu par une réponse vide.
+- L'ordre des catégories varie d'une requête à l'autre : trier côté app.

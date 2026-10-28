@@ -53,8 +53,6 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
   saturerait les 4 cœurs A55.
 - Extension FFmpeg de Media3 **pour l'audio uniquement** (MP2, AC-3 sans
   passthrough), fréquent sur les flux TS IPTV.
-- **Multi-écran** (plus tard) : limiter à 2 flux simultanés sur cette box ;
-  à mesurer.
 
 ### Réseau
 - Wi-Fi 5 seulement (pas de port Ethernet intégré) : prévoir un tampon de
