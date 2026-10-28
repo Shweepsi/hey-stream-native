@@ -189,6 +189,7 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
         conn.execute_batch(
             "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume;
              DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
+             DROP TABLE watched;
              ALTER TABLE item DROP COLUMN is_adult;
              PRAGMA user_version = 1;",
         )
@@ -295,5 +296,76 @@ fn lists_carry_number_and_progress() {
     assert_eq!(
         progress(&catalog, Section::Movies),
         [(10, None), (11, None)]
+    );
+}
+
+#[test]
+fn watched_marks_survive_rewatching_and_can_be_undone() {
+    let mut catalog = catalog_with_content();
+    let watched = |c: &Catalog, section| -> Vec<(i64, bool)> {
+        c.items(section, None, 0, 10)
+            .unwrap()
+            .into_iter()
+            .map(|i| (i.id, i.watched))
+            .collect()
+    };
+
+    // Fin de lecture : vu, et retiré de « Continuer ».
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 600_000, None), 10)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 5_990_000, None), 20)
+        .unwrap();
+    assert!(catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    assert_eq!(
+        watched(&catalog, Section::Movies),
+        [(10, false), (11, true)]
+    );
+
+    // Revu : la reprise repart, la marque reste.
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 600_000, None), 30)
+        .unwrap();
+    assert!(catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
+    assert_eq!(catalog.continue_watching(None, 10).unwrap().len(), 1);
+
+    // À la main : vu retire de « Continuer », non vu retire la marque.
+    catalog
+        .set_watched(PlaybackKind::Movie, 11, None, true, 40)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    catalog
+        .set_watched(PlaybackKind::Movie, 11, None, false, 50)
+        .unwrap();
+    assert_eq!(
+        watched(&catalog, Section::Movies),
+        [(10, false), (11, false)]
+    );
+
+    // Série : vue seulement quand tous ses épisodes connus le sont.
+    catalog
+        .set_watched(PlaybackKind::Episode, 501, Some(50), true, 60)
+        .unwrap();
+    assert!(!catalog.update_series_watched(50, &[501, 502], 70).unwrap());
+    assert!(!catalog.update_series_watched(50, &[], 70).unwrap());
+    catalog
+        .set_watched(PlaybackKind::Episode, 502, Some(50), true, 80)
+        .unwrap();
+    assert!(catalog.update_series_watched(50, &[501, 502], 90).unwrap());
+    assert_eq!(
+        watched(&catalog, Section::Series),
+        [(70, false), (50, true)]
+    );
+    // Nouvel épisode publié : la série n'est plus vue.
+    assert!(
+        !catalog
+            .update_series_watched(50, &[501, 502, 503], 100)
+            .unwrap()
+    );
+    assert_eq!(
+        watched(&catalog, Section::Series),
+        [(70, false), (50, false)]
     );
 }

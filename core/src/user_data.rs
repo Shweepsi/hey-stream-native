@@ -38,6 +38,18 @@ pub(crate) const MIGRATION: &str = "
     CREATE INDEX resume_by_date ON resume (updated_at);
 ";
 
+/// Progression des séries dans les listes ; films, épisodes et séries vus.
+pub(crate) const MIGRATION_4: &str = "
+    CREATE INDEX resume_by_series ON resume (series_id, updated_at);
+    CREATE TABLE watched (
+        kind TEXT NOT NULL,
+        id INTEGER NOT NULL,
+        series_id INTEGER,
+        watched_at INTEGER NOT NULL,
+        PRIMARY KEY (kind, id)
+    );
+";
+
 /// Nombre de récents gardés par section.
 pub const RECENTS_LIMIT: usize = 30;
 
@@ -195,7 +207,7 @@ impl Catalog {
     /// Contenu terminé : l'entrée est retirée de « Continuer ».
     pub fn save_progress(&mut self, resume: &Resume, now: i64) -> Result<()> {
         if resume.is_finished() {
-            return self.clear_progress(resume.kind, resume.id);
+            return self.set_watched(resume.kind, resume.id, resume.series_id, true, now);
         }
         if resume.position_ms < MIN_POSITION_MS {
             return Ok(());
@@ -225,6 +237,82 @@ impl Catalog {
             params![kind.key(), id],
         )?;
         Ok(())
+    }
+
+    // --- Vus -----------------------------------------------------------------
+
+    /// Marque un film ou un épisode comme vu (fin de lecture, ou à la main) ou
+    /// non vu. Vu, il quitte « Continuer » ; le revoir ne retire pas la marque.
+    pub fn set_watched(
+        &mut self,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        watched: bool,
+        now: i64,
+    ) -> Result<()> {
+        if watched {
+            let tx = self.conn.transaction()?;
+            tx.execute(
+                "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![kind.key(), id, series_id, now],
+            )?;
+            tx.execute(
+                "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+            )?;
+            tx.commit()?;
+        } else {
+            self.conn.execute(
+                "DELETE FROM watched WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn is_watched(&self, kind: PlaybackKind, id: i64) -> Result<bool> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1 FROM watched WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+
+    /// Recalcule la marque d'une série d'après sa fiche : vue si tous ses
+    /// épisodes connus le sont. Appelé au chargement de la fiche (le
+    /// catalogue ne connaît pas les épisodes).
+    pub fn update_series_watched(
+        &mut self,
+        series_id: i64,
+        episode_ids: &[i64],
+        now: i64,
+    ) -> Result<bool> {
+        let mut all = !episode_ids.is_empty();
+        for &id in episode_ids {
+            if !self.is_watched(PlaybackKind::Episode, id)? {
+                all = false;
+                break;
+            }
+        }
+        if all {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO watched (kind, id, series_id, watched_at)
+                 VALUES ('series', ?1, NULL, ?2)",
+                params![series_id, now],
+            )?;
+        } else {
+            self.conn.execute(
+                "DELETE FROM watched WHERE kind = 'series' AND id = ?1",
+                params![series_id],
+            )?;
+        }
+        Ok(all)
     }
 
     /// Position à laquelle reprendre, en millisecondes.

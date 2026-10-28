@@ -368,6 +368,8 @@ fn switching_account_clears_everything() {
         from_value(json!([{"stream_id": 10, "name": "Taxi", "category_id": "1"}])).unwrap();
     c.store_movies(&cats, &movies, 0).unwrap();
     c.toggle_favorite(Section::Movies, 10, 1).unwrap();
+    c.set_watched(PlaybackKind::Movie, 10, None, true, 1)
+        .unwrap();
     c.set_pin("1234", None, 0).unwrap();
 
     // Même compte : rien n'est effacé, et rien n'est écrit.
@@ -381,6 +383,7 @@ fn switching_account_clears_everything() {
     assert!(c.needs_refresh(Section::Movies, 1).unwrap());
     assert_eq!(c.count(Section::Movies, None).unwrap(), 1);
     assert!(c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(c.is_watched(PlaybackKind::Movie, 10).unwrap());
     assert!(c.has_pin().unwrap());
     assert_eq!(c.account_match(&a2).unwrap(), AccountMatch::Same);
 
@@ -390,6 +393,7 @@ fn switching_account_clears_everything() {
     assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::OtherUser);
     assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
     assert!(!c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(!c.is_watched(PlaybackKind::Movie, 10).unwrap());
     assert!(!c.has_pin().unwrap());
     assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::Same);
 

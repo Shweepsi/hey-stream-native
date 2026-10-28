@@ -18,6 +18,8 @@ fun main() {
     check(core.accountInfo() == null)
     check(core.cachedNow(listOf(5L)).isEmpty())
     check(core.continueWatching(PlaybackKind.MOVIE, 10u).isEmpty())
+    core.setWatched(PlaybackKind.MOVIE, 5L, null, true)
+    check(core.isWatched(PlaybackKind.MOVIE, 5L))
     core.signOut()
     check(runCatching { core.categories(Section.LIVE) }.exceptionOrNull() is HeyStreamException.SignedOut)
     println("liaisons Kotlin : OK")

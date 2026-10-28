@@ -195,16 +195,37 @@ fn refresh_fails_only_when_every_section_fails() {
 
 #[test]
 fn series_and_next_episode() {
-    let panel = panel(vec![(
-        "get_series_info",
-        json!({"info": {"name": "Lupin"}, "episodes": {"1": [{"id": 1, "episode_num": 1}, {"id": 2, "episode_num": 2}]}}),
-    )]);
+    let panel = panel(vec![
+        (
+            "get_series_info",
+            json!({"info": {"name": "Lupin"}, "episodes": {"1": [{"id": 1, "episode_num": 1}, {"id": 2, "episode_num": 2}]}}),
+        ),
+        ("get_series_categories", json!([])),
+        ("get_series", json!([{"series_id": 7, "name": "Lupin"}])),
+    ]);
     let dir = temp_dir("series");
     let core = open(&panel, &dir);
     let info = core.series_info(7).unwrap();
     assert_eq!(info.name.as_deref(), Some("Lupin"));
     assert_eq!(core.next_episode(7, 1).unwrap().unwrap().id, 2);
     assert!(core.next_episode(7, 2).unwrap().is_none());
+
+    // Série vue quand tous ses épisodes le sont, recalculé à l'ouverture de la
+    // fiche.
+    core.refresh(true).unwrap();
+    let series_watched = || core.items(Section::Series, None, 0, 10).unwrap()[0].watched;
+    core.set_watched(PlaybackKind::Episode, 1, Some(7), true)
+        .unwrap();
+    core.set_watched(PlaybackKind::Episode, 2, Some(7), true)
+        .unwrap();
+    assert!(core.is_watched(PlaybackKind::Episode, 2).unwrap());
+    assert!(!series_watched());
+    core.series_info(7).unwrap();
+    assert!(series_watched());
+    core.set_watched(PlaybackKind::Episode, 2, Some(7), false)
+        .unwrap();
+    core.series_info(7).unwrap();
+    assert!(!series_watched());
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

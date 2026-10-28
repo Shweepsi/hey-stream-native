@@ -188,6 +188,9 @@ pub struct CatalogItem {
     pub number: Option<i64>,
     /// Lecture commencée : le film, ou le dernier épisode commencé de la série.
     pub progress: Option<Progress>,
+    /// Film vu, ou série dont tous les épisodes connus sont vus (marque
+    /// recalculée à chaque ouverture de sa fiche).
+    pub watched: bool,
 }
 
 #[derive(Debug, Clone, Copy, uniffi::Record)]
@@ -321,6 +324,7 @@ impl From<xc::CatalogItem> for CatalogItem {
                 position_ms: p.position_ms,
                 duration_ms: p.duration_ms,
             }),
+            watched: i.watched,
         }
     }
 }
@@ -795,6 +799,24 @@ impl HeyStreamCore {
         Ok(self.lock()?.clear_progress(kind.into(), id)?)
     }
 
+    /// Marque un film ou un épisode comme vu ou non vu (bouton de la fiche).
+    /// Vu, il quitte « Continuer ». `series_id` : série parente d'un épisode.
+    pub fn set_watched(
+        &self,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        watched: bool,
+    ) -> Result<()> {
+        Ok(self
+            .lock()?
+            .set_watched(kind.into(), id, series_id, watched, now())?)
+    }
+
+    pub fn is_watched(&self, kind: PlaybackKind, id: i64) -> Result<bool> {
+        Ok(self.lock()?.is_watched(kind.into(), id)?)
+    }
+
     /// Catégorie « Continuer » : `Movie` pour Films, `Episode` pour Séries
     /// (une entrée par série), `None` pour tout.
     pub fn continue_watching(
@@ -881,6 +903,13 @@ impl HeyStreamCore {
 
     fn load_series(&self, series_id: i64) -> Result<xc::SeriesInfo> {
         let info = self.runtime.block_on(self.client.series_info(series_id))?;
+        let episodes: Vec<i64> = info
+            .seasons
+            .iter()
+            .flat_map(|s| s.episodes.iter().map(|e| e.id))
+            .collect();
+        self.lock()?
+            .update_series_watched(series_id, &episodes, now())?;
         *self.last_series_lock() = Some((series_id, info.clone()));
         Ok(info)
     }

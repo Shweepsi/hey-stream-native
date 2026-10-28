@@ -61,6 +61,8 @@ pub struct CatalogItem {
     pub number: Option<i64>,
     /// Lecture commencée : le film, ou le dernier épisode commencé d'une série.
     pub progress: Option<Progress>,
+    /// Film vu, ou série dont tous les épisodes connus sont vus.
+    pub watched: bool,
 }
 
 /// Position d'une lecture commencée, pour la barre de progression.
@@ -118,8 +120,8 @@ const MIGRATIONS: &[&str] = &[
     crate::user_data::MIGRATION,
     // 3 : contrôle parental, catégories masquées, EPG court
     crate::parental::MIGRATION,
-    // 4 : progression des séries dans les listes
-    "CREATE INDEX resume_by_series ON resume (series_id, updated_at);",
+    // 4 : progression des séries dans les listes, éléments vus
+    crate::user_data::MIGRATION_4,
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -564,6 +566,13 @@ pub(crate) const ITEM_COLUMNS: &str = "i.id, i.name, i.image, i.category_id, i.e
         WHEN 'series' THEN (SELECT r.duration_ms FROM resume r
                             WHERE r.series_id = i.id AND r.kind = 'episode'
                             ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
+    END,
+    CASE i.section
+        WHEN 'movies' THEN EXISTS (SELECT 1 FROM watched w
+                                   WHERE w.kind = 'movie' AND w.id = i.id)
+        WHEN 'series' THEN EXISTS (SELECT 1 FROM watched w
+                                   WHERE w.kind = 'series' AND w.id = i.id)
+        ELSE 0
     END";
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
@@ -593,6 +602,7 @@ pub(crate) fn row_to_item(
             }),
             _ => None,
         },
+        watched: r.get(11)?,
     })
 }
 

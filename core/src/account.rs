@@ -43,6 +43,7 @@ const TABLES: &[&str] = &[
     "favorite",
     "recent",
     "resume",
+    "watched",
     "setting",
     "hidden_category",
     "epg",

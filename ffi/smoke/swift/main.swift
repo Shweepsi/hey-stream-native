@@ -36,6 +36,9 @@ func run() throws {
     precondition(cachedNow.isEmpty)
     let started = try core.continueWatching(kind: .episode, limit: 10)
     precondition(started.isEmpty)
+    try core.setWatched(kind: .movie, id: 5, seriesId: nil, watched: true)
+    let watched = try core.isWatched(kind: .movie, id: 5)
+    precondition(watched)
 
     try core.signOut()
     do {
