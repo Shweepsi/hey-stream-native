@@ -1,0 +1,299 @@
+//! Données de l'utilisateur : favoris, récents et reprise de lecture.
+//!
+//! Elles vivent dans des tables à part, indexées par l'identifiant du
+//! fournisseur : un rafraîchissement du catalogue ne les efface pas. Une
+//! entrée qui disparaît du catalogue est simplement masquée, et réapparaît si
+//! le fournisseur la remet.
+
+use rusqlite::{OptionalExtension, params};
+
+use crate::catalog::{Catalog, CatalogItem, Section, row_to_item};
+use crate::error::Result;
+
+pub(crate) const MIGRATION: &str = "
+    CREATE TABLE favorite (
+        section TEXT NOT NULL,
+        id INTEGER NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (section, id)
+    );
+    CREATE TABLE recent (
+        section TEXT NOT NULL,
+        id INTEGER NOT NULL,
+        watched_at INTEGER NOT NULL,
+        PRIMARY KEY (section, id)
+    );
+    CREATE TABLE resume (
+        kind TEXT NOT NULL,
+        id INTEGER NOT NULL,
+        position_ms INTEGER NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        image TEXT,
+        extension TEXT,
+        series_id INTEGER,
+        PRIMARY KEY (kind, id)
+    );
+    CREATE INDEX resume_by_date ON resume (updated_at);
+";
+
+/// Nombre de récents gardés par section.
+pub const RECENTS_LIMIT: usize = 30;
+
+/// En dessous de 30 s de visionnage, rien n'est retenu.
+const MIN_POSITION_MS: i64 = 30_000;
+/// Au-delà de 95 % (ou à moins de 2 min de la fin), le contenu est terminé.
+const FINISHED_RATIO: f64 = 0.95;
+const FINISHED_REMAINING_MS: i64 = 120_000;
+
+/// Contenu dont on peut reprendre la lecture. Le direct n'en fait pas partie.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaybackKind {
+    Movie,
+    Episode,
+}
+
+impl PlaybackKind {
+    fn key(self) -> &'static str {
+        match self {
+            PlaybackKind::Movie => "movie",
+            PlaybackKind::Episode => "episode",
+        }
+    }
+
+    fn from_key(key: &str) -> Option<Self> {
+        match key {
+            "movie" => Some(PlaybackKind::Movie),
+            "episode" => Some(PlaybackKind::Episode),
+            _ => None,
+        }
+    }
+}
+
+/// Ce que le lecteur rapporte pendant la lecture. Le titre et l'image sont
+/// gardés pour afficher la rangée « Continuer » sans requête réseau (les
+/// épisodes ne sont pas dans le cache du catalogue).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Resume {
+    pub kind: PlaybackKind,
+    /// `stream_id` d'un film, identifiant d'épisode pour une série.
+    pub id: i64,
+    pub position_ms: i64,
+    pub duration_ms: i64,
+    pub title: String,
+    pub image: Option<String>,
+    pub extension: Option<String>,
+    /// Série parente d'un épisode.
+    pub series_id: Option<i64>,
+}
+
+/// Entrée de la rangée « Continuer ».
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResumeEntry {
+    pub resume: Resume,
+    pub updated_at: i64,
+}
+
+impl Resume {
+    fn is_finished(&self) -> bool {
+        self.duration_ms > 0
+            && (self.position_ms as f64 >= self.duration_ms as f64 * FINISHED_RATIO
+                || self.duration_ms - self.position_ms <= FINISHED_REMAINING_MS)
+    }
+}
+
+impl Catalog {
+    // --- Favoris -----------------------------------------------------------
+
+    /// Ajoute ou retire un favori ; renvoie le nouvel état.
+    pub fn toggle_favorite(&mut self, section: Section, id: i64, now: i64) -> Result<bool> {
+        let removed = self.conn.execute(
+            "DELETE FROM favorite WHERE section = ?1 AND id = ?2",
+            params![section.key(), id],
+        )?;
+        if removed > 0 {
+            return Ok(false);
+        }
+        self.conn.execute(
+            "INSERT INTO favorite (section, id, added_at) VALUES (?1, ?2, ?3)",
+            params![section.key(), id, now],
+        )?;
+        Ok(true)
+    }
+
+    pub fn is_favorite(&self, section: Section, id: i64) -> Result<bool> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1 FROM favorite WHERE section = ?1 AND id = ?2",
+                params![section.key(), id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+
+    /// Favoris présents dans le catalogue, du plus récent au plus ancien.
+    pub fn favorites(
+        &self,
+        section: Section,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<CatalogItem>> {
+        self.joined_items(
+            "SELECT i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot
+             FROM favorite f JOIN item i ON i.section = f.section AND i.id = f.id
+             WHERE f.section = ?1 ORDER BY f.added_at DESC, f.id LIMIT ?2 OFFSET ?3",
+            section,
+            offset,
+            limit,
+        )
+    }
+
+    // --- Récents -----------------------------------------------------------
+
+    /// Note qu'une chaîne, un film ou une série vient d'être regardé. Seuls les
+    /// `RECENTS_LIMIT` derniers de la section sont gardés.
+    pub fn mark_watched(&mut self, section: Section, id: i64, now: i64) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        tx.execute(
+            "INSERT OR REPLACE INTO recent (section, id, watched_at) VALUES (?1, ?2, ?3)",
+            params![section.key(), id, now],
+        )?;
+        tx.execute(
+            "DELETE FROM recent WHERE section = ?1 AND id NOT IN (
+                SELECT id FROM recent WHERE section = ?1
+                ORDER BY watched_at DESC, id LIMIT ?2)",
+            params![section.key(), RECENTS_LIMIT as i64],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Récents présents dans le catalogue, du plus récent au plus ancien.
+    pub fn recents(&self, section: Section, limit: usize) -> Result<Vec<CatalogItem>> {
+        self.joined_items(
+            "SELECT i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot
+             FROM recent r JOIN item i ON i.section = r.section AND i.id = r.id
+             WHERE r.section = ?1 ORDER BY r.watched_at DESC, r.id LIMIT ?2 OFFSET ?3",
+            section,
+            0,
+            limit,
+        )
+    }
+
+    // --- Reprise de lecture -----------------------------------------------
+
+    /// Enregistre la position de lecture. Moins de 30 s : rien n'est retenu.
+    /// Contenu terminé : l'entrée est retirée de « Continuer ».
+    pub fn save_progress(&mut self, resume: &Resume, now: i64) -> Result<()> {
+        if resume.is_finished() {
+            return self.clear_progress(resume.kind, resume.id);
+        }
+        if resume.position_ms < MIN_POSITION_MS {
+            return Ok(());
+        }
+        self.conn.execute(
+            "INSERT OR REPLACE INTO resume
+                (kind, id, position_ms, duration_ms, updated_at, title, image, extension, series_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                resume.kind.key(),
+                resume.id,
+                resume.position_ms,
+                resume.duration_ms,
+                now,
+                resume.title,
+                resume.image,
+                resume.extension,
+                resume.series_id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_progress(&mut self, kind: PlaybackKind, id: i64) -> Result<()> {
+        self.conn.execute(
+            "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
+            params![kind.key(), id],
+        )?;
+        Ok(())
+    }
+
+    /// Position à laquelle reprendre, en millisecondes.
+    pub fn progress(&self, kind: PlaybackKind, id: i64) -> Result<Option<i64>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT position_ms FROM resume WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Rangée « Continuer » : une seule entrée par série (son dernier épisode),
+    /// de la plus récente à la plus ancienne.
+    pub fn continue_watching(&self, limit: usize) -> Result<Vec<ResumeEntry>> {
+        let mut stmt = self.conn.prepare_cached(
+            // Une ligne par film, et une par série : la dernière écrite (rowid le
+            // plus grand), même si deux épisodes ont été enregistrés dans la
+            // même seconde.
+            "SELECT kind, id, position_ms, duration_ms, updated_at, title, image, extension, series_id
+             FROM (
+                SELECT r.*, ROW_NUMBER() OVER (
+                    PARTITION BY CASE WHEN r.series_id IS NULL THEN r.kind || ':' || r.id
+                                      ELSE 'series:' || r.series_id END
+                    ORDER BY r.updated_at DESC, r.rowid DESC
+                ) AS rank
+                FROM resume r
+             )
+             WHERE rank = 1
+             ORDER BY updated_at DESC, id
+             LIMIT ?1",
+        )?;
+        let rows = stmt.query_map([limit as i64], |r| {
+            let kind: String = r.get(0)?;
+            Ok((
+                kind,
+                ResumeEntry {
+                    resume: Resume {
+                        kind: PlaybackKind::Movie,
+                        id: r.get(1)?,
+                        position_ms: r.get(2)?,
+                        duration_ms: r.get(3)?,
+                        title: r.get(5)?,
+                        image: r.get(6)?,
+                        extension: r.get(7)?,
+                        series_id: r.get(8)?,
+                    },
+                    updated_at: r.get(4)?,
+                },
+            ))
+        })?;
+        let mut entries = Vec::new();
+        for row in rows {
+            let (kind, mut entry) = row?;
+            if let Some(kind) = PlaybackKind::from_key(&kind) {
+                entry.resume.kind = kind;
+                entries.push(entry);
+            }
+        }
+        Ok(entries)
+    }
+
+    fn joined_items(
+        &self,
+        sql: &str,
+        section: Section,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<CatalogItem>> {
+        let mut stmt = self.conn.prepare_cached(sql)?;
+        let rows = stmt.query_map(params![section.key(), limit as i64, offset as i64], |r| {
+            row_to_item(section, r)
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+}

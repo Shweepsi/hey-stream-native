@@ -12,6 +12,7 @@ mod error;
 mod lenient;
 mod model;
 mod url;
+mod user_data;
 
 pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, refresh_section,
@@ -20,3 +21,4 @@ pub use client::XtreamClient;
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
 pub use url::{StreamKind, normalize_server_url};
+pub use user_data::{PlaybackKind, RECENTS_LIMIT, Resume, ResumeEntry};
