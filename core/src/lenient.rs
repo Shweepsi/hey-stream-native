@@ -1,5 +1,6 @@
 //! Désérialisation tolérante aux écarts des panneaux Xtream.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
@@ -39,6 +40,22 @@ fn value_to_i64(v: &Value) -> Option<i64> {
     }
 }
 
+/// Texte d'une réponse. Les panneaux envoient parfois des noms en Latin-1 au
+/// milieu d'UTF-8 : chaque octet invalide est lu comme un caractère Latin-1
+/// (« Caf\xe9 » → « Café ») au lieu de rendre toute la réponse illisible.
+/// Sans copie quand la réponse est déjà en UTF-8 valide.
+pub(crate) fn text(body: &[u8]) -> Cow<'_, str> {
+    if let Ok(text) = std::str::from_utf8(body) {
+        return Cow::Borrowed(text);
+    }
+    let mut text = String::with_capacity(body.len() + 16);
+    for chunk in body.utf8_chunks() {
+        text.push_str(chunk.valid());
+        text.extend(chunk.invalid().iter().map(|&b| char::from(b)));
+    }
+    Cow::Owned(text)
+}
+
 /// Liste tolérante, lue directement depuis la réponse brute : `null`, `""`,
 /// `false` ou un objet vide donnent une liste vide ; un objet indexé
 /// (`{"0": {...}}`) est lu comme une liste ; chaque entrée illisible est
@@ -47,11 +64,12 @@ fn value_to_i64(v: &Value) -> Option<i64> {
 /// Chaque entrée est désérialisée depuis sa tranche de texte (`RawValue`),
 /// sans construire d'arbre `Value` pour toute la liste.
 pub fn parse_list<T: DeserializeOwned>(body: &[u8]) -> Result<Vec<T>, Error> {
-    let entries: Vec<&RawValue> = match body.iter().find(|b| !b.is_ascii_whitespace()) {
-        Some(b'[') => serde_json::from_slice(body).map_err(|_| Error::InvalidResponse)?,
+    let body = text(body);
+    let entries: Vec<&RawValue> = match body.trim_start().as_bytes().first() {
+        Some(b'[') => serde_json::from_str(&body).map_err(|_| Error::InvalidResponse)?,
         Some(b'{') => {
             let map: BTreeMap<String, &RawValue> =
-                serde_json::from_slice(body).map_err(|_| Error::InvalidResponse)?;
+                serde_json::from_str(&body).map_err(|_| Error::InvalidResponse)?;
             if map.contains_key("user_info") {
                 return Err(Error::Unauthorized);
             }
@@ -59,7 +77,7 @@ pub fn parse_list<T: DeserializeOwned>(body: &[u8]) -> Result<Vec<T>, Error> {
         }
         // null, "", false, nombre ou réponse vide : liste vide.
         Some(_) => {
-            serde_json::from_slice::<&RawValue>(body).map_err(|_| Error::InvalidResponse)?;
+            serde_json::from_str::<&RawValue>(&body).map_err(|_| Error::InvalidResponse)?;
             Vec::new()
         }
         None => Vec::new(),
@@ -106,5 +124,21 @@ mod tests {
             parse_list::<Item>(br#"{"user_info": {"auth": 0}}"#),
             Err(Error::Unauthorized)
         ));
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct Named {
+        name: String,
+    }
+
+    #[test]
+    fn latin1_bytes_do_not_spoil_the_list() {
+        let names: Vec<String> =
+            parse_list::<Named>(b"[{\"name\": \"Caf\xe9\"}, {\"name\": \"Th\xc3\xa9\"}]")
+                .unwrap()
+                .into_iter()
+                .map(|n| n.name)
+                .collect();
+        assert_eq!(names, ["Café", "Thé"]);
     }
 }

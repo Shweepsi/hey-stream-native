@@ -228,3 +228,26 @@ async fn refresh_retries_empty_categories() {
         "Action"
     );
 }
+
+#[tokio::test]
+async fn errors_and_debug_never_show_credentials() {
+    // Port fermé : erreur réseau immédiate, sans panneau réel.
+    let credentials = Credentials {
+        server_url: "http://127.0.0.1:1/".into(),
+        username: "alice".into(),
+        password: "s3cret".into(),
+    };
+    let client = XtreamClient::new(&credentials).unwrap();
+    let error = client.authenticate().await.unwrap_err();
+    assert!(matches!(error, Error::Network(_)));
+    for text in [
+        format!("{error:?}"),
+        format!("{client:?}"),
+        format!("{credentials:?}"),
+    ] {
+        assert!(
+            !text.contains("s3cret") && !text.contains("alice"),
+            "{text}"
+        );
+    }
+}
