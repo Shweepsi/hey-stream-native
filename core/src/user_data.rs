@@ -7,7 +7,7 @@
 
 use rusqlite::{OptionalExtension, params};
 
-use crate::catalog::{Catalog, CatalogItem, ITEM_COLUMNS, Section, row_to_item};
+use crate::catalog::{Catalog, CatalogItem, ITEM_COLUMNS, PROGRESS_JOIN, Section, row_to_item};
 use crate::error::Result;
 
 pub(crate) const MIGRATION: &str = "
@@ -36,6 +36,25 @@ pub(crate) const MIGRATION: &str = "
         PRIMARY KEY (kind, id)
     );
     CREATE INDEX resume_by_date ON resume (updated_at);
+";
+
+/// Progression des séries dans les listes ; films, épisodes et séries vus.
+pub(crate) const MIGRATION_4: &str = "
+    CREATE INDEX resume_by_series ON resume (series_id, updated_at);
+    CREATE TABLE watched (
+        kind TEXT NOT NULL,
+        id INTEGER NOT NULL,
+        series_id INTEGER,
+        watched_at INTEGER NOT NULL,
+        ended INTEGER NOT NULL,
+        PRIMARY KEY (kind, id)
+    );
+    CREATE INDEX watched_by_series ON watched (series_id, watched_at);
+    CREATE TABLE series_episode (
+        series_id INTEGER NOT NULL,
+        episode_id INTEGER NOT NULL,
+        PRIMARY KEY (series_id, episode_id)
+    );
 ";
 
 /// Nombre de récents gardés par section.
@@ -97,9 +116,12 @@ pub struct ResumeEntry {
 
 impl Resume {
     fn is_finished(&self) -> bool {
+        // Les 2 dernières minutes ne comptent qu'au-delà de la moitié : un
+        // contenu court n'est pas « vu » dès son lancement.
         self.duration_ms > 0
             && (self.position_ms as f64 >= self.duration_ms as f64 * FINISHED_RATIO
-                || self.duration_ms - self.position_ms <= FINISHED_REMAINING_MS)
+                || (self.duration_ms - self.position_ms <= FINISHED_REMAINING_MS
+                    && self.position_ms * 2 >= self.duration_ms))
     }
 }
 
@@ -144,7 +166,7 @@ impl Catalog {
         self.joined_items(
             &format!(
                 "SELECT {ITEM_COLUMNS}
-                 FROM favorite f JOIN item i ON i.section = f.section AND i.id = f.id
+                 FROM favorite f JOIN item i ON i.section = f.section AND i.id = f.id{PROGRESS_JOIN}
                  WHERE f.section = ?1{} ORDER BY f.added_at DESC, f.id LIMIT ?2 OFFSET ?3",
                 self.visibility("i", false)
             ),
@@ -158,7 +180,7 @@ impl Catalog {
 
     /// Note qu'une chaîne, un film ou une série vient d'être regardé. Seuls les
     /// `RECENTS_LIMIT` derniers de la section sont gardés.
-    pub fn mark_watched(&mut self, section: Section, id: i64, now: i64) -> Result<()> {
+    pub fn add_recent(&mut self, section: Section, id: i64, now: i64) -> Result<()> {
         let tx = self.conn.transaction()?;
         tx.execute(
             "INSERT OR REPLACE INTO recent (section, id, watched_at) VALUES (?1, ?2, ?3)",
@@ -179,7 +201,7 @@ impl Catalog {
         self.joined_items(
             &format!(
                 "SELECT {ITEM_COLUMNS}
-                 FROM recent r JOIN item i ON i.section = r.section AND i.id = r.id
+                 FROM recent r JOIN item i ON i.section = r.section AND i.id = r.id{PROGRESS_JOIN}
                  WHERE r.section = ?1{} ORDER BY r.watched_at DESC, r.id LIMIT ?2 OFFSET ?3",
                 self.visibility("i", false)
             ),
@@ -195,7 +217,7 @@ impl Catalog {
     /// Contenu terminé : l'entrée est retirée de « Continuer ».
     pub fn save_progress(&mut self, resume: &Resume, now: i64) -> Result<()> {
         if resume.is_finished() {
-            return self.clear_progress(resume.kind, resume.id);
+            return self.insert_watched(resume.kind, resume.id, resume.series_id, true, now);
         }
         if resume.position_ms < MIN_POSITION_MS {
             return Ok(());
@@ -227,6 +249,89 @@ impl Catalog {
         Ok(())
     }
 
+    // --- Vus -----------------------------------------------------------------
+
+    /// Marque un film ou un épisode comme vu (fin de lecture, ou à la main) ou
+    /// non vu. Vu, il quitte « Continuer » ; le revoir ne retire pas la marque.
+    pub fn set_watched(
+        &mut self,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        watched: bool,
+        now: i64,
+    ) -> Result<()> {
+        if watched {
+            self.insert_watched(kind, id, series_id, false, now)
+        } else {
+            self.conn.execute(
+                "DELETE FROM watched WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+            )?;
+            Ok(())
+        }
+    }
+
+    /// `ended` : vu jusqu'au bout. Pour une série, une reprise plus ancienne
+    /// que le dernier épisode fini n'est plus « le dernier épisode regardé ».
+    fn insert_watched(
+        &mut self,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        ended: bool,
+        now: i64,
+    ) -> Result<()> {
+        {
+            let tx = self.conn.transaction()?;
+            tx.execute(
+                "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at, ended)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![kind.key(), id, series_id, now, ended],
+            )?;
+            tx.execute(
+                "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+            )?;
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    pub fn is_watched(&self, kind: PlaybackKind, id: i64) -> Result<bool> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1 FROM watched WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
+    }
+
+    /// Retient la liste des épisodes d'une série, lue dans sa fiche : une
+    /// série est vue quand tous ses épisodes connus le sont (le catalogue ne
+    /// connaît pas les épisodes). La marque suit ensuite chaque épisode vu ou
+    /// non vu, sans recharger la fiche.
+    pub fn remember_episodes(&mut self, series_id: i64, episode_ids: &[i64]) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        tx.execute(
+            "DELETE FROM series_episode WHERE series_id = ?1",
+            params![series_id],
+        )?;
+        {
+            let mut insert = tx.prepare_cached(
+                "INSERT OR IGNORE INTO series_episode (series_id, episode_id) VALUES (?1, ?2)",
+            )?;
+            for &id in episode_ids {
+                insert.execute(params![series_id, id])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Position à laquelle reprendre, en millisecondes.
     pub fn progress(&self, kind: PlaybackKind, id: i64) -> Result<Option<i64>> {
         Ok(self
@@ -239,9 +344,14 @@ impl Catalog {
             .optional()?)
     }
 
-    /// Rangée « Continuer » : une seule entrée par série (son dernier épisode),
-    /// de la plus récente à la plus ancienne.
-    pub fn continue_watching(&self, limit: usize) -> Result<Vec<ResumeEntry>> {
+    /// Catégorie « Continuer » : une seule entrée par série (son dernier
+    /// épisode), de la plus récente à la plus ancienne. `kind` garde seulement
+    /// les films (`Movie`) ou les séries (`Episode`), avant la limite.
+    pub fn continue_watching(
+        &self,
+        kind: Option<PlaybackKind>,
+        limit: usize,
+    ) -> Result<Vec<ResumeEntry>> {
         let mut stmt = self.conn.prepare_cached(&format!(
             // Une ligne par film, et une par série : la dernière écrite (rowid le
             // plus grand), même si deux épisodes ont été enregistrés dans la
@@ -255,12 +365,13 @@ impl Catalog {
                 ) AS rank
                 FROM resume r
              ) r
-             WHERE r.rank = 1{}
+             WHERE r.rank = 1 AND (?2 IS NULL OR r.kind = ?2) AND {}{}
              ORDER BY updated_at DESC, id
              LIMIT ?1",
+            not_superseded!(),
             self.resume_lock_filter()
         ))?;
-        let rows = stmt.query_map([limit as i64], |r| {
+        let rows = stmt.query_map(params![limit as i64, kind.map(PlaybackKind::key)], |r| {
             let kind: String = r.get(0)?;
             Ok((
                 kind,

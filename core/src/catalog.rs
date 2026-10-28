@@ -57,6 +57,20 @@ pub struct CatalogItem {
     pub epg_channel_id: Option<String>,
     pub rating: Option<String>,
     pub plot: Option<String>,
+    /// Numéro donné par le fournisseur (chaînes) ; `None` s'il n'en donne pas.
+    pub number: Option<i64>,
+    /// Lecture commencée : le film, ou le dernier épisode commencé d'une série.
+    pub progress: Option<Progress>,
+    /// Film vu, ou série dont tous les épisodes connus (dernière fiche
+    /// chargée) sont vus.
+    pub watched: bool,
+}
+
+/// Position d'une lecture commencée, pour la barre de progression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Progress {
+    pub position_ms: i64,
+    pub duration_ms: i64,
 }
 
 /// Résultat d'un rafraîchissement.
@@ -107,6 +121,8 @@ const MIGRATIONS: &[&str] = &[
     crate::user_data::MIGRATION,
     // 3 : contrôle parental, catégories masquées, EPG court
     crate::parental::MIGRATION,
+    // 4 : progression des séries dans les listes, éléments vus
+    crate::user_data::MIGRATION_4,
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -239,7 +255,7 @@ impl Catalog {
         let rows = match category_id {
             Some(id) => {
                 let mut stmt = self.conn.prepare_cached(&format!(
-                    "SELECT {ITEM_COLUMNS} FROM item i
+                    "SELECT {ITEM_COLUMNS} FROM item i{PROGRESS_JOIN}
                      WHERE i.section = ?1 AND i.category_id = ?2{}
                      ORDER BY i.sort_num, i.sort_key, i.id LIMIT ?3 OFFSET ?4",
                     self.visibility("i", false)
@@ -251,7 +267,7 @@ impl Catalog {
             }
             None => {
                 let mut stmt = self.conn.prepare_cached(&format!(
-                    "SELECT {ITEM_COLUMNS} FROM item i
+                    "SELECT {ITEM_COLUMNS} FROM item i{PROGRESS_JOIN}
                      WHERE i.section = ?1{}
                      ORDER BY i.sort_num, i.sort_key, i.id LIMIT ?2 OFFSET ?3",
                     self.visibility("i", true)
@@ -268,7 +284,7 @@ impl Catalog {
     /// Une entrée, sauf si elle appartient à une catégorie verrouillée.
     pub fn item(&self, section: Section, id: i64) -> Result<Option<CatalogItem>> {
         let sql = format!(
-            "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = ?1 AND i.id = ?2{}",
+            "SELECT {ITEM_COLUMNS} FROM item i{PROGRESS_JOIN} WHERE i.section = ?1 AND i.id = ?2{}",
             self.visibility("i", false),
         );
         Ok(self
@@ -287,7 +303,8 @@ impl Catalog {
         if words.is_empty() {
             return Ok(Vec::new());
         }
-        let mut sql = format!("SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = ?1");
+        let mut sql =
+            format!("SELECT {ITEM_COLUMNS} FROM item i{PROGRESS_JOIN} WHERE i.section = ?1");
         for i in 0..words.len() {
             sql.push_str(&format!(" AND i.search_key LIKE ?{} ESCAPE '\\'", i + 2));
         }
@@ -534,8 +551,36 @@ where
 /// Rang des entrées sans numéro : après toutes les chaînes numérotées.
 const NO_NUM: i64 = i64::MAX;
 
-pub(crate) const ITEM_COLUMNS: &str =
-    "i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot";
+/// Colonnes d'une entrée de liste. La progression vient de la reprise : le
+/// film lui-même, ou l'épisode le plus récemment regardé de la série (rien
+/// si un épisode plus récent a été vu jusqu'au bout). Une série est vue quand
+/// tous ses épisodes connus (dernière fiche chargée) le sont.
+pub(crate) const ITEM_COLUMNS: &str = "i.id, i.name, i.image, i.category_id, i.extension,
+    i.epg_channel_id, i.rating, i.plot, i.sort_num, p.position_ms, p.duration_ms,
+    CASE i.section
+        WHEN 'movies' THEN EXISTS (SELECT 1 FROM watched w
+                                   WHERE w.kind = 'movie' AND w.id = i.id)
+        WHEN 'series' THEN EXISTS (SELECT 1 FROM series_episode e WHERE e.series_id = i.id)
+            AND NOT EXISTS (SELECT 1 FROM series_episode e
+                            WHERE e.series_id = i.id AND NOT EXISTS (
+                                SELECT 1 FROM watched w
+                                WHERE w.kind = 'episode' AND w.id = e.episode_id))
+        ELSE 0
+    END";
+
+/// Jointure de la reprise d'une entrée `i` (colonnes `p.*` d'`ITEM_COLUMNS`),
+/// à placer après `FROM … item i`.
+pub(crate) const PROGRESS_JOIN: &str = concat!(
+    " LEFT JOIN resume p ON p.rowid = CASE i.section
+        WHEN 'movies' THEN (SELECT r.rowid FROM resume r
+                            WHERE r.kind = 'movie' AND r.id = i.id)
+        WHEN 'series' THEN (SELECT r.rowid FROM resume r
+                            WHERE r.series_id = i.id AND r.kind = 'episode' AND ",
+    not_superseded!(),
+    "
+                            ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
+    END"
+);
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
@@ -556,6 +601,15 @@ pub(crate) fn row_to_item(
         epg_channel_id: r.get(5)?,
         rating: r.get(6)?,
         plot: r.get(7)?,
+        number: Some(r.get::<_, i64>(8)?).filter(|&n| n != NO_NUM),
+        progress: match (r.get(9)?, r.get(10)?) {
+            (Some(position_ms), Some(duration_ms)) => Some(Progress {
+                position_ms,
+                duration_ms,
+            }),
+            _ => None,
+        },
+        watched: r.get(11)?,
     })
 }
 
@@ -655,7 +709,7 @@ mod tests {
         for filter in ["AND i.category_id = '1'", ""] {
             // Avec les filtres réels (verrou parental, catégories masquées).
             let sql = format!(
-                "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = 'movies' {filter}{}
+                "SELECT {ITEM_COLUMNS} FROM item i{PROGRESS_JOIN} WHERE i.section = 'movies' {filter}{}
                  ORDER BY i.sort_num, i.sort_key, i.id LIMIT 60 OFFSET 0",
                 catalog.visibility("i", filter.is_empty())
             );

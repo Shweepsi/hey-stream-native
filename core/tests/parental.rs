@@ -52,7 +52,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
 
     // Favori, récent et reprise d'un film adulte : masqués aussi.
     c.toggle_favorite(Section::Movies, 20, 1).unwrap();
-    c.mark_watched(Section::Movies, 20, 1).unwrap();
+    c.add_recent(Section::Movies, 20, 1).unwrap();
     let resume = Resume {
         kind: PlaybackKind::Movie,
         id: 20,
@@ -66,7 +66,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
     c.save_progress(&resume, 1).unwrap();
     assert!(c.favorites(Section::Movies, 0, 10).unwrap().is_empty());
     assert!(c.recents(Section::Movies, 10).unwrap().is_empty());
-    assert!(c.continue_watching(10).unwrap().is_empty());
+    assert!(c.continue_watching(None, 10).unwrap().is_empty());
 
     // Pas de code défini : impossible de déverrouiller.
     assert!(matches!(c.unlock_parental("1234", 0), Err(Error::WrongPin)));
@@ -80,7 +80,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
     );
     assert_eq!(c.items(Section::Movies, Some("2"), 0, 10).unwrap().len(), 1);
     assert_eq!(c.favorites(Section::Movies, 0, 10).unwrap().len(), 1);
-    assert_eq!(c.continue_watching(10).unwrap().len(), 1);
+    assert_eq!(c.continue_watching(None, 10).unwrap().len(), 1);
 
     c.lock_parental();
     assert!(matches!(
@@ -202,7 +202,7 @@ fn continue_watching_is_locked_like_the_lists() {
 
     let shown = |c: &Catalog| {
         let mut ids: Vec<i64> = c
-            .continue_watching(20)
+            .continue_watching(None, 20)
             .unwrap()
             .into_iter()
             .map(|e| e.resume.id)
@@ -368,6 +368,8 @@ fn switching_account_clears_everything() {
         from_value(json!([{"stream_id": 10, "name": "Taxi", "category_id": "1"}])).unwrap();
     c.store_movies(&cats, &movies, 0).unwrap();
     c.toggle_favorite(Section::Movies, 10, 1).unwrap();
+    c.set_watched(PlaybackKind::Movie, 10, None, true, 1)
+        .unwrap();
     c.set_pin("1234", None, 0).unwrap();
 
     // Même compte : rien n'est effacé, et rien n'est écrit.
@@ -381,6 +383,7 @@ fn switching_account_clears_everything() {
     assert!(c.needs_refresh(Section::Movies, 1).unwrap());
     assert_eq!(c.count(Section::Movies, None).unwrap(), 1);
     assert!(c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(c.is_watched(PlaybackKind::Movie, 10).unwrap());
     assert!(c.has_pin().unwrap());
     assert_eq!(c.account_match(&a2).unwrap(), AccountMatch::Same);
 
@@ -390,6 +393,7 @@ fn switching_account_clears_everything() {
     assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::OtherUser);
     assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
     assert!(!c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(!c.is_watched(PlaybackKind::Movie, 10).unwrap());
     assert!(!c.has_pin().unwrap());
     assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::Same);
 

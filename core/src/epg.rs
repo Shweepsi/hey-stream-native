@@ -148,6 +148,33 @@ impl Catalog {
         })
     }
 
+    /// Programme en cours des chaînes dont l'EPG est déjà en cache, pour les
+    /// lignes d'une liste. Ne déclenche aucune requête : une chaîne absente du
+    /// résultat n'a simplement rien en cache.
+    pub fn cached_now(&self, stream_ids: &[i64], now: i64) -> Result<Vec<(i64, Programme)>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT title, description, start, stop FROM epg
+             WHERE stream_id = ?1 AND start <= ?2 AND stop > ?2 ORDER BY start DESC LIMIT 1",
+        )?;
+        let mut found = Vec::new();
+        for &id in stream_ids {
+            let programme = stmt
+                .query_row(params![id, now], |r| {
+                    Ok(Programme {
+                        title: r.get(0)?,
+                        description: r.get(1)?,
+                        start: r.get(2)?,
+                        stop: r.get(3)?,
+                    })
+                })
+                .optional()?;
+            if let Some(programme) = programme {
+                found.push((id, programme));
+            }
+        }
+        Ok(found)
+    }
+
     /// Vrai s'il faut redemander l'EPG de la chaîne : le cache ne connaît pas
     /// le programme suivant, et la dernière demande date d'au moins 15 min.
     pub fn epg_needs_fetch(&self, stream_id: i64, now: i64) -> Result<bool> {

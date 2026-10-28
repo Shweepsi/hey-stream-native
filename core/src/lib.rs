@@ -6,6 +6,17 @@
 //! `null` au lieu d'une liste vide, ou des entrées incomplètes. Une entrée
 //! illisible est ignorée, jamais fatale pour toute la liste.
 
+/// Condition SQL sur une reprise `r` : pour un épisode, être plus récente que
+/// le dernier épisode de sa série vu jusqu'au bout (sinon ce n'est plus « le
+/// dernier épisode regardé »). Macro pour l'insérer dans des requêtes `const`.
+macro_rules! not_superseded {
+    () => {
+        "(r.series_id IS NULL OR r.updated_at > COALESCE(
+            (SELECT MAX(w.watched_at) FROM watched w
+             WHERE w.series_id = r.series_id AND w.kind = 'episode' AND w.ended = 1), -1))"
+    };
+}
+
 mod account;
 mod catalog;
 mod client;
@@ -20,8 +31,8 @@ mod user_data;
 
 pub use account::{AccountKey, AccountMatch, CachedAccount};
 pub use catalog::{
-    CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, SectionData,
-    fetch_section, refresh_section,
+    CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, Progress, RefreshOutcome, Section,
+    SectionData, fetch_section, refresh_section,
 };
 pub use client::{USER_AGENT, XtreamClient};
 pub use details::{Episode, MovieInfo, Season, SeriesInfo};

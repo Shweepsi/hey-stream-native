@@ -184,6 +184,19 @@ pub struct CatalogItem {
     pub epg_channel_id: Option<String>,
     pub rating: Option<String>,
     pub plot: Option<String>,
+    /// Numéro donné par le fournisseur (chaînes).
+    pub number: Option<i64>,
+    /// Lecture commencée : le film, ou le dernier épisode commencé de la série.
+    pub progress: Option<Progress>,
+    /// Film vu, ou série dont tous les épisodes connus (dernière fiche
+    /// chargée) sont vus.
+    pub watched: bool,
+}
+
+#[derive(Debug, Clone, Copy, uniffi::Record)]
+pub struct Progress {
+    pub position_ms: i64,
+    pub duration_ms: i64,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -205,6 +218,13 @@ pub struct Programme {
     pub description: Option<String>,
     pub start: i64,
     pub stop: i64,
+}
+
+/// Programme en cours d'une chaîne, lu dans le cache.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ChannelNow {
+    pub stream_id: i64,
+    pub programme: Programme,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -299,6 +319,12 @@ impl From<xc::CatalogItem> for CatalogItem {
             epg_channel_id: i.epg_channel_id,
             rating: i.rating,
             plot: i.plot,
+            number: i.number,
+            progress: i.progress.map(|p| Progress {
+                position_ms: p.position_ms,
+                duration_ms: p.duration_ms,
+            }),
+            watched: i.watched,
         }
     }
 }
@@ -602,6 +628,21 @@ impl HeyStreamCore {
         })
     }
 
+    /// Programme en cours des chaînes d'une liste, seulement s'il est déjà en
+    /// cache : aucune requête au fournisseur. Les chaînes sans rien en cache
+    /// sont absentes du résultat.
+    pub fn cached_now(&self, stream_ids: Vec<i64>) -> Result<Vec<ChannelNow>> {
+        Ok(self
+            .lock()?
+            .cached_now(&stream_ids, now())?
+            .into_iter()
+            .map(|(stream_id, programme)| ChannelNow {
+                stream_id,
+                programme: programme.into(),
+            })
+            .collect())
+    }
+
     pub fn movie_info(&self, stream_id: i64) -> Result<MovieInfo> {
         let info = self.runtime.block_on(self.client.movie_info(stream_id))?;
         Ok(MovieInfo {
@@ -738,8 +779,8 @@ impl HeyStreamCore {
         )?))
     }
 
-    pub fn mark_watched(&self, section: Section, id: i64) -> Result<()> {
-        Ok(self.lock()?.mark_watched(section.into(), id, now())?)
+    pub fn add_recent(&self, section: Section, id: i64) -> Result<()> {
+        Ok(self.lock()?.add_recent(section.into(), id, now())?)
     }
 
     pub fn recents(&self, section: Section, limit: u32) -> Result<Vec<CatalogItem>> {
@@ -758,10 +799,34 @@ impl HeyStreamCore {
         Ok(self.lock()?.clear_progress(kind.into(), id)?)
     }
 
-    pub fn continue_watching(&self, limit: u32) -> Result<Vec<ResumeEntry>> {
+    /// Marque un film ou un épisode comme vu ou non vu (bouton de la fiche).
+    /// Vu, il quitte « Continuer ». `series_id` : série parente d'un épisode.
+    pub fn set_watched(
+        &self,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        watched: bool,
+    ) -> Result<()> {
         Ok(self
             .lock()?
-            .continue_watching(limit as usize)?
+            .set_watched(kind.into(), id, series_id, watched, now())?)
+    }
+
+    pub fn is_watched(&self, kind: PlaybackKind, id: i64) -> Result<bool> {
+        Ok(self.lock()?.is_watched(kind.into(), id)?)
+    }
+
+    /// Catégorie « Continuer » : `Movie` pour Films, `Episode` pour Séries
+    /// (une entrée par série), `None` pour tout.
+    pub fn continue_watching(
+        &self,
+        kind: Option<PlaybackKind>,
+        limit: u32,
+    ) -> Result<Vec<ResumeEntry>> {
+        Ok(self
+            .lock()?
+            .continue_watching(kind.map(Into::into), limit as usize)?
             .into_iter()
             .map(|e| ResumeEntry {
                 resume: e.resume.into(),
@@ -838,6 +903,16 @@ impl HeyStreamCore {
 
     fn load_series(&self, series_id: i64) -> Result<xc::SeriesInfo> {
         let info = self.runtime.block_on(self.client.series_info(series_id))?;
+        let episodes: Vec<i64> = info
+            .seasons
+            .iter()
+            .flat_map(|s| s.episodes.iter().map(|e| e.id))
+            .collect();
+        // Pour la marque « vue » de la série. Secondaire : un échec (cache
+        // occupé, déconnexion) n'empêche pas d'ouvrir la fiche.
+        if let Ok(mut store) = self.lock() {
+            let _ = store.remember_episodes(series_id, &episodes);
+        }
         *self.last_series_lock() = Some((series_id, info.clone()));
         Ok(info)
     }

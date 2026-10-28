@@ -78,6 +78,26 @@ fn temp_dir(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
+fn cached_now_never_asks_the_provider() {
+    let listings = json!({"epg_listings": [{"title": "QQ==", "start_timestamp": 0, "stop_timestamp": 9_999_999_999i64}]});
+    let panel = counting_panel("get_short_epg", listings, 1);
+    let dir = temp_dir("cached-now");
+    let core = open(&panel, &dir);
+    assert!(core.cached_now(vec![7, 8]).unwrap().is_empty());
+    core.now_next(7).unwrap();
+    let found = core.cached_now(vec![7, 8]).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        (found[0].stream_id, found[0].programme.title.as_str()),
+        (7, "A")
+    );
+    // `expect(1)` : seul `now_next` a interrogé le fournisseur.
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn refresh_browse_and_user_data() {
     let panel = panel(vec![
         (
@@ -153,7 +173,7 @@ fn refresh_browse_and_user_data() {
     let core = open(&panel, &dir);
     assert!(core.is_favorite(Section::Live, 5).unwrap());
     assert!(!core.is_parental_unlocked());
-    assert!(core.continue_watching(10).unwrap().is_empty());
+    assert!(core.continue_watching(None, 10).unwrap().is_empty());
 
     assert_eq!(
         core.stream_url(StreamKind::Live, 5, None),
@@ -175,16 +195,35 @@ fn refresh_fails_only_when_every_section_fails() {
 
 #[test]
 fn series_and_next_episode() {
-    let panel = panel(vec![(
-        "get_series_info",
-        json!({"info": {"name": "Lupin"}, "episodes": {"1": [{"id": 1, "episode_num": 1}, {"id": 2, "episode_num": 2}]}}),
-    )]);
+    let panel = panel(vec![
+        (
+            "get_series_info",
+            json!({"info": {"name": "Lupin"}, "episodes": {"1": [{"id": 1, "episode_num": 1}, {"id": 2, "episode_num": 2}]}}),
+        ),
+        ("get_series_categories", json!([])),
+        ("get_series", json!([{"series_id": 7, "name": "Lupin"}])),
+    ]);
     let dir = temp_dir("series");
     let core = open(&panel, &dir);
     let info = core.series_info(7).unwrap();
     assert_eq!(info.name.as_deref(), Some("Lupin"));
     assert_eq!(core.next_episode(7, 1).unwrap().unwrap().id, 2);
     assert!(core.next_episode(7, 2).unwrap().is_none());
+
+    // Série vue quand tous les épisodes de sa fiche (déjà chargée plus haut)
+    // le sont, à jour à chaque épisode vu ou non vu.
+    core.refresh(true).unwrap();
+    let series_watched = || core.items(Section::Series, None, 0, 10).unwrap()[0].watched;
+    core.set_watched(PlaybackKind::Episode, 1, Some(7), true)
+        .unwrap();
+    assert!(!series_watched());
+    core.set_watched(PlaybackKind::Episode, 2, Some(7), true)
+        .unwrap();
+    assert!(core.is_watched(PlaybackKind::Episode, 2).unwrap());
+    assert!(series_watched());
+    core.set_watched(PlaybackKind::Episode, 2, Some(7), false)
+        .unwrap();
+    assert!(!series_watched());
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
