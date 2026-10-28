@@ -1,0 +1,9 @@
+/target
+**/target
+.DS_Store
+.idea/
+local.properties
+*.iml
+build/
+.gradle/
+xcuserdata/
