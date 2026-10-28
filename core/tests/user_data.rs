@@ -142,6 +142,20 @@ fn continue_watching_keeps_last_episode_per_series() {
         ]
     );
     assert_eq!(catalog.continue_watching(1).unwrap().len(), 1);
+    // Deux épisodes de la même série enregistrés dans la même seconde : une
+    // seule entrée, la dernière écrite.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 503, 300_000, Some(50)), 30)
+        .unwrap();
+    let series_50: Vec<_> = catalog
+        .continue_watching(10)
+        .unwrap()
+        .into_iter()
+        .filter(|e| e.resume.series_id == Some(50))
+        .map(|e| e.resume.id)
+        .collect();
+    assert_eq!(series_50, [503]);
+
     // L'épisode précédent garde sa position s'il est relancé.
     assert_eq!(
         catalog.progress(PlaybackKind::Episode, 501).unwrap(),
