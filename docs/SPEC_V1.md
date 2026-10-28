@@ -66,7 +66,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   défini, ouvrir une catégorie adulte propose d'en créer un. Le
   déverrouillage vaut pour la session ; 5 codes faux bloquent 30 s, au
   déverrouillage comme au changement de code, même après un redémarrage.
-  Un contenu dont la catégorie est inconnue reste verrouillé.
+  Un contenu rangé dans une catégorie inconnue reste verrouillé ; un contenu
+  sans aucune catégorie reste visible, sauf s'il est marqué adulte.
 - Les catégories masquées quittent la navigation et la recherche ; leurs
   favoris et récents restent visibles.
 - Langue, mise à jour manuelle du catalogue, déconnexion.

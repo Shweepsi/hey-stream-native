@@ -1,13 +1,20 @@
 use serde::Deserialize;
 
-use crate::lenient::{flag, opt_i64, opt_string};
+use crate::lenient::{flag, opt_i64, opt_string, required_i64};
 
 /// Identifiants d'une source Xtream.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Credentials {
     pub server_url: String,
     pub username: String,
     pub password: String,
+}
+
+/// Sans identifiants : un `{:?}` ne doit jamais les journaliser.
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials").finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -133,8 +140,4 @@ pub(crate) struct RawAuth {
 
 fn required_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
     opt_string(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
-}
-
-fn required_i64<'de, D: serde::Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
-    opt_i64(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
 }

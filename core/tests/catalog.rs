@@ -182,3 +182,15 @@ fn items_without_categories_stay_due_for_refresh() {
     assert_eq!(catalog.count(Section::Movies, None).unwrap(), 1);
     assert!(catalog.needs_refresh(Section::Movies, 1_001).unwrap());
 }
+
+#[test]
+fn categories_without_items_stay_due_for_refresh() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let cats = categories(json!([{"category_id": "1", "category_name": "Action"}]));
+    catalog.store_movies(&cats, &[], 1_000).unwrap();
+    assert!(catalog.needs_refresh(Section::Movies, 1_001).unwrap());
+
+    // Section vraiment vide : pas de nouveau téléchargement avant 24 h.
+    catalog.store_series(&[], &[], 1_000).unwrap();
+    assert!(!catalog.needs_refresh(Section::Series, 1_001).unwrap());
+}

@@ -1,5 +1,5 @@
 use serde_json::{from_value, json};
-use xtream_core::{Catalog, Category, Error, Movie, PlaybackKind, Resume, Section};
+use xtream_core::{Catalog, Category, Error, Movie, PlaybackKind, Resume, Section, Series};
 
 /// Films : une catégorie « Action », une catégorie adulte, une « Arabe ».
 fn catalog() -> Catalog {
@@ -128,6 +128,94 @@ fn too_many_wrong_pins_block_for_30_seconds() {
     ));
     c.unlock_parental("4321", 130).unwrap();
     assert!(c.is_parental_unlocked());
+}
+
+#[test]
+fn lockout_ends_with_a_fresh_set_of_attempts() {
+    let mut c = catalog();
+    c.set_pin("4321", None, 0).unwrap();
+    for _ in 0..5 {
+        assert!(matches!(
+            c.unlock_parental("0000", 100),
+            Err(Error::WrongPin)
+        ));
+    }
+    // Blocage écoulé : une faute de frappe ne rebloque pas aussitôt.
+    assert!(matches!(
+        c.unlock_parental("0000", 140),
+        Err(Error::WrongPin)
+    ));
+    c.unlock_parental("4321", 141).unwrap();
+}
+
+/// Reprise à 10 min d'un film ou d'un épisode.
+fn watch(c: &mut Catalog, kind: PlaybackKind, id: i64, series_id: Option<i64>) {
+    let resume = Resume {
+        kind,
+        id,
+        position_ms: 600_000,
+        duration_ms: 6_000_000,
+        title: id.to_string(),
+        image: None,
+        extension: None,
+        series_id,
+    };
+    c.save_progress(&resume, id).unwrap();
+}
+
+#[test]
+fn continue_watching_is_locked_like_the_lists() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    let cats: Vec<Category> =
+        from_value(json!([{"category_id": "5", "category_name": "VOD Premium"}])).unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 1, "name": "Catégorie inconnue", "category_id": "99"},
+        {"stream_id": 2, "name": "Sans catégorie"},
+        {"stream_id": 3, "name": "Marqué", "category_id": "5", "is_adult": "1"},
+        {"stream_id": 4, "name": "Ordinaire", "category_id": "5"}
+    ]))
+    .unwrap();
+    c.store_movies(&cats, &movies, 0).unwrap();
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "7", "category_name": "Séries"},
+        {"category_id": "8", "category_name": "+18"}
+    ]))
+    .unwrap();
+    let series: Vec<Series> = from_value(json!([
+        {"series_id": 50, "name": "Marquée", "category_id": "7", "is_adult": 1},
+        {"series_id": 60, "name": "Ordinaire", "category_id": "7"},
+        {"series_id": 70, "name": "Adulte", "category_id": "8"}
+    ]))
+    .unwrap();
+    c.store_series(&cats, &series, 0).unwrap();
+    for id in [1, 2, 3, 4, 999] {
+        watch(&mut c, PlaybackKind::Movie, id, None);
+    }
+    for series_id in [50, 60, 70] {
+        watch(
+            &mut c,
+            PlaybackKind::Episode,
+            series_id * 10 + 1,
+            Some(series_id),
+        );
+    }
+
+    let shown = |c: &Catalog| {
+        let mut ids: Vec<i64> = c
+            .continue_watching(20)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.resume.id)
+            .collect();
+        ids.sort();
+        ids
+    };
+    // Verrou fermé : ni marqués, ni catégorie adulte ou inconnue, ni absents
+    // du catalogue.
+    assert_eq!(shown(&c), [2, 4, 601]);
+    c.set_pin("1234", None, 0).unwrap();
+    c.unlock_parental("1234", 0).unwrap();
+    assert_eq!(shown(&c), [1, 2, 3, 4, 501, 601, 701, 999]);
 }
 
 #[test]

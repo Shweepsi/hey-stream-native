@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::error::{Error, Result};
-use crate::lenient::parse_list;
+use crate::lenient::{parse_list, text};
 use crate::model::{AccountInfo, Category, Credentials, LiveStream, Movie, RawAuth, Series};
 use crate::url::{StreamKind, normalize_server_url};
 
@@ -13,12 +13,19 @@ use crate::url::{StreamKind, normalize_server_url};
 pub const USER_AGENT: &str = concat!("HeyStream/", env!("CARGO_PKG_VERSION"));
 
 /// Client d'une source Xtream Codes.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct XtreamClient {
     base: url::Url,
     username: String,
     password: String,
     http: reqwest::Client,
+}
+
+/// Sans identifiants : un `{:?}` ne doit jamais les journaliser.
+impl std::fmt::Debug for XtreamClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("XtreamClient").finish_non_exhaustive()
+    }
 }
 
 impl XtreamClient {
@@ -33,7 +40,7 @@ impl XtreamClient {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(60))
             .build()
-            .map_err(Error::Network)?;
+            .map_err(Error::network)?;
         Ok(Self {
             base: normalize_server_url(&credentials.server_url)?,
             username: username.to_owned(),
@@ -122,7 +129,8 @@ impl XtreamClient {
         if body.iter().all(u8::is_ascii_whitespace) {
             return Ok(Value::Null);
         }
-        let value: Value = serde_json::from_slice(&body).map_err(|_| Error::InvalidResponse)?;
+        let value: Value =
+            serde_json::from_str(&text(&body)).map_err(|_| Error::InvalidResponse)?;
         // Une liste demandée avec des identifiants refusés revient souvent en
         // HTTP 200 avec `{"user_info": {"auth": 0}}` au lieu d'une liste.
         if action.is_some() && value.pointer("/user_info/auth").is_some() {
@@ -166,7 +174,7 @@ impl XtreamClient {
             .header(reqwest::header::ACCEPT, "application/json")
             .send()
             .await
-            .map_err(Error::Network)?;
+            .map_err(Error::network)?;
         let status = response.status().as_u16();
         match status {
             200..=299 => {}
@@ -175,7 +183,7 @@ impl XtreamClient {
             500..=599 => return Err(Error::Server(status)),
             _ => return Err(Error::UnexpectedStatus(status)),
         }
-        response.bytes().await.map_err(Error::Network)
+        response.bytes().await.map_err(Error::network)
     }
 }
 
