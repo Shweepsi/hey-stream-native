@@ -8,15 +8,32 @@
 //! favoris, reprise, code PIN et catégories masquées : seul le catalogue est
 //! rechargé.
 
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::catalog::Catalog;
 use crate::client::XtreamClient;
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::model::AccountInfo;
 use crate::parental::hex;
+use crate::url::LiveFormat;
 
 const USER_KEY: &str = "account_user";
 const SERVER_KEY: &str = "account_server";
+const INFO_KEY: &str = "account_info";
+
+/// Infos de la dernière authentification réussie, gardées pour l'accueil
+/// hors ligne (date d'expiration) et le choix du format du direct.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CachedAccount {
+    /// Date d'expiration (timestamp Unix), absente pour un compte illimité.
+    pub expires_at: Option<i64>,
+    pub max_connections: Option<i64>,
+    pub active_connections: Option<i64>,
+    pub allowed_output_formats: Vec<String>,
+    /// Date de la vérification (timestamp Unix).
+    pub checked_at: i64,
+}
 
 /// Tables vidées à la déconnexion ou au changement d'identifiant.
 const TABLES: &[&str] = &[
@@ -112,6 +129,37 @@ impl Catalog {
             self.parental_unlocked = false;
         }
         Ok(found)
+    }
+
+    /// Retient les infos d'une authentification réussie.
+    pub fn save_account(&mut self, info: &AccountInfo, now: i64) -> Result<CachedAccount> {
+        let cached = CachedAccount {
+            expires_at: info.expires_at,
+            max_connections: info.max_connections,
+            active_connections: info.active_connections,
+            allowed_output_formats: info.allowed_output_formats.clone(),
+            checked_at: now,
+        };
+        let json = serde_json::to_string(&cached).map_err(|e| Error::Storage(e.to_string()))?;
+        self.set_setting(INFO_KEY, &json)?;
+        Ok(cached)
+    }
+
+    /// Infos de la dernière authentification réussie, sans requête réseau ;
+    /// `None` si l'abonnement n'a jamais été vérifié sur cet appareil.
+    pub fn cached_account(&self) -> Result<Option<CachedAccount>> {
+        Ok(self
+            .setting(INFO_KEY)?
+            .and_then(|json| serde_json::from_str(&json).ok()))
+    }
+
+    /// Format du direct à demander, d'après les formats autorisés connus.
+    pub fn live_format(&self, preferred: LiveFormat) -> Result<LiveFormat> {
+        let allowed = self
+            .cached_account()?
+            .map(|a| a.allowed_output_formats)
+            .unwrap_or_default();
+        Ok(LiveFormat::choose(preferred, &allowed))
     }
 
     /// Efface toutes les données de l'abonnement (déconnexion), y compris le

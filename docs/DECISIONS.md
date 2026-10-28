@@ -42,6 +42,9 @@ On reproduit ces *qualités*, pas l'apparence :
   a été écartée : ni tvOS, ni le focus télécommande Android TV ne sont mûrs.
 - **Lecteurs** : Media3/ExoPlayer (décodage matériel) sur Android, AVPlayer
   (+ VLCKit pour MKV/TS si besoin) sur Apple.
+- **Format du direct** : TS sur Android, HLS (`m3u8`) sur Apple (AVPlayer ne
+  lit pas le TS continu) ; si le fournisseur n'autorise que l'autre format
+  (`allowed_output_formats`), c'est lui qui est demandé.
 - **Minimum** : voir `MATERIEL.md` — appareil de référence Xiaomi Mi Box S 2e gén.
 
 ## Panneau de référence

@@ -14,6 +14,8 @@ fun main() {
     core.unlockParental("1234")
     check(core.isParentalUnlocked())
     check(core.streamUrl(StreamKind.LIVE, 5L, null) == "http://127.0.0.1:9/live/u/p/5.ts")
+    check(core.liveUrl(5L, LiveFormat.TS) == "http://127.0.0.1:9/live/u/p/5.ts")
+    check(core.accountInfo() == null)
     core.signOut()
     check(runCatching { core.categories(Section.LIVE) }.exceptionOrNull() is HeyStreamException.SignedOut)
     println("liaisons Kotlin : OK")

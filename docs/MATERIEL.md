@@ -68,6 +68,28 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
 | Mémoire en lecture | < 300 Mo |
 | Plantages | 0 sur 4 h de lecture continue |
 
+## Premier appareil d'essai : Xiaomi Pad 7
+
+Décidé le 2026-10-28 : le premier APK s'essaie sur une **Xiaomi Pad 7**
+(tablette), avant la Mi Box S. La Mi Box S reste l'appareil de référence pour
+les objectifs ci-dessus.
+
+| | Xiaomi Pad 7 |
+|---|---|
+| Puce | Snapdragon 7+ Gen 3 (GPU Adreno 732) |
+| Mémoire | 8 ou 12 Go |
+| Système | Xiaomi HyperOS 2 (Android 15) |
+
+Conséquences :
+- **Processeur 64 bits uniquement** : le cœur Rust doit être compilé pour
+  `aarch64-linux-android` (`arm64-v8a`) dès le premier APK. La cible 32 bits
+  (`armv7-linux-androideabi`) reste obligatoire, mais seulement pour la
+  Mi Box S.
+- Écran tactile : la navigation doit marcher au doigt comme à la
+  télécommande, toujours en paysage.
+- Appareil bien plus puissant que la Mi Box S : il valide le fonctionnement,
+  pas les performances.
+
 ## Apple
 
 Minimum « Récent » : **iOS / iPadOS / tvOS 17**. L'Apple TV HD (2015) est

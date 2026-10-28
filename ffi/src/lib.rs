@@ -132,6 +132,36 @@ pub struct AccountInfo {
     pub expires_at: Option<i64>,
     pub max_connections: Option<i64>,
     pub active_connections: Option<i64>,
+    /// Date de la vérification auprès du fournisseur (secondes Unix).
+    pub checked_at: i64,
+}
+
+impl From<xc::CachedAccount> for AccountInfo {
+    fn from(a: xc::CachedAccount) -> Self {
+        Self {
+            expires_at: a.expires_at,
+            max_connections: a.max_connections,
+            active_connections: a.active_connections,
+            checked_at: a.checked_at,
+        }
+    }
+}
+
+/// Format du direct que le lecteur préfère : `Ts` pour Media3 (Android),
+/// `Hls` pour AVPlayer (Apple), qui ne lit pas le TS continu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum LiveFormat {
+    Ts,
+    Hls,
+}
+
+impl From<LiveFormat> for xc::LiveFormat {
+    fn from(f: LiveFormat) -> Self {
+        match f {
+            LiveFormat::Ts => xc::LiveFormat::Ts,
+            LiveFormat::Hls => xc::LiveFormat::Hls,
+        }
+    }
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -475,16 +505,25 @@ impl HeyStreamCore {
     // Réseau -----------------------------------------------------------------
 
     /// Vérifie les identifiants (formulaire de connexion, infos abonnement).
-    /// Réussi, il lie le cache à cet abonnement.
+    /// Réussi, il lie le cache à cet abonnement et retient ses infos pour
+    /// `account_info`.
     pub fn authenticate(&self) -> Result<AccountInfo> {
         self.check_signed_in()?;
         let account = self.runtime.block_on(self.client.authenticate())?;
         self.bind_if_pending()?;
-        Ok(AccountInfo {
-            expires_at: account.expires_at,
-            max_connections: account.max_connections,
-            active_connections: account.active_connections,
-        })
+        Ok(self.lock()?.save_account(&account, now())?.into())
+    }
+
+    /// Infos de la dernière authentification réussie (date d'expiration pour
+    /// l'accueil), sans requête réseau : disponibles hors ligne. `None` tant
+    /// que cet abonnement n'a jamais été vérifié sur l'appareil.
+    pub fn account_info(&self) -> Result<Option<AccountInfo>> {
+        let store = self.lock()?;
+        // Cache d'un autre abonnement : ses infos ne sont pas celles-ci.
+        if store.account == AccountState::Pending {
+            return Ok(None);
+        }
+        Ok(store.cached_account()?.map(Into::into))
     }
 
     /// Rafraîchit les sections de plus de 24 h (toutes si `force`). Une
@@ -610,7 +649,20 @@ impl HeyStreamCore {
         Ok(store.clear_all()?)
     }
 
-    /// URL de lecture, à donner au lecteur uniquement (jamais journalisée).
+    /// URL d'une chaîne en direct, dans le format que préfère le lecteur si
+    /// le fournisseur l'autorise, sinon dans l'autre. À donner au lecteur
+    /// uniquement (jamais journalisée).
+    pub fn live_url(&self, stream_id: i64, preferred: LiveFormat) -> Result<String> {
+        let format = self.lock()?.live_format(preferred.into())?;
+        Ok(self
+            .client
+            .stream_url(xc::StreamKind::Live, stream_id, Some(format.extension()))
+            .to_string())
+    }
+
+    /// URL de lecture d'un film ou d'un épisode (extension du catalogue ou de
+    /// la fiche). Pour le direct, `live_url` choisit le format. À donner au
+    /// lecteur uniquement (jamais journalisée).
     pub fn stream_url(&self, kind: StreamKind, id: i64, extension: Option<String>) -> String {
         self.client
             .stream_url(kind.into(), id, extension.as_deref())

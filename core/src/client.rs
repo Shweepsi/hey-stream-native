@@ -64,6 +64,7 @@ impl XtreamClient {
             expires_at: raw.user_info.exp_date,
             max_connections: raw.user_info.max_connections,
             active_connections: raw.user_info.active_cons,
+            allowed_output_formats: raw.user_info.allowed_output_formats,
             server: raw.server_info.unwrap_or_default(),
         })
     }

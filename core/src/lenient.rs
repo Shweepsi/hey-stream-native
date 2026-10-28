@@ -24,6 +24,23 @@ pub fn opt_i64<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error>
     Ok(value_to_i64(&Value::deserialize(d)?))
 }
 
+/// Liste de textes en minuscules : tableau (`["m3u8", "ts"]`) ou texte séparé
+/// par des virgules ; toute autre forme donne une liste vide.
+pub fn string_list<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+    let items = match Value::deserialize(d)? {
+        Value::Array(items) => items,
+        Value::String(s) => s.split(',').map(|s| Value::String(s.to_owned())).collect(),
+        _ => Vec::new(),
+    };
+    Ok(items
+        .into_iter()
+        .filter_map(|v| match v {
+            Value::String(s) if !s.trim().is_empty() => Some(s.trim().to_lowercase()),
+            _ => None,
+        })
+        .collect())
+}
+
 /// Identifiant numérique obligatoire : une entrée sans lui est illisible.
 pub fn required_i64<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
     opt_i64(d)?.ok_or_else(|| serde::de::Error::custom("identifiant manquant"))
@@ -148,6 +165,22 @@ mod tests {
     #[derive(Debug, Deserialize)]
     struct Named {
         name: String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct Formats {
+        #[serde(default, deserialize_with = "string_list")]
+        formats: Vec<String>,
+    }
+
+    #[test]
+    fn string_list_shapes() {
+        let formats = |json: &str| serde_json::from_str::<Formats>(json).unwrap().formats;
+        assert_eq!(formats(r#"{"formats": ["M3U8", "ts", 1]}"#), ["m3u8", "ts"]);
+        assert_eq!(formats(r#"{"formats": "ts, m3u8"}"#), ["ts", "m3u8"]);
+        for empty in [r#"{}"#, r#"{"formats": null}"#, r#"{"formats": false}"#] {
+            assert!(formats(empty).is_empty(), "{empty}");
+        }
     }
 
     #[test]
