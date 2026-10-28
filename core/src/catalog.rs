@@ -383,9 +383,10 @@ impl Catalog {
             }
         }
         insert_items(&tx)?;
-        // Entrées sans catégories : réponse probablement incomplète. On les
-        // garde, mais la section reste à rafraîchir au prochain lancement.
-        if categories.is_empty() && item_count > 0 {
+        // Entrées sans catégories, ou catégories sans entrées : réponse
+        // probablement incomplète. On la garde, mais la section reste à
+        // rafraîchir au prochain lancement. Les deux vides : section vide.
+        if categories.is_empty() != (item_count == 0) {
             tx.execute("DELETE FROM refresh WHERE section = ?1", [key])?;
         } else {
             tx.execute(
