@@ -39,7 +39,7 @@ async fn short_epg_decodes_and_sorts() {
             {"title": b64("Le 20h"), "description": b64("Journal télévisé"),
              "start_timestamp": "2000", "stop_timestamp": "2600"},
             {"title": b64("Météo"), "description": "", "start_timestamp": 1900, "stop_timestamp": 2000},
-            {"title": "Titre en clair !", "start_timestamp": "2600", "stop_timestamp": "5000"},
+            {"title": b64("Film du soir"), "start_timestamp": "2600", "stop_timestamp": "5000"},
             {"title": b64("Sans horaires")}
         ]),
         1,
@@ -47,7 +47,7 @@ async fn short_epg_decodes_and_sorts() {
     .await;
     let programmes = client(&server).short_epg(7).await.unwrap();
     let titles: Vec<_> = programmes.iter().map(|p| p.title.as_str()).collect();
-    assert_eq!(titles, ["Météo", "Le 20h", "Titre en clair !"]);
+    assert_eq!(titles, ["Météo", "Le 20h", "Film du soir"]);
     assert_eq!(
         programmes[1].description.as_deref(),
         Some("Journal télévisé")
@@ -137,4 +137,53 @@ async fn network_error_keeps_cached_programmes() {
     assert_eq!(nn.now.unwrap().title, "A");
     // Pas de nouvel essai juste après l'échec.
     assert!(!catalog.epg_needs_fetch(7, 5_100).unwrap());
+}
+
+#[tokio::test]
+async fn plain_text_responses_are_kept_as_is() {
+    // « Info », « JT13 » sont du base64 valide : décodés seuls, ils
+    // donneraient des octets invalides ou « %=w ».
+    let server = epg_server(
+        json!([
+            {"title": "Info", "start_timestamp": 1000, "stop_timestamp": 2000},
+            {"title": "JT13", "description": "Le journal de 13 h", "start_timestamp": 2000, "stop_timestamp": 3000},
+            {"title": "Le 20h", "start_timestamp": 3000, "stop_timestamp": 4000}
+        ]),
+        1,
+    )
+    .await;
+    let titles: Vec<_> = client(&server)
+        .short_epg(7)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|p| p.title)
+        .collect();
+    assert_eq!(titles, ["Info", "JT13", "Le 20h"]);
+}
+
+#[tokio::test]
+async fn empty_response_keeps_current_programme() {
+    let server = epg_server(json!([]), 1).await;
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let a = Programme {
+        title: "A".into(),
+        description: None,
+        start: 0,
+        stop: 10_000,
+    };
+    catalog.store_epg(7, &[a], 0).unwrap();
+    let nn = now_next_for(&client(&server), &mut catalog, 7, 5_000)
+        .await
+        .unwrap();
+    assert_eq!(nn.now.unwrap().title, "A");
+}
+
+#[test]
+fn a_claimed_fetch_is_not_claimed_twice() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    assert!(catalog.claim_epg_fetch(7, 100).unwrap());
+    // Deuxième appel simultané : la demande est déjà en cours.
+    assert!(!catalog.claim_epg_fetch(7, 100).unwrap());
+    assert!(catalog.claim_epg_fetch(8, 100).unwrap());
 }

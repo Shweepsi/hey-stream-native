@@ -243,10 +243,19 @@ impl Catalog {
     /// de la plus récente à la plus ancienne.
     pub fn continue_watching(&self, limit: usize) -> Result<Vec<ResumeEntry>> {
         let mut stmt = self.conn.prepare_cached(&format!(
+            // Une ligne par film, et une par série : la dernière écrite (rowid le
+            // plus grand), même si deux épisodes ont été enregistrés dans la
+            // même seconde.
             "SELECT kind, id, position_ms, duration_ms, updated_at, title, image, extension, series_id
-             FROM resume r
-             WHERE (r.series_id IS NULL OR r.updated_at = (
-                SELECT MAX(updated_at) FROM resume WHERE series_id = r.series_id)){}
+             FROM (
+                SELECT r.*, ROW_NUMBER() OVER (
+                    PARTITION BY CASE WHEN r.series_id IS NULL THEN r.kind || ':' || r.id
+                                      ELSE 'series:' || r.series_id END
+                    ORDER BY r.updated_at DESC, r.rowid DESC
+                ) AS rank
+                FROM resume r
+             ) r
+             WHERE r.rank = 1{}
              ORDER BY updated_at DESC, id
              LIMIT ?1",
             self.resume_lock_filter()

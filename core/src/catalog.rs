@@ -88,7 +88,7 @@ const MIGRATIONS: &[&str] = &[
         name TEXT NOT NULL,
         sort_key TEXT NOT NULL,
         search_key TEXT NOT NULL,
-        num INTEGER,
+        sort_num INTEGER NOT NULL,
         image TEXT,
         category_id TEXT,
         extension TEXT,
@@ -97,7 +97,8 @@ const MIGRATIONS: &[&str] = &[
         plot TEXT,
         PRIMARY KEY (section, id)
     );
-    CREATE INDEX item_by_category ON item (section, category_id, num, sort_key);
+    CREATE INDEX item_by_category ON item (section, category_id, sort_num, sort_key, id);
+    CREATE INDEX item_by_section ON item (section, sort_num, sort_key, id);
     CREATE TABLE refresh (
         section TEXT PRIMARY KEY,
         refreshed_at INTEGER NOT NULL
@@ -114,7 +115,6 @@ pub struct Catalog {
     /// Catégories adultes déverrouillées par le code PIN, pour cette session
     /// seulement : chaque ouverture repart verrouillée.
     pub(crate) parental_unlocked: bool,
-    pub(crate) pin_attempts: crate::parental::PinAttempts,
 }
 
 impl Catalog {
@@ -139,7 +139,6 @@ impl Catalog {
         Ok(Self {
             conn,
             parental_unlocked: false,
-            pin_attempts: Default::default(),
         })
     }
 
@@ -199,19 +198,31 @@ impl Catalog {
     /// catégorie.
     pub fn count(&self, section: Section, category_id: Option<&str>) -> Result<usize> {
         self.check_category(section, category_id)?;
-        let sql = format!(
-            "SELECT COUNT(*) FROM item i WHERE i.section = ?1 AND (?2 IS NULL OR i.category_id = ?2){}",
-            self.visibility("i", category_id.is_none()),
-        );
-        let n: i64 = self
-            .conn
-            .query_row(&sql, params![section.key(), category_id], |r| r.get(0))?;
+        let n: i64 = match category_id {
+            Some(id) => self.conn.query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM item i WHERE i.section = ?1 AND i.category_id = ?2{}",
+                    self.visibility("i", false)
+                ),
+                params![section.key(), id],
+                |r| r.get(0),
+            )?,
+            None => self.conn.query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM item i WHERE i.section = ?1{}",
+                    self.visibility("i", true)
+                ),
+                [section.key()],
+                |r| r.get(0),
+            )?,
+        };
         Ok(n as usize)
     }
 
     /// Une page d'entrées. Le direct suit la numérotation du fournisseur, les
-    /// films et séries l'ordre alphabétique. Ouvrir une catégorie verrouillée
-    /// renvoie [`Error::ParentalLock`].
+    /// films et séries l'ordre alphabétique. Les deux requêtes lisent un index
+    /// déjà trié : pas de tri de toute la section à chaque page. Ouvrir une
+    /// catégorie verrouillée renvoie [`Error::ParentalLock`].
     pub fn items(
         &self,
         section: Section,
@@ -220,19 +231,34 @@ impl Catalog {
         limit: usize,
     ) -> Result<Vec<CatalogItem>> {
         self.check_category(section, category_id)?;
-        let sql = format!(
-            "SELECT {ITEM_COLUMNS} FROM item i
-             WHERE i.section = ?1 AND (?2 IS NULL OR i.category_id = ?2){}
-             ORDER BY i.num IS NULL, i.num, i.sort_key, i.id
-             LIMIT ?3 OFFSET ?4",
-            self.visibility("i", category_id.is_none()),
-        );
-        let mut stmt = self.conn.prepare_cached(&sql)?;
-        let rows = stmt.query_map(
-            params![section.key(), category_id, limit as i64, offset as i64],
-            |r| row_to_item(section, r),
-        )?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
+        let (limit, offset) = (limit as i64, offset as i64);
+        let rows = match category_id {
+            Some(id) => {
+                let mut stmt = self.conn.prepare_cached(&format!(
+                    "SELECT {ITEM_COLUMNS} FROM item i
+                     WHERE i.section = ?1 AND i.category_id = ?2{}
+                     ORDER BY i.sort_num, i.sort_key, i.id LIMIT ?3 OFFSET ?4",
+                    self.visibility("i", false)
+                ))?;
+                stmt.query_map(params![section.key(), id, limit, offset], |r| {
+                    row_to_item(section, r)
+                })?
+                .collect::<rusqlite::Result<_>>()?
+            }
+            None => {
+                let mut stmt = self.conn.prepare_cached(&format!(
+                    "SELECT {ITEM_COLUMNS} FROM item i
+                     WHERE i.section = ?1{}
+                     ORDER BY i.sort_num, i.sort_key, i.id LIMIT ?2 OFFSET ?3",
+                    self.visibility("i", true)
+                ))?;
+                stmt.query_map(params![section.key(), limit, offset], |r| {
+                    row_to_item(section, r)
+                })?
+                .collect::<rusqlite::Result<_>>()?
+            }
+        };
+        Ok(rows)
     }
 
     /// Une entrée, sauf si elle appartient à une catégorie verrouillée.
@@ -290,13 +316,14 @@ impl Catalog {
                     name,
                     sort_key(&name),
                     fold(&name),
-                    s.num,
+                    s.num.unwrap_or(NO_NUM),
                     s.stream_icon,
                     s.category_id,
                     None::<String>,
                     s.epg_channel_id,
                     None::<String>,
                     None::<String>,
+                    s.is_adult,
                 ])?;
             }
             Ok(())
@@ -320,13 +347,14 @@ impl Catalog {
                     name,
                     sort_key(&name),
                     fold(&name),
-                    None::<i64>,
+                    NO_NUM,
                     m.stream_icon,
                     m.category_id,
                     m.container_extension,
                     None::<String>,
                     m.rating,
                     None::<String>,
+                    m.is_adult,
                 ])?;
             }
             Ok(())
@@ -350,13 +378,14 @@ impl Catalog {
                     name,
                     sort_key(&name),
                     fold(&name),
-                    None::<i64>,
+                    NO_NUM,
                     s.cover,
                     s.category_id,
                     None::<String>,
                     None::<String>,
                     s.rating,
                     s.plot,
+                    s.is_adult,
                 ])?;
             }
             Ok(())
@@ -373,8 +402,17 @@ impl Catalog {
         now: i64,
         insert_items: impl FnOnce(&Transaction) -> rusqlite::Result<()>,
     ) -> Result<RefreshOutcome> {
-        let lost_items = item_count == 0 && self.count(section, None)? > 0;
-        let lost_categories = categories.is_empty() && !self.categories(section)?.is_empty();
+        // Comptes bruts, sans masquage ni verrou parental : une section dont
+        // tout est masqué n'est pas vide pour autant.
+        let stored = |table: &str| -> Result<i64> {
+            Ok(self.conn.query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE section = ?1"),
+                [section.key()],
+                |r| r.get(0),
+            )?)
+        };
+        let lost_items = item_count == 0 && stored("item")? > 0;
+        let lost_categories = categories.is_empty() && stored("category")? > 0;
         if lost_items || lost_categories {
             return Ok(RefreshOutcome::KeptCache);
         }
@@ -465,13 +503,16 @@ where
     Ok(categories)
 }
 
+/// Rang des entrées sans numéro : après toutes les chaînes numérotées.
+const NO_NUM: i64 = i64::MAX;
+
 pub(crate) const ITEM_COLUMNS: &str =
     "i.id, i.name, i.image, i.category_id, i.extension, i.epg_channel_id, i.rating, i.plot";
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
-    (section, id, name, sort_key, search_key, num, image, category_id, extension,
-     epg_channel_id, rating, plot)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)";
+    (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
+     epg_channel_id, rating, plot, is_adult)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
 
 pub(crate) fn row_to_item(
     section: Section,
@@ -494,24 +535,26 @@ fn display_name(name: Option<&str>) -> String {
     name.map(str::trim).unwrap_or_default().to_owned()
 }
 
-/// Minuscules sans accents, pour la recherche.
+/// Minuscules sans accents, pour la recherche. Les ligatures s'écrivent en
+/// deux lettres, comme on les tape : « Sœur » → « soeur ».
 pub(crate) fn fold(text: &str) -> String {
-    text.chars()
-        .flat_map(char::to_lowercase)
-        .map(|c| match c {
-            'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => 'a',
-            'ç' => 'c',
-            'è' | 'é' | 'ê' | 'ë' => 'e',
-            'ì' | 'í' | 'î' | 'ï' => 'i',
-            'ñ' => 'n',
-            'ò' | 'ó' | 'ô' | 'õ' | 'ö' => 'o',
-            'ù' | 'ú' | 'û' | 'ü' => 'u',
-            'ý' | 'ÿ' => 'y',
-            'œ' => 'o',
-            'æ' => 'a',
-            other => other,
-        })
-        .collect()
+    let mut folded = String::with_capacity(text.len());
+    for c in text.chars().flat_map(char::to_lowercase) {
+        match c {
+            'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' => folded.push('a'),
+            'ç' => folded.push('c'),
+            'è' | 'é' | 'ê' | 'ë' => folded.push('e'),
+            'ì' | 'í' | 'î' | 'ï' => folded.push('i'),
+            'ñ' => folded.push('n'),
+            'ò' | 'ó' | 'ô' | 'õ' | 'ö' => folded.push('o'),
+            'ù' | 'ú' | 'û' | 'ü' => folded.push('u'),
+            'ý' | 'ÿ' => folded.push('y'),
+            'œ' => folded.push_str("oe"),
+            'æ' => folded.push_str("ae"),
+            other => folded.push(other),
+        }
+    }
+    folded
 }
 
 /// Clé de tri : on ignore les décorations de tête (`|FR|`, `★`, `-`…) pour
@@ -566,6 +609,40 @@ mod tests {
         assert_eq!(sort_key("|FR| ✪ ULTRA ᵁᴴᴰ"), "ultra ᵁᴴᴰ".to_lowercase());
         assert_eq!(sort_key("  Été 2024"), "ete 2024");
         assert_eq!(sort_key("★★★"), "★★★");
+    }
+
+    #[test]
+    fn fold_writes_ligatures_as_typed() {
+        assert_eq!(fold("Sœurs"), "soeurs");
+        assert_eq!(fold("ŒUVRE"), "oeuvre");
+        assert_eq!(fold("Lætitia"), "laetitia");
+        assert_eq!(fold("Éléphant Ça"), "elephant ca");
+    }
+
+    /// Les pages de liste lisent l'index dans l'ordre : ni parcours de toute
+    /// la section ni tri temporaire (mesuré lent sur la Mi Box S).
+    #[test]
+    fn list_pages_use_an_index_without_sorting() {
+        let catalog = Catalog::open_in_memory().unwrap();
+        for filter in ["AND i.category_id = '1'", ""] {
+            // Avec les filtres réels (verrou parental, catégories masquées).
+            let sql = format!(
+                "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = 'movies' {filter}{}
+                 ORDER BY i.sort_num, i.sort_key, i.id LIMIT 60 OFFSET 0",
+                catalog.visibility("i", filter.is_empty())
+            );
+            let plan: Vec<String> = catalog
+                .conn
+                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                .unwrap()
+                .query_map([], |r| r.get::<_, String>(3))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap();
+            let plan = plan.join(" | ");
+            assert!(plan.contains("INDEX item_by_"), "{plan}");
+            assert!(!plan.contains("TEMP B-TREE"), "{plan}");
+        }
     }
 
     #[test]
