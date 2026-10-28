@@ -38,6 +38,10 @@ pub struct LiveStream {
     pub tv_archive: bool,
     #[serde(default, deserialize_with = "opt_i64")]
     pub tv_archive_duration: Option<i64>,
+    /// Marquage adulte du fournisseur (`"is_adult": "1"`), verrouillé par le
+    /// contrôle parental quelle que soit la catégorie.
+    #[serde(default, deserialize_with = "flag")]
+    pub is_adult: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -56,6 +60,10 @@ pub struct Movie {
     pub rating: Option<String>,
     #[serde(default, deserialize_with = "opt_i64")]
     pub added: Option<i64>,
+    /// Marquage adulte du fournisseur (`"is_adult": "1"`), verrouillé par le
+    /// contrôle parental quelle que soit la catégorie.
+    #[serde(default, deserialize_with = "flag")]
+    pub is_adult: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -72,6 +80,10 @@ pub struct Series {
     pub plot: Option<String>,
     #[serde(default, deserialize_with = "opt_string")]
     pub rating: Option<String>,
+    /// Marquage adulte du fournisseur (`"is_adult": "1"`), verrouillé par le
+    /// contrôle parental quelle que soit la catégorie.
+    #[serde(default, deserialize_with = "flag")]
+    pub is_adult: bool,
 }
 
 /// Compte et serveur renvoyés par l'authentification.

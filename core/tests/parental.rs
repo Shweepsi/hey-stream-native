@@ -70,7 +70,7 @@ fn adult_content_is_locked_everywhere_until_pin() {
 
     // Pas de code défini : impossible de déverrouiller.
     assert!(matches!(c.unlock_parental("1234", 0), Err(Error::WrongPin)));
-    c.set_pin("1234", None).unwrap();
+    c.set_pin("1234", None, 0).unwrap();
     c.unlock_parental("1234", 0).unwrap();
     assert!(
         !c.categories(Section::Movies)
@@ -93,25 +93,28 @@ fn adult_content_is_locked_everywhere_until_pin() {
 fn pin_rules() {
     let mut c = catalog();
     assert!(!c.has_pin().unwrap());
-    assert!(matches!(c.set_pin("12a4", None), Err(Error::InvalidPin)));
-    assert!(matches!(c.set_pin("12345", None), Err(Error::InvalidPin)));
-    c.set_pin("0000", None).unwrap();
+    assert!(matches!(c.set_pin("12a4", None, 0), Err(Error::InvalidPin)));
+    assert!(matches!(
+        c.set_pin("12345", None, 0),
+        Err(Error::InvalidPin)
+    ));
+    c.set_pin("0000", None, 0).unwrap();
     assert!(c.has_pin().unwrap());
 
     // Changer le code exige l'ancien.
-    assert!(matches!(c.set_pin("1111", None), Err(Error::WrongPin)));
+    assert!(matches!(c.set_pin("1111", None, 0), Err(Error::WrongPin)));
     assert!(matches!(
-        c.set_pin("1111", Some("9999")),
+        c.set_pin("1111", Some("9999"), 0),
         Err(Error::WrongPin)
     ));
-    c.set_pin("1111", Some("0000")).unwrap();
+    c.set_pin("1111", Some("0000"), 0).unwrap();
     assert!(matches!(c.unlock_parental("0000", 0), Err(Error::WrongPin)));
 }
 
 #[test]
 fn too_many_wrong_pins_block_for_30_seconds() {
     let mut c = catalog();
-    c.set_pin("4321", None).unwrap();
+    c.set_pin("4321", None, 0).unwrap();
     for _ in 0..5 {
         assert!(matches!(
             c.unlock_parental("0000", 100),
@@ -158,4 +161,97 @@ fn hidden_categories_leave_browsing_and_search_only() {
     assert!(c.categories(Section::Movies).unwrap().is_empty());
     c.set_category_hidden(Section::Movies, "3", false).unwrap();
     assert_eq!(c.categories(Section::Movies).unwrap().len(), 1);
+}
+
+#[test]
+fn unknown_category_or_provider_flag_stays_locked() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    // Catégories de films toutes perdues (réponse vide) : rien ne passe tant
+    // que le verrou est actif, sauf les entrées sans catégorie.
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 1, "name": "Inconnu", "category_id": "99"},
+        {"stream_id": 2, "name": "Sans catégorie"},
+        {"stream_id": 3, "name": "Marqué", "is_adult": "1"}
+    ]))
+    .unwrap();
+    c.store_movies(&[], &movies, 0).unwrap();
+    assert_eq!(ids(c.items(Section::Movies, None, 0, 10).unwrap()), [2]);
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 1);
+    assert!(c.search(Section::Movies, "inconnu", 10).unwrap().is_empty());
+
+    // Flux marqué adulte dans une catégorie ordinaire.
+    let cats: Vec<Category> =
+        from_value(json!([{"category_id": "5", "category_name": "VOD Premium"}])).unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 4, "name": "Film", "category_id": "5"},
+        {"stream_id": 5, "name": "Film marqué", "category_id": "5", "is_adult": 1}
+    ]))
+    .unwrap();
+    c.store_movies(&cats, &movies, 10).unwrap();
+    assert_eq!(
+        ids(c.items(Section::Movies, Some("5"), 0, 10).unwrap()),
+        [4]
+    );
+
+    c.set_pin("1234", None, 0).unwrap();
+    c.unlock_parental("1234", 0).unwrap();
+    assert_eq!(
+        ids(c.items(Section::Movies, Some("5"), 0, 10).unwrap()),
+        [4, 5]
+    );
+}
+
+#[test]
+fn changing_the_pin_cannot_be_used_to_guess_it_and_lockout_survives_restart() {
+    let dir = std::env::temp_dir().join(format!("hs-pin-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut c = Catalog::open(&path).unwrap();
+        c.set_pin("4321", None, 0).unwrap();
+        for guess in ["0000", "0001", "0002", "0003", "0004"] {
+            assert!(matches!(
+                c.set_pin("9999", Some(guess), 100),
+                Err(Error::WrongPin)
+            ));
+        }
+        assert!(matches!(
+            c.set_pin("9999", Some("4321"), 101),
+            Err(Error::TooManyAttempts { .. })
+        ));
+    }
+    // Relancer l'app ne remet pas le compteur à zéro.
+    let mut c = Catalog::open(&path).unwrap();
+    assert!(matches!(
+        c.unlock_parental("4321", 105),
+        Err(Error::TooManyAttempts { retry_in_secs: 25 })
+    ));
+    // Une horloge reculée ne prolonge pas le blocage indéfiniment.
+    c.unlock_parental("4321", 131).unwrap();
+    c.set_pin("9999", Some("4321"), 140).unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn hiding_everything_does_not_defeat_the_empty_response_guard() {
+    let mut c = catalog();
+    for id in ["1", "2", "3"] {
+        c.set_category_hidden(Section::Movies, id, true).unwrap();
+    }
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
+    // Réponse intermittente sans catégories : le cache est gardé, marquage
+    // adulte compris.
+    let movies: Vec<Movie> =
+        from_value(json!([{"stream_id": 20, "name": "Film adulte taxi", "category_id": "2"}]))
+            .unwrap();
+    assert_eq!(
+        c.store_movies(&[], &movies, 5).unwrap(),
+        xtream_core::RefreshOutcome::KeptCache
+    );
+    assert!(
+        c.all_categories(Section::Movies)
+            .unwrap()
+            .iter()
+            .any(|cat| cat.is_adult)
+    );
 }

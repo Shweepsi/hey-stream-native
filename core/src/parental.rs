@@ -1,7 +1,8 @@
 //! Contrôle parental et catégories masquées.
 //!
-//! Les catégories adultes (détectées par leur nom) sont verrouillées : elles
-//! restent listées, mais leur contenu n'apparaît nulle part (listes,
+//! Les catégories adultes (détectées par leur nom) et les flux que le
+//! fournisseur marque `is_adult` sont verrouillés. Les catégories restent
+//! listées, mais leur contenu n'apparaît nulle part (listes,
 //! recherche, favoris, récents, « Continuer ») tant que le code PIN n'a pas
 //! été saisi. Le déverrouillage ne vaut que pour la session en cours.
 //!
@@ -37,19 +38,16 @@ pub(crate) const MIGRATION: &str = "
         stream_id INTEGER PRIMARY KEY,
         fetched_at INTEGER NOT NULL
     );
+    ALTER TABLE item ADD COLUMN is_adult INTEGER NOT NULL DEFAULT 0;
 ";
 
 const PIN_KEY: &str = "parental_pin";
-/// Après 5 codes faux, nouvelle tentative possible au bout de 30 s.
-const MAX_ATTEMPTS: u32 = 5;
+const FAILURES_KEY: &str = "parental_pin_failures";
+const BLOCKED_UNTIL_KEY: &str = "parental_pin_blocked_until";
+/// Après 5 codes faux, nouvelle tentative possible au bout de 30 s. Le
+/// compteur est enregistré : relancer l'app ne le remet pas à zéro.
+const MAX_ATTEMPTS: i64 = 5;
 const LOCKOUT_SECS: i64 = 30;
-
-/// État des tentatives de code, en mémoire pour la session.
-#[derive(Debug, Default)]
-pub(crate) struct PinAttempts {
-    failures: u32,
-    blocked_until: i64,
-}
 
 impl Catalog {
     // --- Code PIN ----------------------------------------------------------
@@ -59,42 +57,49 @@ impl Catalog {
     }
 
     /// Définit ou change le code PIN (4 chiffres). Un code existant doit être
-    /// confirmé par `current`.
-    pub fn set_pin(&mut self, new_pin: &str, current: Option<&str>) -> Result<()> {
+    /// confirmé par `current`, avec la même limite d'essais que le
+    /// déverrouillage.
+    pub fn set_pin(&mut self, new_pin: &str, current: Option<&str>, now: i64) -> Result<()> {
         if !is_valid_pin(new_pin) {
             return Err(Error::InvalidPin);
         }
-        if let Some(stored) = self.stored_pin()?
-            && !current.is_some_and(|pin| verify(&stored, pin))
-        {
-            return Err(Error::WrongPin);
+        if self.has_pin()? {
+            self.check_pin(current.ok_or(Error::WrongPin)?, now)?;
         }
         let mut salt = [0u8; 16];
         getrandom::fill(&mut salt).map_err(|e| Error::Storage(e.to_string()))?;
         let value = format!("{}:{}", hex(&salt), hex(&digest(&salt, new_pin)));
-        self.conn.execute(
-            "INSERT OR REPLACE INTO setting (key, value) VALUES (?1, ?2)",
-            params![PIN_KEY, value],
-        )?;
+        self.set_setting(PIN_KEY, &value)?;
         Ok(())
     }
 
     /// Déverrouille les catégories adultes pour la session.
     pub fn unlock_parental(&mut self, pin: &str, now: i64) -> Result<()> {
-        if self.pin_attempts.failures >= MAX_ATTEMPTS && now < self.pin_attempts.blocked_until {
+        self.check_pin(pin, now)?;
+        self.parental_unlocked = true;
+        Ok(())
+    }
+
+    /// Vérifie un code en comptant les échecs : au 5e code faux, plus aucun
+    /// essai (même juste) pendant 30 s.
+    fn check_pin(&mut self, pin: &str, now: i64) -> Result<()> {
+        let failures = self.setting_i64(FAILURES_KEY)?.unwrap_or(0);
+        let blocked_until = self.setting_i64(BLOCKED_UNTIL_KEY)?.unwrap_or(0);
+        // Une horloge reculée ne prolonge pas le blocage au-delà de 30 s.
+        if failures >= MAX_ATTEMPTS && now < blocked_until && blocked_until - now <= LOCKOUT_SECS {
             return Err(Error::TooManyAttempts {
-                retry_in_secs: self.pin_attempts.blocked_until - now,
+                retry_in_secs: blocked_until - now,
             });
         }
         let stored = self.stored_pin()?.ok_or(Error::WrongPin)?;
         if verify(&stored, pin) {
-            self.pin_attempts = PinAttempts::default();
-            self.parental_unlocked = true;
+            self.set_setting(FAILURES_KEY, "0")?;
             return Ok(());
         }
-        self.pin_attempts.failures += 1;
-        if self.pin_attempts.failures >= MAX_ATTEMPTS {
-            self.pin_attempts.blocked_until = now + LOCKOUT_SECS;
+        let failures = failures + 1;
+        self.set_setting(FAILURES_KEY, &failures.to_string())?;
+        if failures >= MAX_ATTEMPTS {
+            self.set_setting(BLOCKED_UNTIL_KEY, &(now + LOCKOUT_SECS).to_string())?;
         }
         Err(Error::WrongPin)
     }
@@ -109,12 +114,28 @@ impl Catalog {
     }
 
     fn stored_pin(&self) -> Result<Option<String>> {
+        self.setting(PIN_KEY)
+    }
+
+    pub(crate) fn setting(&self, key: &str) -> Result<Option<String>> {
         Ok(self
             .conn
-            .query_row("SELECT value FROM setting WHERE key = ?1", [PIN_KEY], |r| {
+            .query_row("SELECT value FROM setting WHERE key = ?1", [key], |r| {
                 r.get(0)
             })
             .optional()?)
+    }
+
+    fn setting_i64(&self, key: &str) -> Result<Option<i64>> {
+        Ok(self.setting(key)?.and_then(|v| v.parse().ok()))
+    }
+
+    pub(crate) fn set_setting(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO setting (key, value) VALUES (?1, ?2)",
+            params![key, value],
+        )?;
+        Ok(())
     }
 
     // --- Catégories masquées ---------------------------------------------
@@ -141,9 +162,16 @@ impl Catalog {
     pub(crate) fn visibility(&self, alias: &str, browse: bool) -> String {
         let mut sql = String::new();
         if !self.parental_unlocked {
+            // Verrou fermé par défaut : une entrée n'est visible que si elle
+            // n'est pas marquée adulte par le fournisseur et si sa catégorie
+            // est connue et non adulte. Une catégorie absente du cache (liste
+            // de catégories vide, ou omise par le panneau) ne laisse rien
+            // passer.
             sql.push_str(&format!(
-                " AND NOT EXISTS (SELECT 1 FROM category c WHERE c.section = {alias}.section
-                  AND c.id = {alias}.category_id AND c.is_adult = 1)"
+                " AND {alias}.is_adult = 0
+                  AND ({alias}.category_id IS NULL OR EXISTS (SELECT 1 FROM category c
+                       WHERE c.section = {alias}.section AND c.id = {alias}.category_id
+                       AND c.is_adult = 0))"
             ));
         }
         if browse {
