@@ -190,17 +190,17 @@ impl Catalog {
     pub fn store_epg(&mut self, stream_id: i64, programmes: &[Programme], now: i64) -> Result<()> {
         let tx = self.conn.transaction()?;
         tx.execute("DELETE FROM epg WHERE stop <= ?1", [now])?;
-        // Une réponse vide (fréquente par intermittence) ne remplace pas des
-        // programmes encore valables.
-        if !programmes.is_empty() {
+        // Une réponse vide, ou faite seulement de programmes terminés
+        // (fréquent par intermittence), ne remplace pas des programmes
+        // encore valables.
+        let upcoming: Vec<&Programme> = programmes.iter().filter(|p| p.stop > now).collect();
+        if !upcoming.is_empty() {
             tx.execute("DELETE FROM epg WHERE stream_id = ?1", [stream_id])?;
-        }
-        {
             let mut insert = tx.prepare(
                 "INSERT OR REPLACE INTO epg (stream_id, start, stop, title, description)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
             )?;
-            for p in programmes.iter().filter(|p| p.stop > now) {
+            for p in upcoming {
                 insert.execute(params![stream_id, p.start, p.stop, p.title, p.description])?;
             }
         }

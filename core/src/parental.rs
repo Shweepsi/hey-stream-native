@@ -83,13 +83,17 @@ impl Catalog {
     /// Vérifie un code en comptant les échecs : au 5e code faux, plus aucun
     /// essai (même juste) pendant 30 s.
     fn check_pin(&mut self, pin: &str, now: i64) -> Result<()> {
-        let failures = self.setting_i64(FAILURES_KEY)?.unwrap_or(0);
+        let mut failures = self.setting_i64(FAILURES_KEY)?.unwrap_or(0);
         let blocked_until = self.setting_i64(BLOCKED_UNTIL_KEY)?.unwrap_or(0);
-        // Une horloge reculée ne prolonge pas le blocage au-delà de 30 s.
-        if failures >= MAX_ATTEMPTS && now < blocked_until && blocked_until - now <= LOCKOUT_SECS {
-            return Err(Error::TooManyAttempts {
-                retry_in_secs: blocked_until - now,
-            });
+        if failures >= MAX_ATTEMPTS {
+            // Une horloge reculée ne prolonge pas le blocage au-delà de 30 s.
+            if now < blocked_until && blocked_until - now <= LOCKOUT_SECS {
+                return Err(Error::TooManyAttempts {
+                    retry_in_secs: blocked_until - now,
+                });
+            }
+            // Blocage écoulé : de nouveau 5 essais.
+            failures = 0;
         }
         let stored = self.stored_pin()?.ok_or(Error::WrongPin)?;
         if verify(&stored, pin) {
@@ -183,15 +187,19 @@ impl Catalog {
         sql
     }
 
-    /// Exclut de « Continuer » les films et séries de catégories verrouillées.
-    pub(crate) fn resume_lock_filter(&self) -> &'static str {
+    /// Filtre de « Continuer » (ligne de reprise `r`) : verrou fermé, une
+    /// entrée n'apparaît que si son film ou sa série est au catalogue et
+    /// visible selon les mêmes règles que les listes.
+    pub(crate) fn resume_lock_filter(&self) -> String {
         if self.parental_unlocked {
-            return "";
+            return String::new();
         }
-        " AND NOT EXISTS (SELECT 1 FROM item i JOIN category c
-            ON c.section = i.section AND c.id = i.category_id AND c.is_adult = 1
-            WHERE (r.kind = 'movie' AND i.section = 'movies' AND i.id = r.id)
-               OR (r.kind = 'episode' AND i.section = 'series' AND i.id = r.series_id))"
+        format!(
+            " AND EXISTS (SELECT 1 FROM item i
+                WHERE i.section = CASE r.kind WHEN 'movie' THEN 'movies' ELSE 'series' END
+                  AND i.id = CASE r.kind WHEN 'movie' THEN r.id ELSE r.series_id END{})",
+            self.visibility("i", false)
+        )
     }
 
     /// Refuse l'ouverture d'une catégorie verrouillée.

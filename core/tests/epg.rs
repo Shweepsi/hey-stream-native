@@ -180,6 +180,25 @@ async fn empty_response_keeps_current_programme() {
 }
 
 #[test]
+fn finished_programmes_only_keep_current_programme() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let programme = |title: &str, start, stop| Programme {
+        title: title.into(),
+        description: None,
+        start,
+        stop,
+    };
+    catalog
+        .store_epg(7, &[programme("A", 0, 10_000)], 0)
+        .unwrap();
+    // Réponse périmée : seulement un programme déjà terminé.
+    catalog
+        .store_epg(7, &[programme("X", 0, 100)], 5_000)
+        .unwrap();
+    assert_eq!(catalog.now_next(7, 5_000).unwrap().now.unwrap().title, "A");
+}
+
+#[test]
 fn a_claimed_fetch_is_not_claimed_twice() {
     let mut catalog = Catalog::open_in_memory().unwrap();
     assert!(catalog.claim_epg_fetch(7, 100).unwrap());
