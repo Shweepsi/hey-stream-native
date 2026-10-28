@@ -87,6 +87,14 @@ impl XtreamClient {
         self.get_list("get_series", &category(category_id)).await
     }
 
+    pub(crate) fn base_url(&self) -> &url::Url {
+        &self.base
+    }
+
+    pub(crate) fn username(&self) -> &str {
+        &self.username
+    }
+
     /// URL de lecture d'un flux : `{serveur}/{live|movie|series}/{u}/{p}/{id}.{ext}`.
     /// L'extension par défaut est `ts` pour le direct, `mp4` sinon.
     pub fn stream_url(&self, kind: StreamKind, id: i64, extension: Option<&str>) -> url::Url {

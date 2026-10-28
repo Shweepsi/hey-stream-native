@@ -1,9 +1,10 @@
 //! L'API exposée aux interfaces, appelée comme le feraient Kotlin et Swift
 //! (méthodes bloquantes, hors de tout runtime async).
 
-use heystream::{
-    HeyStreamCore, HeyStreamError, PlaybackKind, Resume, Section, StreamKind, next_episode,
-};
+use std::sync::Arc;
+use std::thread;
+
+use heystream::{HeyStreamCore, HeyStreamError, PlaybackKind, Resume, Section, StreamKind};
 use serde_json::json;
 use wiremock::matchers::{method, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -156,8 +157,8 @@ fn series_and_next_episode() {
     let core = open(&panel, &dir);
     let info = core.series_info(7).unwrap();
     assert_eq!(info.name.as_deref(), Some("Lupin"));
-    assert_eq!(next_episode(info.clone(), 1).unwrap().id, 2);
-    assert!(next_episode(info, 2).is_none());
+    assert_eq!(core.next_episode(7, 1).unwrap().unwrap().id, 2);
+    assert!(core.next_episode(7, 2).unwrap().is_none());
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -170,4 +171,128 @@ fn invalid_server_url_is_reported() {
         std::env::temp_dir().to_string_lossy().into(),
     );
     assert!(matches!(err, Err(HeyStreamError::InvalidServerUrl)));
+}
+
+/// Faux panneau qui compte les requêtes reçues pour une action.
+fn counting_panel(action: &str, body: serde_json::Value, expected: u64) -> Panel {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let server = runtime.block_on(async {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(query_param("action", action))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(body)
+                    .set_delay(std::time::Duration::from_millis(200)),
+            )
+            .expect(expected)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!([{"category_id": "1", "category_name": "A"}])),
+            )
+            .mount(&server)
+            .await;
+        server
+    });
+    Panel {
+        server,
+        _runtime: runtime,
+    }
+}
+
+#[test]
+fn simultaneous_now_next_sends_one_request() {
+    let listings = json!({"epg_listings": [{"title": "QQ==", "start_timestamp": 0, "stop_timestamp": 9_999_999_999i64}]});
+    let panel = counting_panel("get_short_epg", listings, 1);
+    let dir = temp_dir("epg-race");
+    let core = open(&panel, &dir);
+    let handles: Vec<_> = (0..4)
+        .map(|_| {
+            let core = Arc::clone(&core);
+            thread::spawn(move || core.now_next(7).unwrap())
+        })
+        .collect();
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    // `expect(1)` est vérifié à la fermeture du faux serveur.
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn simultaneous_refresh_downloads_once() {
+    let panel = counting_panel(
+        "get_vod_streams",
+        json!([{"stream_id": 1, "name": "A", "category_id": "1"}]),
+        1,
+    );
+    let dir = temp_dir("refresh-race");
+    let core = open(&panel, &dir);
+    let handles: Vec<_> = (0..3)
+        .map(|_| {
+            let core = Arc::clone(&core);
+            thread::spawn(move || core.refresh(true).unwrap())
+        })
+        .collect();
+    let refreshed: usize = handles
+        .into_iter()
+        .map(|h| {
+            h.join()
+                .unwrap()
+                .iter()
+                .filter(|r| r.section == Section::Movies && r.refreshed)
+                .count()
+        })
+        .sum();
+    assert_eq!(refreshed, 1);
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn other_account_and_sign_out_start_from_an_empty_cache() {
+    let panel = panel(vec![
+        (
+            "get_live_categories",
+            json!([{"category_id": "1", "category_name": "Infos"}]),
+        ),
+        (
+            "get_live_streams",
+            json!([{"stream_id": 5, "name": "France Info", "category_id": "1"}]),
+        ),
+    ]);
+    let dir = temp_dir("account");
+    let core = open(&panel, &dir);
+    core.refresh(true).unwrap();
+    core.toggle_favorite(Section::Live, 5).unwrap();
+    drop(core);
+
+    // Même abonnement : tout est conservé.
+    let core = open(&panel, &dir);
+    assert!(core.is_favorite(Section::Live, 5).unwrap());
+    drop(core);
+
+    // Autre identifiant sur le même appareil : cache vidé.
+    let other = HeyStreamCore::new(
+        panel.server.uri(),
+        "autre".into(),
+        "p".into(),
+        dir.to_string_lossy().into(),
+    )
+    .unwrap();
+    assert!(!other.is_favorite(Section::Live, 5).unwrap());
+    assert_eq!(other.count(Section::Live, None).unwrap(), 0);
+    other.refresh(true).unwrap();
+    other.toggle_favorite(Section::Live, 5).unwrap();
+
+    other.sign_out().unwrap();
+    assert_eq!(other.count(Section::Live, None).unwrap(), 0);
+    assert!(!other.is_favorite(Section::Live, 5).unwrap());
+    std::fs::remove_dir_all(&dir).unwrap();
 }

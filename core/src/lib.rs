@@ -6,6 +6,7 @@
 //! `null` au lieu d'une liste vide, ou des entrées incomplètes. Une entrée
 //! illisible est ignorée, jamais fatale pour toute la liste.
 
+mod account;
 mod catalog;
 mod client;
 mod details;

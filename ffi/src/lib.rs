@@ -364,7 +364,16 @@ pub struct HeyStreamCore {
     client: xc::XtreamClient,
     catalog: Mutex<xc::Catalog>,
     runtime: tokio::runtime::Runtime,
+    /// Un seul rafraîchissement à la fois : deux appels simultanés (lancement
+    /// et bouton manuel) ne téléchargent pas deux fois le catalogue.
+    refresh_gate: Mutex<()>,
+    /// Dernière fiche série chargée, pour l'épisode suivant sans requête.
+    last_series: Mutex<Option<(i64, xc::SeriesInfo)>>,
 }
+
+/// Un rafraîchissement forcé juste après un autre (moins d'une minute) ne
+/// retélécharge pas la section.
+const FORCE_MIN_INTERVAL_SECS: i64 = 60;
 
 #[uniffi::export]
 impl HeyStreamCore {
@@ -383,7 +392,9 @@ impl HeyStreamCore {
             password,
         })?;
         let path = PathBuf::from(data_dir).join("catalog.db");
-        let catalog = xc::Catalog::open(path)?;
+        let mut catalog = xc::Catalog::open(path)?;
+        // Cache d'un autre abonnement : effacé avant usage.
+        catalog.bind_account(&client.account_key())?;
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -393,6 +404,8 @@ impl HeyStreamCore {
             client,
             catalog: Mutex::new(catalog),
             runtime,
+            refresh_gate: Mutex::new(()),
+            last_series: Mutex::new(None),
         }))
     }
 
@@ -412,6 +425,10 @@ impl HeyStreamCore {
     /// section en échec n'empêche pas les autres (`failed`) ; une erreur
     /// n'est renvoyée que si toutes les sections à rafraîchir ont échoué.
     pub fn refresh(&self, force: bool) -> Result<Vec<SectionRefresh>> {
+        let _gate = self
+            .refresh_gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut results = Vec::new();
         let mut first_error = None;
         let (mut attempted, mut succeeded) = (0, 0);
@@ -423,7 +440,7 @@ impl HeyStreamCore {
                 failed: false,
                 items: 0,
             };
-            if force || self.lock().needs_refresh(section.into(), now())? {
+            if self.refresh_due(section, force)? {
                 attempted += 1;
                 // Téléchargement hors verrou : le cache reste lisible.
                 let fetched = self
@@ -457,11 +474,13 @@ impl HeyStreamCore {
     /// plus une fois toutes les 15 min).
     pub fn now_next(&self, stream_id: i64) -> Result<NowNext> {
         let t = now();
-        if self.lock().epg_needs_fetch(stream_id, t)? {
-            match self.runtime.block_on(self.client.short_epg(stream_id)) {
-                Ok(programmes) => self.lock().store_epg(stream_id, &programmes, t)?,
-                Err(_) => self.lock().mark_epg_attempt(stream_id, t)?,
-            }
+        // La demande est réservée sous le verrou : un appel simultané pour la
+        // même chaîne lit le cache sans envoyer de seconde requête. En cas
+        // d'erreur réseau, le cache reste tel quel.
+        if self.lock().claim_epg_fetch(stream_id, t)?
+            && let Ok(programmes) = self.runtime.block_on(self.client.short_epg(stream_id))
+        {
+            self.lock().store_epg(stream_id, &programmes, t)?;
         }
         let nn = self.lock().now_next(stream_id, t)?;
         Ok(NowNext {
@@ -484,10 +503,36 @@ impl HeyStreamCore {
     }
 
     pub fn series_info(&self, series_id: i64) -> Result<SeriesInfo> {
-        Ok(self
-            .runtime
-            .block_on(self.client.series_info(series_id))?
-            .into())
+        let info = self.runtime.block_on(self.client.series_info(series_id))?;
+        *self.last_series_lock() = Some((series_id, info.clone()));
+        Ok(info.into())
+    }
+
+    /// Épisode qui suit `episode_id` (lecture automatique), d'après la fiche
+    /// déjà chargée par `series_info`, sinon rechargée.
+    pub fn next_episode(&self, series_id: i64, episode_id: i64) -> Result<Option<Episode>> {
+        let cached = self
+            .last_series_lock()
+            .as_ref()
+            .filter(|(id, _)| *id == series_id)
+            .map(|(_, info)| info.next_episode(episode_id).cloned());
+        let next = match cached {
+            Some(next) => next,
+            None => {
+                self.series_info(series_id)?;
+                self.last_series_lock()
+                    .as_ref()
+                    .and_then(|(_, info)| info.next_episode(episode_id).cloned())
+            }
+        };
+        Ok(next.map(Into::into))
+    }
+
+    /// Déconnexion : efface catalogue, favoris, reprise, code PIN et EPG de
+    /// cet abonnement.
+    pub fn sign_out(&self) -> Result<()> {
+        *self.last_series_lock() = None;
+        Ok(self.lock().clear_all()?)
     }
 
     /// URL de lecture, à donner au lecteur uniquement (jamais journalisée).
@@ -605,7 +650,7 @@ impl HeyStreamCore {
     }
 
     pub fn set_pin(&self, new_pin: String, current: Option<String>) -> Result<()> {
-        Ok(self.lock().set_pin(&new_pin, current.as_deref())?)
+        Ok(self.lock().set_pin(&new_pin, current.as_deref(), now())?)
     }
 
     pub fn unlock_parental(&self, pin: String) -> Result<()> {
@@ -628,6 +673,26 @@ impl HeyStreamCore {
 }
 
 impl HeyStreamCore {
+    fn refresh_due(&self, section: Section, force: bool) -> Result<bool> {
+        let t = now();
+        let catalog = self.lock();
+        if catalog.needs_refresh(section.into(), t)? {
+            return Ok(true);
+        }
+        // Forcé : sauf si la section vient d'être rafraîchie (par exemple par
+        // un appel qui attendait derrière le même verrou).
+        Ok(force
+            && catalog
+                .refreshed_at(section.into())?
+                .is_none_or(|at| t - at >= FORCE_MIN_INTERVAL_SECS))
+    }
+
+    fn last_series_lock(&self) -> MutexGuard<'_, Option<(i64, xc::SeriesInfo)>> {
+        self.last_series
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     /// Un panic pendant une écriture ne doit pas rendre le cache inutilisable :
     /// SQLite garantit déjà la cohérence des transactions.
     fn lock(&self) -> MutexGuard<'_, xc::Catalog> {
@@ -652,14 +717,6 @@ impl From<StreamKind> for xc::StreamKind {
             StreamKind::Series => xc::StreamKind::Series,
         }
     }
-}
-
-/// Épisode qui suit `episode_id` dans la série (lecture automatique).
-#[uniffi::export]
-pub fn next_episode(info: SeriesInfo, episode_id: i64) -> Option<Episode> {
-    let mut all = info.seasons.into_iter().flat_map(|s| s.episodes);
-    all.find(|e| e.id == episode_id)?;
-    all.next()
 }
 
 /// Version de la bibliothèque, pour l'écran « À propos ».

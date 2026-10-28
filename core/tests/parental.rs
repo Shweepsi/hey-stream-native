@@ -255,3 +255,40 @@ fn hiding_everything_does_not_defeat_the_empty_response_guard() {
             .any(|cat| cat.is_adult)
     );
 }
+
+#[test]
+fn switching_account_clears_everything() {
+    let mut c = catalog();
+    assert!(!c.bind_account("compte-a").unwrap());
+    c.toggle_favorite(Section::Movies, 10, 1).unwrap();
+    c.set_pin("1234", None, 0).unwrap();
+    // Même compte : rien n'est effacé.
+    assert!(!c.bind_account("compte-a").unwrap());
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 2);
+
+    assert!(c.bind_account("compte-b").unwrap());
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
+    assert!(!c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(!c.has_pin().unwrap());
+    // Le nouveau compte est retenu.
+    assert!(!c.bind_account("compte-b").unwrap());
+}
+
+#[test]
+fn account_key_ignores_password_but_not_server_or_user() {
+    use xtream_core::{Credentials, XtreamClient};
+    let key = |url: &str, user: &str, pass: &str| {
+        XtreamClient::new(&Credentials {
+            server_url: url.into(),
+            username: user.into(),
+            password: pass.into(),
+        })
+        .unwrap()
+        .account_key()
+    };
+    let a = key("panel.example:8080", "u", "p1");
+    assert_eq!(a, key("http://panel.example:8080/", "u", "p2"));
+    assert_ne!(a, key("panel.example:8080", "v", "p1"));
+    assert_ne!(a, key("other.example:8080", "u", "p1"));
+    assert!(!a.contains("panel"));
+}
