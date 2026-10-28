@@ -343,3 +343,67 @@ fn hiding_everything_does_not_defeat_the_empty_response_guard() {
             .any(|cat| cat.is_adult)
     );
 }
+
+fn key(url: &str, user: &str, pass: &str) -> xtream_core::AccountKey {
+    xtream_core::XtreamClient::new(&xtream_core::Credentials {
+        server_url: url.into(),
+        username: user.into(),
+        password: pass.into(),
+    })
+    .unwrap()
+    .account_key()
+}
+
+#[test]
+fn switching_account_clears_everything() {
+    use xtream_core::AccountMatch;
+    let a = key("panel.example", "alice", "p");
+    let mut c = catalog();
+    // Cache sans abonnement (neuf, ou restes d'une déconnexion) : effacé.
+    assert_eq!(c.bind_account(&a).unwrap(), AccountMatch::Unbound);
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
+    let cats: Vec<Category> =
+        from_value(json!([{"category_id": "1", "category_name": "Action"}])).unwrap();
+    let movies: Vec<Movie> =
+        from_value(json!([{"stream_id": 10, "name": "Taxi", "category_id": "1"}])).unwrap();
+    c.store_movies(&cats, &movies, 0).unwrap();
+    c.toggle_favorite(Section::Movies, 10, 1).unwrap();
+    c.set_pin("1234", None, 0).unwrap();
+
+    // Même compte : rien n'est effacé, et rien n'est écrit.
+    assert_eq!(c.account_match(&a).unwrap(), AccountMatch::Same);
+    assert_eq!(c.bind_account(&a).unwrap(), AccountMatch::Same);
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 1);
+
+    // Même identifiant, autre adresse : catalogue à recharger, le reste gardé.
+    let a2 = key("autre.example", "alice", "p");
+    assert_eq!(c.bind_account(&a2).unwrap(), AccountMatch::OtherServer);
+    assert!(c.needs_refresh(Section::Movies, 1).unwrap());
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 1);
+    assert!(c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(c.has_pin().unwrap());
+    assert_eq!(c.account_match(&a2).unwrap(), AccountMatch::Same);
+
+    // Autre identifiant : tout est effacé.
+    let b = key("autre.example", "bob", "p");
+    assert_eq!(c.account_match(&b).unwrap(), AccountMatch::OtherUser);
+    assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::OtherUser);
+    assert_eq!(c.count(Section::Movies, None).unwrap(), 0);
+    assert!(!c.is_favorite(Section::Movies, 10).unwrap());
+    assert!(!c.has_pin().unwrap());
+    assert_eq!(c.bind_account(&b).unwrap(), AccountMatch::Same);
+
+    // Déconnexion : le cache n'appartient plus à personne.
+    c.clear_all().unwrap();
+    assert_eq!(c.account_match(&b).unwrap(), AccountMatch::Unbound);
+}
+
+#[test]
+fn account_key_ignores_password_but_not_server_or_user() {
+    let a = key("panel.example:8080", "u", "p1");
+    assert_eq!(a, key("http://panel.example:8080/", "u", "p2"));
+    assert_ne!(a, key("panel.example:8080", "v", "p1"));
+    assert_ne!(a, key("other.example:8080", "u", "p1"));
+    let text = format!("{a:?}");
+    assert!(!text.contains("panel") && !text.contains("p1"));
+}

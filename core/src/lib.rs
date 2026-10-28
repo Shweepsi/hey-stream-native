@@ -6,6 +6,7 @@
 //! `null` au lieu d'une liste vide, ou des entrées incomplètes. Une entrée
 //! illisible est ignorée, jamais fatale pour toute la liste.
 
+mod account;
 mod catalog;
 mod client;
 mod details;
@@ -17,8 +18,10 @@ mod parental;
 mod url;
 mod user_data;
 
+pub use account::{AccountKey, AccountMatch};
 pub use catalog::{
-    CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, refresh_section,
+    CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, RefreshOutcome, Section, SectionData,
+    fetch_section, refresh_section,
 };
 pub use client::{USER_AGENT, XtreamClient};
 pub use details::{Episode, MovieInfo, Season, SeriesInfo};

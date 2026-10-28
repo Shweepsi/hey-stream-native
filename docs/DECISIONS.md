@@ -62,7 +62,9 @@ réels uniquement à la main par le propriétaire, depuis son réseau.
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux
   en même temps (aperçu + plein écran compris).
-- Deux adresses (« private » et « generated ») servent le même compte.
+- Deux adresses (« private » et « generated ») servent le même compte : le
+  cache est lié à l'identifiant, pas à l'adresse (changer d'adresse garde
+  favoris, reprise et code PIN ; décision du propriétaire, 2026-10-28).
 - `get_vod_categories` renvoie `[]` sur **environ 60 % des appels** (mesuré
   sur 8 appels, les autres listes sont stables) : le cache retente jusqu'à
   6 fois une liste de catégories vide et n'écrase jamais un catalogue connu

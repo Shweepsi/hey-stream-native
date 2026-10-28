@@ -1,0 +1,8 @@
+[bindings.kotlin]
+package_name = "io.github.shweepsi.heystream.core"
+cdylib_name = "heystream"
+
+[bindings.swift]
+module_name = "HeyStreamCore"
+ffi_module_name = "HeyStreamCoreFFI"
+ffi_module_filename = "HeyStreamCoreFFI"
