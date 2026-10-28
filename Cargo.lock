@@ -1825,6 +1825,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 name = "xtream-core"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "reqwest",
  "rusqlite",
  "serde",

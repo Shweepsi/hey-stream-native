@@ -1,7 +1,11 @@
 //! Vérification contre un vrai panneau, identifiants lus dans l'environnement
 //! (jamais dans le dépôt). À lancer à la main, depuis son propre réseau
 //! uniquement : jamais en CI ni depuis un serveur (risque de bannissement du
-//! compte par le fournisseur). Environ 15 requêtes par exécution.
+//! compte par le fournisseur).
+//!
+//! Requêtes par exécution : 1 authentification + 6 listes (catalogue
+//! téléchargé une seule fois), plus 5 au maximum par liste de catégories
+//! renvoyée vide.
 //!
 //! ```sh
 //! XTREAM_URL=… XTREAM_USER=… XTREAM_PASS=… cargo run --example smoke
@@ -29,36 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         account.max_connections
     );
 
-    let t = Instant::now();
-    let (lc, live) = (
-        client.live_categories().await?,
-        client.live_streams(None).await?,
-    );
-    println!(
-        "direct : {} catégories, {} chaînes en {:?}",
-        lc.len(),
-        live.len(),
-        t.elapsed()
-    );
-    let t = Instant::now();
-    let (mc, movies) = (client.movie_categories().await?, client.movies(None).await?);
-    println!(
-        "films  : {} catégories, {} films en {:?}",
-        mc.len(),
-        movies.len(),
-        t.elapsed()
-    );
-    let t = Instant::now();
-    let (sc, series) = (
-        client.series_categories().await?,
-        client.series(None).await?,
-    );
-    println!(
-        "séries : {} catégories, {} séries en {:?}",
-        sc.len(),
-        series.len(),
-        t.elapsed()
-    );
     let path = std::env::temp_dir().join("hey-stream-smoke.db");
     let _ = std::fs::remove_file(&path);
     let mut catalog = Catalog::open(&path)?;
@@ -68,8 +42,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for section in Section::ALL {
         let t = Instant::now();
         let outcome = refresh_section(&client, &mut catalog, section, now).await?;
-        println!("cache {section:?} : {outcome:?} en {:?}", t.elapsed());
+        println!(
+            "{section:?} : {outcome:?}, {} catégories, en {:?}",
+            catalog.categories(section)?.len(),
+            t.elapsed()
+        );
     }
+
     let t = Instant::now();
     let first = catalog.categories(Section::Movies)?;
     let page = catalog.items(Section::Movies, first.first().map(|c| c.id.as_str()), 0, 60)?;
