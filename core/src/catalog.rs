@@ -23,7 +23,7 @@ pub enum Section {
 impl Section {
     pub const ALL: [Section; 3] = [Section::Live, Section::Movies, Section::Series];
 
-    fn key(self) -> &'static str {
+    pub(crate) fn key(self) -> &'static str {
         match self {
             Section::Live => "live",
             Section::Movies => "movies",
@@ -98,11 +98,13 @@ const MIGRATIONS: &[&str] = &[
         section TEXT PRIMARY KEY,
         refreshed_at INTEGER NOT NULL
     );",
+    // 2 : données de l'utilisateur, conservées d'un rafraîchissement à l'autre
+    crate::user_data::MIGRATION,
 ];
 
 /// Cache du catalogue d'un abonnement.
 pub struct Catalog {
-    conn: Connection,
+    pub(crate) conn: Connection,
 }
 
 impl Catalog {
@@ -429,7 +431,10 @@ const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
      epg_channel_id, rating, plot)
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)";
 
-fn row_to_item(section: Section, r: &rusqlite::Row<'_>) -> rusqlite::Result<CatalogItem> {
+pub(crate) fn row_to_item(
+    section: Section,
+    r: &rusqlite::Row<'_>,
+) -> rusqlite::Result<CatalogItem> {
     Ok(CatalogItem {
         section,
         id: r.get(0)?,
