@@ -7,7 +7,7 @@
 
 use std::time::Instant;
 
-use xtream_core::{Credentials, XtreamClient};
+use xtream_core::{Catalog, Credentials, Section, XtreamClient, refresh_section};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,6 +56,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sc.len(),
         series.len(),
         t.elapsed()
+    );
+    let path = std::env::temp_dir().join("hey-stream-smoke.db");
+    let _ = std::fs::remove_file(&path);
+    let mut catalog = Catalog::open(&path)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as i64;
+    for section in Section::ALL {
+        let t = Instant::now();
+        let outcome = refresh_section(&client, &mut catalog, section, now).await?;
+        println!("cache {section:?} : {outcome:?} en {:?}", t.elapsed());
+    }
+    let t = Instant::now();
+    let first = catalog.categories(Section::Movies)?;
+    let page = catalog.items(Section::Movies, first.first().map(|c| c.id.as_str()), 0, 60)?;
+    println!(
+        "lecture : {} catégories + page de {} films en {:?}",
+        first.len(),
+        page.len(),
+        t.elapsed()
+    );
+    let t = Instant::now();
+    let hits = catalog.search(Section::Movies, "the", 50)?;
+    println!(
+        "recherche « the » : {} résultats en {:?}",
+        hits.len(),
+        t.elapsed()
+    );
+    println!(
+        "taille du cache : {} Ko",
+        std::fs::metadata(&path)?.len() / 1024
     );
     Ok(())
 }

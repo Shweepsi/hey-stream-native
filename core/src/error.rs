@@ -18,6 +18,8 @@ pub enum Error {
     UnexpectedStatus(u16),
     #[error("réponse illisible")]
     InvalidResponse,
+    #[error("erreur du cache local : {0}")]
+    Storage(String),
     #[error("erreur réseau")]
     Network(#[source] reqwest::Error),
 }

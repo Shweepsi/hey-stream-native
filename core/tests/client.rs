@@ -178,3 +178,53 @@ fn empty_credentials_are_rejected() {
     });
     assert!(matches!(err, Err(Error::MissingCredentials)));
 }
+
+#[tokio::test]
+async fn refresh_retries_empty_categories() {
+    use xtream_core::{Catalog, RefreshOutcome, Section, refresh_section};
+
+    let server = MockServer::start().await;
+    let base = || {
+        Mock::given(method("GET"))
+            .and(path("/player_api.php"))
+            .and(query_param("action", "get_vod_categories"))
+    };
+    // Le panneau de référence renvoie `[]` par intermittence.
+    base()
+        .respond_with(ResponseTemplate::new(200).set_body_string("[]"))
+        .up_to_n_times(2)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    base()
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!([{"category_id": "1", "category_name": "Action"}])),
+        )
+        .with_priority(2)
+        .mount(&server)
+        .await;
+    mock(
+        &server,
+        Some("get_vod_streams"),
+        ResponseTemplate::new(200)
+            .set_body_json(json!([{"stream_id": 1, "name": "A", "category_id": "1"}])),
+    )
+    .await;
+
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let outcome = refresh_section(&client(&server), &mut catalog, Section::Movies, 100)
+        .await
+        .unwrap();
+    assert_eq!(
+        outcome,
+        RefreshOutcome::Updated {
+            categories: 1,
+            items: 1
+        }
+    );
+    assert_eq!(
+        catalog.categories(Section::Movies).unwrap()[0].name,
+        "Action"
+    );
+}
