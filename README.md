@@ -28,7 +28,6 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` : contrôle parental (PIN), catégories masquées, EPG court | ✅ testé |
 | `core` : User-Agent `HeyStream`, fiches film et série (saisons, épisodes) | ✅ testé |
 | Liaisons UniFFI (Kotlin, Swift) | à faire |
-| Liaisons UniFFI | à faire |
 | Android (Compose + Compose for TV + Media3) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |
 
