@@ -56,13 +56,17 @@ dans le dépôt : variables `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, voir
 | Films | 50 | 29 372 | ~4 s |
 | Séries | 33 | 8 637 | ~2 s |
 
+Règle : **aucun appel automatique** au panneau (CI, cloud, scripts) ; essais
+réels uniquement à la main par le propriétaire, depuis son réseau.
+
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux
   en même temps (aperçu + plein écran compris).
 - Deux adresses (« private » et « generated ») servent le même compte.
-- Une requête a renvoyé une fois **0 catégorie de films** puis la liste
-  complète à l'essai suivant : une liste vide n'est pas fiable, le cache ne
-  doit jamais écraser un catalogue connu par une réponse vide.
+- `get_vod_categories` renvoie `[]` sur **environ 60 % des appels** (mesuré
+  sur 8 appels, les autres listes sont stables) : le cache retente jusqu'à
+  6 fois une liste de catégories vide et n'écrase jamais un catalogue connu
+  par une réponse vide.
 - L'ordre des catégories varie d'une requête à l'autre : trier côté app.
 
 ## Identité et publication (2026-10-28)

@@ -1,5 +1,11 @@
 //! Vérification contre un vrai panneau, identifiants lus dans l'environnement
-//! (jamais dans le dépôt) :
+//! (jamais dans le dépôt). À lancer à la main, depuis son propre réseau
+//! uniquement : jamais en CI ni depuis un serveur (risque de bannissement du
+//! compte par le fournisseur).
+//!
+//! Requêtes par exécution : 1 authentification + 6 listes (catalogue
+//! téléchargé une seule fois), plus 5 au maximum par liste de catégories
+//! renvoyée vide.
 //!
 //! ```sh
 //! XTREAM_URL=… XTREAM_USER=… XTREAM_PASS=… cargo run --example smoke
@@ -7,7 +13,7 @@
 
 use std::time::Instant;
 
-use xtream_core::{Credentials, XtreamClient};
+use xtream_core::{Catalog, Credentials, Section, XtreamClient, refresh_section};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,35 +33,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         account.max_connections
     );
 
+    let path = std::env::temp_dir().join("hey-stream-smoke.db");
+    let _ = std::fs::remove_file(&path);
+    let mut catalog = Catalog::open(&path)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs() as i64;
+    for section in Section::ALL {
+        let t = Instant::now();
+        let outcome = refresh_section(&client, &mut catalog, section, now).await?;
+        println!(
+            "{section:?} : {outcome:?}, {} catégories, en {:?}",
+            catalog.categories(section)?.len(),
+            t.elapsed()
+        );
+    }
+
     let t = Instant::now();
-    let (lc, live) = (
-        client.live_categories().await?,
-        client.live_streams(None).await?,
-    );
+    let first = catalog.categories(Section::Movies)?;
+    let page = catalog.items(Section::Movies, first.first().map(|c| c.id.as_str()), 0, 60)?;
     println!(
-        "direct : {} catégories, {} chaînes en {:?}",
-        lc.len(),
-        live.len(),
+        "lecture : {} catégories + page de {} films en {:?}",
+        first.len(),
+        page.len(),
         t.elapsed()
     );
     let t = Instant::now();
-    let (mc, movies) = (client.movie_categories().await?, client.movies(None).await?);
+    let hits = catalog.search(Section::Movies, "the", 50)?;
     println!(
-        "films  : {} catégories, {} films en {:?}",
-        mc.len(),
-        movies.len(),
+        "recherche « the » : {} résultats en {:?}",
+        hits.len(),
         t.elapsed()
     );
-    let t = Instant::now();
-    let (sc, series) = (
-        client.series_categories().await?,
-        client.series(None).await?,
-    );
     println!(
-        "séries : {} catégories, {} séries en {:?}",
-        sc.len(),
-        series.len(),
-        t.elapsed()
+        "taille du cache : {} Ko",
+        std::fs::metadata(&path)?.len() / 1024
     );
     Ok(())
 }

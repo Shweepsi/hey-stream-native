@@ -23,7 +23,8 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | Partie | État |
 |---|---|
 | `core` : client Xtream tolérant (auth, catégories, direct, films, séries, URL de lecture) | ✅ testé |
-| `core` : cache SQLite, recherche, reprise de lecture | à faire |
+| `core` : cache SQLite du catalogue, recherche, détection adulte | ✅ testé |
+| `core` : favoris, récents, reprise de lecture | à faire |
 | Liaisons UniFFI | à faire |
 | Android (Compose + Compose for TV + Media3) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |

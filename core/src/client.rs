@@ -1,19 +1,27 @@
 use std::time::Duration;
 
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::error::{Error, Result};
-use crate::lenient::list;
+use crate::lenient::{parse_list, text};
 use crate::model::{AccountInfo, Category, Credentials, LiveStream, Movie, RawAuth, Series};
 use crate::url::{StreamKind, normalize_server_url};
 
 /// Client d'une source Xtream Codes.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct XtreamClient {
     base: url::Url,
     username: String,
     password: String,
     http: reqwest::Client,
+}
+
+/// Sans identifiants : un `{:?}` ne doit jamais les journaliser.
+impl std::fmt::Debug for XtreamClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("XtreamClient").finish_non_exhaustive()
+    }
 }
 
 impl XtreamClient {
@@ -27,7 +35,7 @@ impl XtreamClient {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(60))
             .build()
-            .map_err(Error::Network)?;
+            .map_err(Error::network)?;
         Ok(Self {
             base: normalize_server_url(&credentials.server_url)?,
             username: username.to_owned(),
@@ -56,35 +64,29 @@ impl XtreamClient {
     }
 
     pub async fn live_categories(&self) -> Result<Vec<Category>> {
-        Ok(list(self.get(Some("get_live_categories"), &[]).await?))
+        self.get_list("get_live_categories", &[]).await
     }
 
     pub async fn live_streams(&self, category_id: Option<&str>) -> Result<Vec<LiveStream>> {
-        Ok(list(
-            self.get(Some("get_live_streams"), &category(category_id))
-                .await?,
-        ))
+        self.get_list("get_live_streams", &category(category_id))
+            .await
     }
 
     pub async fn movie_categories(&self) -> Result<Vec<Category>> {
-        Ok(list(self.get(Some("get_vod_categories"), &[]).await?))
+        self.get_list("get_vod_categories", &[]).await
     }
 
     pub async fn movies(&self, category_id: Option<&str>) -> Result<Vec<Movie>> {
-        Ok(list(
-            self.get(Some("get_vod_streams"), &category(category_id))
-                .await?,
-        ))
+        self.get_list("get_vod_streams", &category(category_id))
+            .await
     }
 
     pub async fn series_categories(&self) -> Result<Vec<Category>> {
-        Ok(list(self.get(Some("get_series_categories"), &[]).await?))
+        self.get_list("get_series_categories", &[]).await
     }
 
     pub async fn series(&self, category_id: Option<&str>) -> Result<Vec<Series>> {
-        Ok(list(
-            self.get(Some("get_series"), &category(category_id)).await?,
-        ))
+        self.get_list("get_series", &category(category_id)).await
     }
 
     /// URL de lecture d'un flux : `{serveur}/{live|movie|series}/{u}/{p}/{id}.{ext}`.
@@ -107,7 +109,36 @@ impl XtreamClient {
         url
     }
 
+    /// Requête JSON lue entièrement en `Value` : réservée aux petites
+    /// réponses (authentification, fiches, EPG).
     async fn get(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<Value> {
+        let body = self.fetch(action, extra).await?;
+        if body.iter().all(u8::is_ascii_whitespace) {
+            return Ok(Value::Null);
+        }
+        let value: Value =
+            serde_json::from_str(&text(&body)).map_err(|_| Error::InvalidResponse)?;
+        // Une liste demandée avec des identifiants refusés revient souvent en
+        // HTTP 200 avec `{"user_info": {"auth": 0}}` au lieu d'une liste.
+        if action.is_some() && value.pointer("/user_info/auth").is_some() {
+            return Err(Error::Unauthorized);
+        }
+        Ok(value)
+    }
+
+    /// Liste du catalogue, lue entrée par entrée sans arbre `Value`
+    /// intermédiaire : 30 000 films ne sont jamais en mémoire deux fois sous
+    /// forme d'objets JSON (appareil de référence à 2 Go).
+    async fn get_list<T: DeserializeOwned>(
+        &self,
+        action: &str,
+        extra: &[(&str, &str)],
+    ) -> Result<Vec<T>> {
+        let body = self.fetch(Some(action), extra).await?;
+        parse_list(&body)
+    }
+
+    async fn fetch(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<bytes::Bytes> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("URL http(s) validée")
@@ -130,7 +161,7 @@ impl XtreamClient {
             .header(reqwest::header::ACCEPT, "application/json")
             .send()
             .await
-            .map_err(Error::Network)?;
+            .map_err(Error::network)?;
         let status = response.status().as_u16();
         match status {
             200..=299 => {}
@@ -139,17 +170,7 @@ impl XtreamClient {
             500..=599 => return Err(Error::Server(status)),
             _ => return Err(Error::UnexpectedStatus(status)),
         }
-        let body = response.bytes().await.map_err(Error::Network)?;
-        if body.iter().all(u8::is_ascii_whitespace) {
-            return Ok(Value::Null);
-        }
-        let value: Value = serde_json::from_slice(&body).map_err(|_| Error::InvalidResponse)?;
-        // Une liste demandée avec des identifiants refusés revient souvent en
-        // HTTP 200 avec `{"user_info": {"auth": 0}}` au lieu d'une liste.
-        if action.is_some() && value.pointer("/user_info/auth").is_some() {
-            return Err(Error::Unauthorized);
-        }
-        Ok(value)
+        response.bytes().await.map_err(Error::network)
     }
 }
 

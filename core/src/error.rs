@@ -18,8 +18,18 @@ pub enum Error {
     UnexpectedStatus(u16),
     #[error("réponse illisible")]
     InvalidResponse,
+    #[error("erreur du cache local : {0}")]
+    Storage(String),
     #[error("erreur réseau")]
     Network(#[source] reqwest::Error),
+}
+
+impl Error {
+    /// Erreur réseau sans l'URL de la requête : elle contient l'identifiant
+    /// et le mot de passe, et `reqwest::Error` l'affiche dans son `Debug`.
+    pub(crate) fn network(error: reqwest::Error) -> Self {
+        Error::Network(error.without_url())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
