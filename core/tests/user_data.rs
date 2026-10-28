@@ -179,6 +179,7 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
         conn.execute_batch(
             "DROP TABLE favorite; DROP TABLE recent; DROP TABLE resume;
              DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
+             ALTER TABLE item DROP COLUMN is_adult;
              PRAGMA user_version = 1;",
         )
         .unwrap();

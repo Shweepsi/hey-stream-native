@@ -64,7 +64,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   elles restent listées mais leur contenu n'apparaît nulle part (listes,
   recherche, favoris, récents, « Continuer »). Tant qu'aucun code n'est
   défini, ouvrir une catégorie adulte propose d'en créer un. Le
-  déverrouillage vaut pour la session ; 5 codes faux bloquent 30 s.
+  déverrouillage vaut pour la session ; 5 codes faux bloquent 30 s, au
+  déverrouillage comme au changement de code, même après un redémarrage.
+  Un contenu dont la catégorie est inconnue reste verrouillé.
 - Les catégories masquées quittent la navigation et la recherche ; leurs
   favoris et récents restent visibles.
 - Langue, mise à jour manuelle du catalogue, déconnexion.

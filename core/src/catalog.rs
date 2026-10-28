@@ -115,7 +115,6 @@ pub struct Catalog {
     /// Catégories adultes déverrouillées par le code PIN, pour cette session
     /// seulement : chaque ouverture repart verrouillée.
     pub(crate) parental_unlocked: bool,
-    pub(crate) pin_attempts: crate::parental::PinAttempts,
 }
 
 impl Catalog {
@@ -140,7 +139,6 @@ impl Catalog {
         Ok(Self {
             conn,
             parental_unlocked: false,
-            pin_attempts: Default::default(),
         })
     }
 
@@ -325,6 +323,7 @@ impl Catalog {
                     s.epg_channel_id,
                     None::<String>,
                     None::<String>,
+                    s.is_adult,
                 ])?;
             }
             Ok(())
@@ -355,6 +354,7 @@ impl Catalog {
                     None::<String>,
                     m.rating,
                     None::<String>,
+                    m.is_adult,
                 ])?;
             }
             Ok(())
@@ -385,6 +385,7 @@ impl Catalog {
                     None::<String>,
                     s.rating,
                     s.plot,
+                    s.is_adult,
                 ])?;
             }
             Ok(())
@@ -401,8 +402,17 @@ impl Catalog {
         now: i64,
         insert_items: impl FnOnce(&Transaction) -> rusqlite::Result<()>,
     ) -> Result<RefreshOutcome> {
-        let lost_items = item_count == 0 && self.count(section, None)? > 0;
-        let lost_categories = categories.is_empty() && !self.categories(section)?.is_empty();
+        // Comptes bruts, sans masquage ni verrou parental : une section dont
+        // tout est masqué n'est pas vide pour autant.
+        let stored = |table: &str| -> Result<i64> {
+            Ok(self.conn.query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE section = ?1"),
+                [section.key()],
+                |r| r.get(0),
+            )?)
+        };
+        let lost_items = item_count == 0 && stored("item")? > 0;
+        let lost_categories = categories.is_empty() && stored("category")? > 0;
         if lost_items || lost_categories {
             return Ok(RefreshOutcome::KeptCache);
         }
@@ -501,8 +511,8 @@ pub(crate) const ITEM_COLUMNS: &str =
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
-     epg_channel_id, rating, plot)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)";
+     epg_channel_id, rating, plot, is_adult)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
 
 pub(crate) fn row_to_item(
     section: Section,
@@ -615,9 +625,11 @@ mod tests {
     fn list_pages_use_an_index_without_sorting() {
         let catalog = Catalog::open_in_memory().unwrap();
         for filter in ["AND i.category_id = '1'", ""] {
+            // Avec les filtres réels (verrou parental, catégories masquées).
             let sql = format!(
-                "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = 'movies' {filter}
-                 ORDER BY i.sort_num, i.sort_key, i.id LIMIT 60 OFFSET 0"
+                "SELECT {ITEM_COLUMNS} FROM item i WHERE i.section = 'movies' {filter}{}
+                 ORDER BY i.sort_num, i.sort_key, i.id LIMIT 60 OFFSET 0",
+                catalog.visibility("i", filter.is_empty())
             );
             let plan: Vec<String> = catalog
                 .conn
