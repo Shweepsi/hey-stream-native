@@ -454,9 +454,11 @@ fn account_info_and_live_format_work_offline() {
     assert_eq!(info.expires_at, Some(1_893_456_000));
     drop(core);
 
-    // Fournisseur injoignable : l'accueil a toujours la date d'expiration, et
-    // le direct est demandé dans le seul format autorisé.
-    drop(panel);
+    // Fournisseur qui ne répond plus : l'accueil a toujours la date
+    // d'expiration, et le direct est demandé dans le seul format autorisé.
+    // Le faux serveur reste ouvert (404 partout) : arrêté, son port pourrait
+    // être repris par un autre test lancé en parallèle.
+    panel.runtime.block_on(panel.server.reset());
     let core = open_as(&url, "u", &dir);
     assert!(core.authenticate().is_err());
     let cached = core.account_info().unwrap().unwrap();
