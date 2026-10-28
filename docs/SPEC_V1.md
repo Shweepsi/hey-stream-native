@@ -67,8 +67,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - **Vus** : un film ou un épisode est marqué vu en fin de lecture (≥ 95 %
   ou moins de 2 min restantes) ou à la main depuis la fiche (« Marquer comme
   vu / non vu ») ; vu, il quitte « Continuer » ; le revoir garde la marque.
-  Une série est vue quand tous ses épisodes connus le sont (recalculé à
-  l'ouverture de sa fiche).
+  Une série est vue quand tous ses épisodes connus le sont (liste des
+  épisodes lue à la dernière ouverture de sa fiche). Un contenu court n'est
+  pas « vu » avant d'avoir passé la moitié.
 
 ## Réglages
 
