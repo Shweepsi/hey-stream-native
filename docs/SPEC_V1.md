@@ -19,17 +19,22 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 ## Accueil
 
-- Trois grandes tuiles : **Direct**, **Films**, **Séries**.
-- Rangée **Continuer** (reprise de lecture des films et épisodes).
+- Trois grandes tuiles : **Direct**, **Films**, **Séries** ; heure et date.
 - **Infos abonnement** : date d'expiration (celle de la dernière connexion
-  réussie, affichée aussi hors ligne).
+  réussie, affichée aussi hors ligne) ; « sans date de fin » pour un compte
+  illimité, « expiré le … » une fois la date passée.
 - Boutons **Recherche** et **Réglages**.
+- Pas de rangée « Continuer » sur l'accueil (décision du 2026-10-28) : la
+  reprise est une catégorie de Films et de Séries.
 
 ## Direct
 
 - Trois panneaux : catégories | chaînes | **aperçu vidéo** + programme
   **en cours et suivant** (EPG court, demandé à la sélection d'une chaîne,
   mis en cache, jamais plus d'une fois toutes les 15 min par chaîne).
+- Chaque ligne de chaîne : **numéro** du fournisseur, logo, nom, et le
+  programme en cours **seulement s'il est déjà en cache** (jamais de requête
+  pour remplir la liste).
 - Sélectionner une chaîne lance l'aperçu ; **OK** passe en plein écran ;
   **Retour** quitte le plein écran et revient à l'aperçu.
 - Pas de zapping en plein écran, pas de guide en grille, pas de replay.
@@ -38,12 +43,16 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 ## Films
 
 - Catégories à gauche | **grille d'affiches** à droite.
+- Catégories spéciales en tête : **Continuer** (films commencés), **Favoris**.
+- **Barre de progression** sur l'affiche d'un film commencé.
 - Fiche : affiche, **résumé, année, durée, note** (données du fournisseur).
 - Lecture avec **reprise** à la dernière position.
 
 ## Séries
 
 - Même présentation que les films ; fiche de série, saisons, épisodes.
+- **Continuer** liste les séries commencées (une par série, son dernier
+  épisode) ; la barre de l'affiche montre la progression de cet épisode.
 - **Épisode suivant automatique** : compte à rebours de 10 s, annulable.
 
 ## Lecteur (films et épisodes)
