@@ -142,6 +142,10 @@ téléphone, plus étroits.
 - Grille d'affiches 2:3 **avec le titre dessous** (6 colonnes sur TV).
 - **Barre de progression** sur toute affiche commencée, dans toutes les
   catégories (série : son dernier épisode commencé).
+- **Coche « vu »** sur l'affiche d'un film vu ou d'une série entièrement vue :
+  pastille ronde en haut à droite, icône Lucide `check` en `#F4F4F5` sur fond
+  noir à 60 % (hors thème, comme la barre). Pas de barre sur un titre vu
+  sauf s'il est en cours de revisionnage.
 - OK ouvre la **fiche** (jamais la lecture directe).
 
 ### Fiche film / série
@@ -150,8 +154,9 @@ téléphone, plus étroits.
   (4 lignes au plus). Seulement les champs fournis : un champ absent
   disparaît, sans tiret ni « inconnu ».
 - « Vu jusqu’à … » et la barre de progression si le titre est commencé.
-- Boutons : **Reprendre** (ou **Lecture**), **Depuis le début**, Favori. Le
-  premier bouton a le focus à l'ouverture.
+- Boutons : **Reprendre** (ou **Lecture**), **Depuis le début**, Favori,
+  **Marquer comme vu / non vu** (icône `check`, libellé lu par
+  l'accessibilité). Le premier bouton a le focus à l'ouverture.
 - Série : saisons puis épisodes sous les boutons.
 
 ## Textes

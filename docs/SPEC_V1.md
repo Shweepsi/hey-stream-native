@@ -64,6 +64,11 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 - **Favoris** (chaînes, films, séries), **Récemment regardés**,
   **Reprise de lecture**, **Recherche** par nom dans les trois sections.
+- **Vus** : un film ou un épisode est marqué vu en fin de lecture (≥ 95 %
+  ou moins de 2 min restantes) ou à la main depuis la fiche (« Marquer comme
+  vu / non vu ») ; vu, il quitte « Continuer » ; le revoir garde la marque.
+  Une série est vue quand tous ses épisodes connus le sont (recalculé à
+  l'ouverture de sa fiche).
 
 ## Réglages
 
@@ -81,8 +86,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - Les catégories masquées quittent la navigation et la recherche ; leurs
   favoris et récents restent visibles.
 - Langue, mise à jour manuelle du catalogue, déconnexion.
-- Les données (catalogue, favoris, récents, reprise, code PIN, catégories
-  masquées) appartiennent à l'identifiant : se connecter avec un autre
+- Les données (catalogue, favoris, récents, reprise, vus, code PIN,
+  catégories masquées) appartiennent à l'identifiant : se connecter avec un autre
   identifiant les efface, le même identifiant sur une autre adresse du
   fournisseur les garde et recharge seulement le catalogue. Rien n'est
   effacé avant une connexion réussie (une faute de frappe n'efface rien).
