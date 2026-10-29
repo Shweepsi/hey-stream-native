@@ -42,6 +42,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Rapports de plantage : démarrés par l'app (CrashReports), selon le réglage. -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <!-- Langue choisie dans les réglages, retenue par AppCompat (Android 11-12). -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

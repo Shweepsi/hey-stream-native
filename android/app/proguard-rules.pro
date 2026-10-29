@@ -3,3 +3,7 @@
 -keep class com.sun.jna.** { *; }
 -keepclassmembers class * extends com.sun.jna.** { public *; }
 -dontwarn java.awt.**
+
+# Piles lisibles dans les rapports de plantage (GlitchTip ne lit pas les
+# fichiers de correspondance) : code réduit, noms gardés.
+-dontobfuscate

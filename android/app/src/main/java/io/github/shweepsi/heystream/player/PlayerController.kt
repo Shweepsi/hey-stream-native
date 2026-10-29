@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import io.github.shweepsi.heystream.BuildConfig
+import io.github.shweepsi.heystream.data.CrashReports
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +57,9 @@ class PlayerController(private val context: Context) {
     private var resumeMs = 0L
     private var live = false
     private var attempt = 0
+
+    /** Dernière erreur du flux en cours, pour le rapport si la lecture est abandonnée. */
+    private var lastError: PlaybackException? = null
     private var resumeOnForeground = false
     private var pendingRetry: Runnable? = null
 
@@ -174,6 +178,7 @@ class PlayerController(private val context: Context) {
         cancelRetry()
         this.live = live
         attempt = 0
+        lastError = null
         current = item
         resumeMs = startMs.coerceAtLeast(0)
         _status.value = PlaybackStatus(active = true, live = live, buffering = true)
@@ -257,6 +262,7 @@ class PlayerController(private val context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            lastError = error
             scheduleRetry()
         }
     }
@@ -266,6 +272,8 @@ class PlayerController(private val context: Context) {
         val item = current ?: return
         cancelRetry()
         if (attempt >= MAX_ATTEMPTS) {
+            // Seul le code d'erreur part : son message contient l'URL du flux.
+            CrashReports.playbackFailed(lastError?.errorCodeName ?: "ENDED", live)
             _status.update { it.copy(failed = true, buffering = false, reconnectAttempt = 0) }
             return
         }

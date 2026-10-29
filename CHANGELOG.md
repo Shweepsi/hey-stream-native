@@ -4,6 +4,17 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.4.0 — 2026-10-29
+
+- Rapports de plantage anonymes (GlitchTip) : plantages, gels (ANR),
+  paniques du cœur Rust (fichier et ligne) et lectures abandonnées après
+  toutes les reconnexions (code d'erreur seul). Ni compte, ni identifiant
+  d'installation ; URL, noms de serveur et adresses IP retirés de tout texte.
+- Interrupteur « Envoyer des rapports de plantage anonymes » dans
+  Réglages › À propos, activé par défaut ; coupé, plus rien ne part.
+- Seulement dans l'APK release construit par la CI (clé `GLITCHTIP_DSN`) ;
+  piles d'appel lisibles (code réduit, noms conservés).
+
 ## 0.3.1 — 2026-10-29
 
 - Le cœur retire la mention du français des noms (films, séries, chaînes)
