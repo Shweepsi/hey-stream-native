@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="live_title">Direct</string>
+    <string name="live_categories">Catégories</string>
+    <string name="live_time_range">%1$s – %2$s</string>
+    <string name="live_joined">%1$s · %2$s</string>
+    <string name="live_preview_hint">Choisissez une chaîne pour la regarder ici.</string>
+    <string name="live_favorite_hint_tv">Maintenez OK sur une chaîne pour l’ajouter aux favoris.</string>
+    <string name="live_favorite_hint_touch">Appuyez longuement sur une chaîne pour l’ajouter aux favoris.</string>
+    <string name="live_favorite_added">« %1$s » est dans vos favoris</string>
+    <string name="live_favorite_removed">« %1$s » n’est plus dans vos favoris</string>
+    <string name="live_favorites_empty">Aucune chaîne favorite</string>
+    <string name="live_favorites_empty_tv">Maintenez OK sur une chaîne (ou appuyez sur Menu) pour l’ajouter ici.</string>
+    <string name="live_favorites_empty_touch">Appuyez longuement sur une chaîne pour l’ajouter ici.</string>
+    <string name="live_recents_empty">Aucune chaîne récente</string>
+    <string name="live_recents_empty_message">Les chaînes que vous regardez apparaissent ici.</string>
+    <string name="live_fullscreen">Plein écran</string>
+    <string name="live_exit_fullscreen">Quitter le plein écran</string>
+</resources>
