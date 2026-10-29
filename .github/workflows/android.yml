@@ -107,6 +107,8 @@ jobs:
           api-level: 30
           arch: x86_64
           target: google_apis
+          # Sans profil, l'écran ne fait que 640 × 320 dp.
+          profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           # En cas d'échec : raison du test et fin du journal Android.

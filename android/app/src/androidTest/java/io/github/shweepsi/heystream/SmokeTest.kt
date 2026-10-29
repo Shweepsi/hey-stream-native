@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -52,7 +53,8 @@ class SmokeTest {
         fields[0].performTextInput(server.url("/").toString().trimEnd('/'))
         fields[1].performTextInput("utilisateur")
         fields[2].performTextInput("motdepasse")
-        compose.onNodeWithText(context.getString(R.string.login_submit)).performClick()
+        // Le clavier peut cacher le bouton : la colonne du formulaire défile jusqu'à lui.
+        compose.onNodeWithText(context.getString(R.string.login_submit)).performScrollTo().performClick()
 
         val live = context.getString(R.string.home_live)
         step("accueil après connexion") { compose.onAllNodes(hasText(live)).fetchSemanticsNodes().isNotEmpty() }
