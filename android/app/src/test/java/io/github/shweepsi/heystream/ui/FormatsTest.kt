@@ -84,31 +84,6 @@ class FormatsTest {
     }
 
     @Test
-    fun displayNameDropsTheProviderLanguagePrefix() {
-        assertEquals("To Philly with Love (2026) FHD", Formats.displayName("FR - To Philly with Love (2026) FHD"))
-        assertEquals("canal+ FOOT UHD", Formats.displayName("|FR| canal+ FOOT UHD"))
-        assertEquals("CANAL+ SPORT", Formats.displayName("|FR|  CANAL+ SPORT"))
-        // Seul le français, implicite, est retiré : les autres langues distinguent les versions.
-        assertEquals("VOSTFR: Dune", Formats.displayName("VOSTFR: Dune"))
-        assertEquals("EN - Dune (2021)", Formats.displayName("EN - Dune (2021)"))
-        assertEquals("|BE| BEIN SPORTS 1", Formats.displayName("|BE| BEIN SPORTS 1"))
-        // La qualité reste : « Gravity » et « 4K Gravity » ne se confondent pas.
-        assertEquals("4K Gravity (2013)", Formats.displayName("FR -4K Gravity (2013)"))
-        assertEquals("4KL Apollo 13", Formats.displayName("FR -4KL Apollo 13"))
-        assertEquals("Dune", Formats.displayName("Fr - Dune"))
-        assertEquals("Canal+", Formats.displayName("|VF| Canal+"))
-        assertEquals("IT - Chapitre 2", Formats.displayName("IT - Chapitre 2"))
-        assertEquals("The Crown (2016)", Formats.displayName("The Crown (2016) FR"))
-        assertEquals("Bad Blood (2017)", Formats.displayName("Bad Blood (2017)_fr"))
-        assertEquals("When They See Us (2019)", Formats.displayName("When They See Us (2019)-fr"))
-        assertEquals("Affection (2026) MULTI", Formats.displayName("FR - Affection (2026) MULTI"))
-        // Titres sans préfixe de langue : inchangés.
-        assertEquals("OSS 117 - Le Caire", Formats.displayName("OSS 117 - Le Caire"))
-        assertEquals("France 2", Formats.displayName("France 2"))
-        assertEquals("FR -", Formats.displayName("FR -"))
-    }
-
-    @Test
     fun subscriptionNeedsAttentionWhenExpiredOrWithinAWeek() {
         val now = 1_800_000_000L
         assertEquals(false, Subscription.Unlimited.needsAttention(now))

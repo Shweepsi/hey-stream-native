@@ -12,6 +12,7 @@ use crate::account::{AccountKey, AccountMatch, account_match};
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::model::{Category, LiveStream, Movie, Series};
+use crate::names::clean_name;
 
 /// Section du catalogue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,6 +127,9 @@ const MIGRATIONS: &[&str] = &[
     crate::parental::MIGRATION,
     // 4 : progression des séries dans les listes, éléments vus
     crate::user_data::MIGRATION_4,
+    // 5 : nom tel que le fournisseur l'envoie ; `name` devient le nom affiché
+    // (`names::clean_name`), recalculé à l'ouverture pour les lignes déjà là.
+    "ALTER TABLE item ADD COLUMN raw_name TEXT;",
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -160,6 +164,7 @@ impl Catalog {
             tx.execute_batch(sql)?;
             tx.pragma_update(None, "user_version", index as i64 + 1)?;
         }
+        clean_stored_names(&tx)?;
         tx.commit()?;
         Ok(Self {
             conn,
@@ -365,7 +370,8 @@ impl Catalog {
         self.store(Section::Live, categories, streams.len(), now, |tx| {
             let mut insert = tx.prepare(INSERT_ITEM)?;
             for s in streams {
-                let name = display_name(s.name.as_deref());
+                let raw = display_name(s.name.as_deref());
+                let name = clean_name(&raw);
                 insert.execute(params![
                     "live",
                     s.stream_id,
@@ -380,6 +386,7 @@ impl Catalog {
                     None::<String>,
                     None::<String>,
                     s.is_adult,
+                    raw,
                 ])?;
             }
             Ok(())
@@ -396,7 +403,8 @@ impl Catalog {
         self.store(Section::Movies, categories, movies.len(), now, |tx| {
             let mut insert = tx.prepare(INSERT_ITEM)?;
             for m in movies {
-                let name = display_name(m.name.as_deref());
+                let raw = display_name(m.name.as_deref());
+                let name = clean_name(&raw);
                 insert.execute(params![
                     "movies",
                     m.stream_id,
@@ -411,6 +419,7 @@ impl Catalog {
                     m.rating,
                     None::<String>,
                     m.is_adult,
+                    raw,
                 ])?;
             }
             Ok(())
@@ -427,7 +436,8 @@ impl Catalog {
         self.store(Section::Series, categories, series.len(), now, |tx| {
             let mut insert = tx.prepare(INSERT_ITEM)?;
             for s in series {
-                let name = display_name(s.name.as_deref());
+                let raw = display_name(s.name.as_deref());
+                let name = clean_name(&raw);
                 insert.execute(params![
                     "series",
                     s.series_id,
@@ -442,6 +452,7 @@ impl Catalog {
                     s.rating,
                     s.plot,
                     s.is_adult,
+                    raw,
                 ])?;
             }
             Ok(())
@@ -653,8 +664,28 @@ const ADULT_BY_PROVIDER_FLAG: &str = "UPDATE category SET is_adult = 1
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
-     epg_channel_id, rating, plot, is_adult)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
+     epg_channel_id, rating, plot, is_adult, raw_name)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)";
+
+/// Lignes enregistrées avant le nom affiché (migration 5) : `name` brut est
+/// gardé dans `raw_name`, puis remplacé par le nom affiché, avec ses clés de
+/// tri et de recherche. Ne fait rien une fois toutes les lignes traitées.
+fn clean_stored_names(tx: &rusqlite::Transaction<'_>) -> Result<()> {
+    let rows: Vec<(String, i64, String)> = {
+        let mut select = tx.prepare("SELECT section, id, name FROM item WHERE raw_name IS NULL")?;
+        let rows = select.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+        rows.collect::<rusqlite::Result<_>>()?
+    };
+    let mut update = tx.prepare(
+        "UPDATE item SET raw_name = name, name = ?3, sort_key = ?4, search_key = ?5
+         WHERE section = ?1 AND id = ?2",
+    )?;
+    for (section, id, raw) in rows {
+        let name = clean_name(&raw);
+        update.execute(params![section, id, name, sort_key(&name), fold(&name)])?;
+    }
+    Ok(())
+}
 
 pub(crate) fn row_to_item(
     section: Section,

@@ -101,7 +101,7 @@ fun progressFraction(progress: Progress?): Float? =
  */
 fun posterOf(item: CatalogItem, fallback: Progress? = null): PosterUi = PosterUi(
     id = item.id,
-    title = Formats.displayName(item.name),
+    title = item.name,
     image = item.image,
     progress = progressFraction(item.progress ?: fallback),
     watched = item.watched,

@@ -191,6 +191,7 @@ fn upgrade_from_catalog_only_database_keeps_catalog() {
              DROP TABLE setting; DROP TABLE hidden_category; DROP TABLE epg; DROP TABLE epg_fetch;
              DROP TABLE watched; DROP TABLE series_episode;
              ALTER TABLE item DROP COLUMN is_adult;
+             ALTER TABLE item DROP COLUMN raw_name;
              PRAGMA user_version = 1;",
         )
         .unwrap();

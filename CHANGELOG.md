@@ -4,6 +4,14 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.3.1 — 2026-10-29
+
+- Le cœur retire la mention du français des noms (films, séries, chaînes)
+  à l'enregistrement du catalogue, et garde le nom d'origine. Une seule
+  règle pour Android et la future app Apple ; les catalogues déjà
+  enregistrés sont nettoyés à l'ouverture.
+- Recherche sur le nom nettoyé : « fr » ne renvoie plus tout le catalogue.
+
 ## 0.3.0 — 2026-10-29
 
 Polissage de l'interface, même style sur TV, tablette et téléphone.
