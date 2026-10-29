@@ -6,6 +6,7 @@ import android.widget.EditText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import okhttp3.mockwebserver.Dispatcher
@@ -54,14 +55,14 @@ class SmokeTest {
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         )
-        val fields = step("formulaire de connexion") {
-            device.findObjects(By.clazz(EditText::class.java)).takeIf { it.size >= 3 }
-        }
-        fields[0].text = server.url("/").toString().trimEnd('/')
-        fields[1].text = "utilisateur"
-        fields[2].text = "motdepasse"
+        // Sur un téléphone en paysage, le formulaire défile : champ par champ.
+        fill("adresse du serveur", server.url("/").toString().trimEnd('/'))
+        fill("identifiant", "utilisateur")
+        fill("mot de passe", "motdepasse")
         hideKeyboard()
-        step("bouton de connexion") { device.findObject(By.text(context.getString(R.string.login_submit))) }.click()
+        step("bouton de connexion") {
+            device.findObject(By.text(context.getString(R.string.login_submit))) ?: scrollDown()
+        }.click()
 
         step("accueil après connexion") { device.findObject(By.textContains(context.getString(R.string.home_live))) }.click()
 
@@ -73,6 +74,20 @@ class SmokeTest {
     fun coreLibraryLoads() {
         System.loadLibrary("heystream")
         assertTrue(io.github.shweepsi.heystream.core.coreVersion().isNotBlank())
+    }
+
+    /** Remplit le premier champ encore vide, en faisant défiler le formulaire s'il le faut. */
+    private fun fill(name: String, value: String) {
+        val field = step("champ « $name »") {
+            device.findObjects(By.clazz(EditText::class.java)).firstOrNull { it.text.isNullOrEmpty() } ?: scrollDown()
+        }
+        field.text = value
+    }
+
+    private fun scrollDown(): Nothing? {
+        hideKeyboard()
+        device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.5f)
+        return null
     }
 
     /** Le clavier virtuel peut cacher le bouton : Retour le ferme, sans quitter l'écran. */
