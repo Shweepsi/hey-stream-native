@@ -4,8 +4,10 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import okhttp3.mockwebserver.Dispatcher
@@ -64,7 +66,12 @@ class SmokeTest {
         try {
             compose.waitUntil(TIMEOUT, condition)
         } catch (timeout: Throwable) {
-            throw AssertionError("Étape non atteinte en ${TIMEOUT / 1000} s : $name", timeout)
+            val screen = runCatching { compose.onRoot().printToString(maxDepth = 30) }.getOrElse { "?" }
+            throw AssertionError(
+                "Étape non atteinte en ${TIMEOUT / 1000} s : $name\n" +
+                    "Requêtes reçues par le faux panneau : ${server.requestCount}\nÉcran :\n$screen",
+                timeout,
+            )
         }
     }
 

@@ -110,4 +110,4 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           # En cas d'échec : raison du test et fin du journal Android.
-          script: cd android && ./gradlew --console=plain -Pheystream.abis=x86_64 :app:connectedDebugAndroidTest || { grep -h -A20 "<failure" app/build/outputs/androidTest-results/connected/debug/*.xml; adb logcat -d -t 400 | grep -E " (E|F) |AndroidRuntime|heystream"; exit 1; }
+          script: cd android && ./gradlew --console=plain -Pheystream.abis=x86_64 :app:connectedDebugAndroidTest || { grep -h -A60 "<failure" app/build/outputs/androidTest-results/connected/debug/*.xml; adb logcat -d -t 400 | grep -E " (E|F) |AndroidRuntime|heystream"; exit 1; }
