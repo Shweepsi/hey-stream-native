@@ -20,11 +20,11 @@
     <string name="settings_parental_intro">Adult categories are detected automatically (provider flag, or a name containing “XXX”, “Adult”, “+18”…) and locked by default. While locked, they stay listed but their content appears nowhere: lists, search, favorites, recent items, Continue.</string>
     <string name="settings_parental_no_pin">No parental code yet</string>
     <string name="settings_parental_locked">Adult categories are locked</string>
-    <string name="settings_parental_unlocked">Adult categories are unlocked until you leave the app</string>
+    <string name="settings_parental_unlocked">Adult categories are unlocked while the app stays on screen</string>
     <string name="settings_parental_create">Create a code</string>
     <string name="settings_parental_change">Change the code</string>
     <string name="settings_parental_lock_now">Lock now</string>
-    <string name="settings_parental_note">Unlocking with the code lasts until you leave the app. After 5 wrong codes, entry is blocked for 30 seconds.</string>
+    <string name="settings_parental_note">Unlocking with the code ends as soon as the app goes to the background or the screen turns off. After 5 wrong codes, entry is blocked for 30 seconds.</string>
 
     <string name="settings_language_intro">Language of the app’s texts.</string>
     <string name="settings_language_system">System language</string>

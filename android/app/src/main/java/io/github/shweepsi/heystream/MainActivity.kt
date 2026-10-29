@@ -36,10 +36,17 @@ class MainActivity : AppCompatActivity() {
      * En arrière-plan, le flux est fermé (l'abonnement n'a souvent qu'une
      * connexion) et les catégories adultes sont reverrouillées. Pas lors d'une
      * simple recréation (changement de langue).
+     *
+     * Le reverrouillage se termine hors du fil principal : le flux est retenu
+     * jusqu'à ce que son écran, une fois le verrou posé, ait vérifié qu'il
+     * reste visible. Un retour rapide ne rouvre donc rien d'adulte.
      */
     override fun onStop() {
         app.player.onBackground()
-        if (!isChangingConfigurations) app.session.lockParental()
+        if (!isChangingConfigurations) {
+            app.session.lockParental()
+            app.player.hold()
+        }
         super.onStop()
     }
 

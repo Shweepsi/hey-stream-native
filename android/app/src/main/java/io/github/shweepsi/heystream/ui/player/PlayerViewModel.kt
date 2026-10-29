@@ -130,6 +130,12 @@ class PlayerViewModel(
     /** Épisode annoncé par le compte à rebours. */
     private var pendingNext: Episode? = null
 
+    /** Reverrouillages du contrôle parental déjà pris en compte ([CoreSession.relocks]). */
+    private var seenRelocks = session.relocks.value
+
+    /** Vérification du contrôle parental avant la reprise ([checkHeld]). */
+    private var holdJob: Job? = null
+
     private val player: Player get() = controller.player
 
     private val listener = object : Player.Listener {
@@ -148,6 +154,7 @@ class PlayerViewModel(
             }
         }
         viewModelScope.launch { controller.status.collect(::onStatus) }
+        viewModelScope.launch { controller.held.collect { held -> if (held) checkHeld() } }
     }
 
     // Commandes ---------------------------------------------------------------
@@ -227,6 +234,7 @@ class PlayerViewModel(
         closed = true
         resolveJob?.cancel()
         nextJob?.cancel()
+        holdJob?.cancel()
         if (started && !endHandled) saveProgress()
         player.removeListener(listener)
         controller.stop()
@@ -246,10 +254,18 @@ class PlayerViewModel(
         if (!started || endHandled) controller.stop()
     }
 
-    /** Retour au premier plan : flux préparé entre-temps ouvert, compte à rebours relancé. */
+    /**
+     * Retour au premier plan : flux préparé entre-temps ouvert, compte à
+     * rebours relancé ; après la vérification du contrôle parental si elle
+     * n'est pas finie ([checkHeld]).
+     */
     fun onForeground() {
         if (closed || foreground) return
         foreground = true
+        if (holdJob?.isActive != true) resumeScreen()
+    }
+
+    private fun resumeScreen() {
         deferred?.let {
             deferred = null
             open(it)
@@ -257,6 +273,63 @@ class PlayerViewModel(
         val next = pendingNext
         val seriesId = seriesId
         if (next != null && seriesId != null && nextJob == null) startCountdown(next, seriesId)
+    }
+
+    /**
+     * L'app a quitté l'écran ([PlayerController.hold]) : une fois le
+     * reverrouillage posé, si le titre est désormais caché par le contrôle
+     * parental, rien n'est rouvert et l'écran se ferme ([lockOut]) ; sinon la
+     * lecture reprend comme avant.
+     */
+    private fun checkHeld() {
+        holdJob?.cancel()
+        holdJob = viewModelScope.launch {
+            session.awaitRelock()
+            val relocks = session.relocks.value
+            val hidden = relocks != seenRelocks && hiddenByLock()
+            seenRelocks = relocks
+            if (closed) return@launch
+            if (hidden) {
+                lockOut()
+                return@launch
+            }
+            controller.releaseHold()
+            if (foreground) resumeScreen()
+        }
+    }
+
+    /** Même règle qu'à l'ouverture ([visibleItem]) : le film, ou la série de l'épisode. */
+    private suspend fun hiddenByLock(): Boolean {
+        val movie = args.kind == PlaybackKind.MOVIE
+        val id = if (movie) args.id else seriesId ?: return false
+        return try {
+            session.withCore { it.visibleItem(if (movie) Section.MOVIES else Section.SERIES, id) }
+            false
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: HeyStreamException.ParentalLock) {
+            true
+        } catch (_: Throwable) {
+            // Cache illisible : rien ne dit que le titre est caché.
+            false
+        }
+    }
+
+    /**
+     * Titre verrouillé pendant que l'app était quittée : le flux est fermé
+     * sans être rouvert, plus rien du titre ne s'affiche et l'écran se ferme
+     * (la fiche dessous montre le verrouillage). La position a été
+     * enregistrée à la mise en arrière-plan.
+     */
+    private fun lockOut() {
+        resolveJob?.cancel()
+        nextJob?.cancel()
+        nextJob = null
+        pendingNext = null
+        deferred = null
+        started = false
+        controller.stop()
+        _state.value = PlayerUiState(exit = true)
     }
 
     override fun onCleared() {
