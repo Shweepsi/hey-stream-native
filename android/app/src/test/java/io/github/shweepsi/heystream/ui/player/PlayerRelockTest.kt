@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.core.PlaybackKind
 import io.github.shweepsi.heystream.core.Section
@@ -12,6 +13,7 @@ import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.runMainUntil
 import io.github.shweepsi.heystream.player.settleMain
 import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,9 +43,13 @@ class PlayerRelockTest {
         controller.release()
     }
 
-    private fun openFilm(id: Long): PlayerViewModel {
+    private fun film(id: Long): PlayerViewModel {
         val handle = PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, id, seriesId = null, fromStart = false)
-        val viewModel = PlayerViewModel(session, controller, handle)
+        return PlayerViewModel(session, controller, handle)
+    }
+
+    private fun openFilm(id: Long): PlayerViewModel {
+        val viewModel = film(id)
         runMainUntil { opens.count == 1 }
         return viewModel
     }
@@ -103,12 +109,33 @@ class PlayerRelockTest {
         leaveApp(viewModel)
         checkNotNull(core.relockGate).countDown()
         // Vérification finie en arrière-plan : le retour rouvre aussitôt, en pause.
-        runMainUntil { !controller.held.value }
+        runMainUntil { controller.held.value == 0L }
         assertEquals(1, opens.count)
         returnToApp(viewModel)
         assertEquals(2, opens.count)
         assertFalse(controller.player.playWhenReady)
         assertFalse(viewModel.state.value.exit)
+    }
+
+    @Test
+    fun adultFilmPlayedAgainBeforeTheRelockLandsStaysClosed() {
+        val first = openFilm(ADULT)
+        leaveApp(first)
+        returnToApp(first)
+        // Retour : l'écran se ferme, puis « Lecture » sur la fiche, le
+        // reverrouillage toujours pas posé (le titre est encore visible).
+        first.close()
+        first.viewModelScope.cancel()
+        val again = film(ADULT)
+        runMainUntil { again.state.value.title.isNotEmpty() }
+        settleMain()
+        assertEquals(1, opens.count)
+
+        checkNotNull(core.relockGate).countDown()
+        runMainUntil { again.state.value.exit }
+        settleMain()
+        assertEquals(1, opens.count)
+        assertEquals(0L, controller.held.value)
     }
 
     private companion object {

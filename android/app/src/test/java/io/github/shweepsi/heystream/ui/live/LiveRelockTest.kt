@@ -1,5 +1,6 @@
 package io.github.shweepsi.heystream.ui.live
 
+import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.FakeCore
@@ -9,9 +10,11 @@ import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.runMainUntil
 import io.github.shweepsi.heystream.player.settleMain
 import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,12 +48,17 @@ class LiveRelockTest {
         return viewModel
     }
 
-    /** Comme `MainActivity.onStop` puis `onStart`, le reverrouillage pas encore posé. */
-    private fun leaveAndReturn() {
-        core.relockGate = CountDownLatch(1)
+    /** Comme `MainActivity.onStop`. */
+    private fun leave() {
         controller.onBackground()
         session.lockParental()
         controller.hold()
+    }
+
+    /** Comme `MainActivity.onStop` puis `onStart`, le reverrouillage pas encore posé. */
+    private fun leaveAndReturn() {
+        core.relockGate = CountDownLatch(1)
+        leave()
         controller.onForeground()
         settleMain()
     }
@@ -67,7 +75,7 @@ class LiveRelockTest {
         assertEquals(1, opens.count)
         assertFalse(viewModel.state.value.fullscreen)
         assertFalse(controller.status.value.active)
-        assertFalse(controller.held.value)
+        assertEquals(0L, controller.held.value)
     }
 
     @Test
@@ -81,6 +89,73 @@ class LiveRelockTest {
         assertEquals(NEWS, viewModel.state.value.preview?.id)
         assertTrue(viewModel.state.value.fullscreen)
         assertTrue(controller.player.playWhenReady)
+    }
+
+    @Test
+    fun adultChannelOpenedAgainBeforeTheRelockLandsIsDropped() {
+        val first = watch(ADULT)
+        leaveAndReturn()
+        // Retour : le direct se ferme ; la chaîne est rouverte depuis la
+        // recherche avant la fin du reverrouillage (encore visible).
+        first.onLeave()
+        first.viewModelScope.cancel()
+        val again = LiveViewModel(session, controller, initialChannelId = ADULT)
+        runMainUntil { again.state.value.preview != null }
+        settleMain()
+        assertEquals(1, opens.count)
+
+        checkNotNull(core.relockGate).countDown()
+        runMainUntil { again.state.value.preview == null }
+        settleMain()
+        assertEquals(1, opens.count)
+        assertEquals(0L, controller.held.value)
+    }
+
+    @Test
+    fun leavingAgainBeforeTheCheckWaitsForTheLatestRelock() {
+        val viewModel = watch(ADULT)
+        val firstRelock = CountDownLatch(1)
+        core.relockGate = firstRelock
+        leave()
+        controller.onForeground()
+        runMainUntil { core.relocksStarted.get() == 1 }
+        // L'app repart avant la fin du premier reverrouillage.
+        val secondRelock = CountDownLatch(1)
+        core.relockGate = secondRelock
+        leave()
+        // Le premier se pose, puis le code saisi au retour (catégorie adulte
+        // rouverte) déverrouille, avant le second reverrouillage.
+        firstRelock.countDown()
+        val end = System.currentTimeMillis() + 5_000
+        while (core.unlocked) {
+            check(System.currentTimeMillis() < end) { "Premier reverrouillage jamais posé" }
+            Thread.sleep(2)
+        }
+        core.unlocked = true
+        runMainUntil { core.relocksStarted.get() == 2 }
+        settleMain()
+        // Retour avant la fin du second : rien n'est rouvert.
+        controller.onForeground()
+        settleMain()
+        assertEquals(1, opens.count)
+
+        secondRelock.countDown()
+        runMainUntil { viewModel.state.value.preview == null }
+        settleMain()
+        assertEquals(1, opens.count)
+    }
+
+    @Test
+    fun adultChannelPickedBeforeTheListReloadsIsNotOpened() {
+        val viewModel = watch(NEWS)
+        leave()
+        controller.onForeground()
+        runMainUntil { opens.count == 2 }
+        // La liste montre encore la chaîne adulte (pas encore relue) : choisie, elle ne s'ouvre pas.
+        viewModel.onChannelClick(checkNotNull(core.items[Section.LIVE to ADULT]))
+        settleMain()
+        assertEquals(2, opens.count)
+        assertNull(viewModel.state.value.preview)
     }
 
     private companion object {

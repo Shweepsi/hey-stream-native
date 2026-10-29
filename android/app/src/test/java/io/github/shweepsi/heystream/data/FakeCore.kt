@@ -18,6 +18,7 @@ import io.github.shweepsi.heystream.core.StreamKind
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,6 +42,9 @@ internal class FakeCore : HeyStreamCore(NoHandle) {
     /** Reverrouillage retenu jusqu'à son ouverture (cœur occupé, par exemple par une mise à jour). */
     @Volatile
     var relockGate: CountDownLatch? = null
+
+    /** Reverrouillages commencés (le dernier attend peut-être [relockGate]). */
+    val relocksStarted = AtomicInteger()
 
     fun add(section: Section, id: Long, name: String, adult: Boolean = false) {
         items[section to id] = CatalogItem(
@@ -66,7 +70,9 @@ internal class FakeCore : HeyStreamCore(NoHandle) {
     override fun isParentalUnlocked(): Boolean = unlocked
 
     override fun lockParental() {
-        relockGate?.await(10, TimeUnit.SECONDS)
+        val gate = relockGate
+        relocksStarted.incrementAndGet()
+        gate?.await(10, TimeUnit.SECONDS)
         unlocked = false
     }
 

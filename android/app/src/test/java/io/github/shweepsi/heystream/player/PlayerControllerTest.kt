@@ -107,6 +107,19 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun stoppingKeepsTheHold() {
+        controller.onBackground()
+        controller.hold()
+        controller.onForeground()
+        // Écran fermé puis titre relancé avant la vérification : rien ne s'ouvre.
+        controller.stop()
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        assertEquals(0, opens.count)
+        controller.releaseHold()
+        assertEquals(1, opens.count)
+    }
+
+    @Test
     fun heldRequestKeepsItsPositionWhenTheAppLeavesAgain() {
         controller.onBackground()
         controller.hold()

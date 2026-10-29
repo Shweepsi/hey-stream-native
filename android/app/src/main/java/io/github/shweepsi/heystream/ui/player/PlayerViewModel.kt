@@ -154,7 +154,7 @@ class PlayerViewModel(
             }
         }
         viewModelScope.launch { controller.status.collect(::onStatus) }
-        viewModelScope.launch { controller.held.collect { held -> if (held) checkHeld() } }
+        viewModelScope.launch { controller.held.collect { hold -> if (hold != 0L) checkHeld() } }
     }
 
     // Commandes ---------------------------------------------------------------
@@ -289,12 +289,10 @@ class PlayerViewModel(
             val hidden = relocks != seenRelocks && hiddenByLock()
             seenRelocks = relocks
             if (closed) return@launch
-            if (hidden) {
-                lockOut()
-                return@launch
-            }
+            if (hidden) lockOut()
+            // Vérifié : la lecture reprend, ou plus rien n'est à reprendre (flux fermé).
             controller.releaseHold()
-            if (foreground) resumeScreen()
+            if (!hidden && foreground) resumeScreen()
         }
     }
 

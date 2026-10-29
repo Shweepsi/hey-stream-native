@@ -124,7 +124,7 @@ class LiveViewModel(
             player.status.collect { updatePlayback() }
         }
         viewModelScope.launch {
-            player.held.collect { held -> if (held) checkHeld() }
+            player.held.collect { hold -> if (hold != 0L) checkHeld() }
         }
         viewModelScope.launch {
             combine(visibleIds.debounce(VISIBLE_DEBOUNCE_MS), epgChanges, minuteTicks()) { ids, _, _ -> ids }
@@ -323,10 +323,8 @@ class LiveViewModel(
             val id = _state.value.preview?.id
             val hidden = relocks != seenRelocks && id != null && hiddenByLock(id)
             seenRelocks = relocks
-            if (hidden && _state.value.preview?.id == id) {
-                dropPreview()
-                return@launch
-            }
+            if (hidden && _state.value.preview?.id == id) dropPreview()
+            // Vérifié : la chaîne reprend, ou plus rien n'est à reprendre (flux fermé).
             player.releaseHold()
         }
     }
@@ -366,11 +364,22 @@ class LiveViewModel(
             // L'URL d'abord, l'écriture des récents ensuite : pendant un
             // rafraîchissement du catalogue, une écriture attendrait sa fin et
             // retarderait le zapping.
-            val url = attempt { session.withCore { core -> core.liveUrl(id, LiveFormat.TS) } }
+            val url = attempt {
+                session.withCore { core ->
+                    // Liste pas encore relue après un reverrouillage : une chaîne
+                    // désormais cachée ne s'ouvre pas (règle du cœur).
+                    core.visibleItem(Section.LIVE, id)
+                    core.liveUrl(id, LiveFormat.TS)
+                }
+            }
             // Vérification du contrôle parental en cours (retour dans l'app) : elle passe d'abord.
             holdJob?.join()
             // Une autre chaîne a été choisie entre-temps (ou celle-ci est verrouillée) : pas ouverte.
             if (_state.value.preview?.id != id) return@launch
+            if (url.exceptionOrNull() is HeyStreamException.ParentalLock) {
+                dropPreview()
+                return@launch
+            }
             url.onSuccess { player.playLive(it) }
                 .onFailure { error ->
                     previewError = error.toUiText()
