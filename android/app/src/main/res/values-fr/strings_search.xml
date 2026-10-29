@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">Rechercher</string>
+    <string name="search_hint">Chaînes, films, séries</string>
+    <string name="search_field_label">Rechercher par nom</string>
+    <string name="search_idle_title">Rechercher par nom</string>
+    <string name="search_idle_message">Saisissez au moins 2 caractères pour chercher parmi les chaînes, les films et les séries.</string>
+    <string name="search_no_results">Aucun résultat</string>
+    <string name="search_no_results_message">Rien ne correspond à « %1$s ». Vérifiez l’orthographe ou essayez un autre mot.</string>
+    <string name="search_section_live">Chaînes</string>
+    <string name="search_section_movies">Films</string>
+    <string name="search_section_series">Séries</string>
+    <string name="search_results_first">%1$d premiers résultats</string>
+    <plurals name="search_results_count">
+        <item quantity="one">%1$d résultat</item>
+        <item quantity="many">%1$d résultats</item>
+        <item quantity="other">%1$d résultats</item>
+    </plurals>
+</resources>
