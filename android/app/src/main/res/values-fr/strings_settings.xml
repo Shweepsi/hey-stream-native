@@ -35,7 +35,7 @@
     <string name="settings_catalog_running">Téléchargement du catalogue. Vous pouvez continuer à utiliser l’app.</string>
     <string name="settings_catalog_kept">Liste vide reçue du fournisseur : catalogue précédent conservé</string>
     <string name="settings_catalog_failed">Échec du téléchargement : catalogue précédent conservé</string>
-    <string name="settings_catalog_up_to_date">Déjà à jour</string>
+    <string name="settings_catalog_up_to_date">Déjà tenté il y a moins d’une minute, pas de nouvel essai</string>
     <plurals name="settings_catalog_updated_live">
         <item quantity="one">Mis à jour : %1$s chaîne</item>
         <item quantity="many">Mis à jour : %1$s chaînes</item>
@@ -56,9 +56,9 @@
     <string name="settings_subscription_connections">Connexions simultanées autorisées : %1$d</string>
     <string name="settings_sign_out">Se déconnecter</string>
     <string name="settings_signing_out">Déconnexion…</string>
-    <string name="settings_sign_out_warning">La déconnexion efface de cet appareil le catalogue, les favoris, les reprises de lecture, les marques « vu » et le code parental.</string>
+    <string name="settings_sign_out_warning">La déconnexion efface de cet appareil le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental.</string>
     <string name="settings_sign_out_title">Se déconnecter ?</string>
-    <string name="settings_sign_out_message">Le catalogue, les favoris, les reprises de lecture, les marques « vu » et le code parental seront effacés de cet appareil. Il vous faudra vos identifiants pour vous reconnecter.</string>
+    <string name="settings_sign_out_message">Le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental seront effacés de cet appareil. Il vous faudra vos identifiants pour vous reconnecter.</string>
 
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_versions">Version %1$s · cœur %2$s</string>

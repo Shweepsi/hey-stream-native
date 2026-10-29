@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
@@ -279,6 +281,7 @@ private fun Paragraph(text: String, modifier: Modifier = Modifier, secondary: Bo
 private fun HiddenCategoriesPane(ui: CategoriesUi, actions: SettingsActions) {
     val dimens = Hs.dimens
     val items = ui.items
+    val tabFocus = remember { Section.entries.associateWith { FocusRequester() } }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = rememberLazyListState(),
@@ -286,7 +289,8 @@ private fun HiddenCategoriesPane(ui: CategoriesUi, actions: SettingsActions) {
                 .widthIn(max = PaneMaxWidth)
                 .fillMaxWidth()
                 .fillMaxHeight()
-                .focusRestorer(),
+                // Première entrée : l'onglet ouvert (pas le plus proche, qui en changerait).
+                .focusRestorer(tabFocus.getValue(ui.section)),
             contentPadding = PaddingValues(bottom = dimens.screenVertical),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -295,7 +299,7 @@ private fun HiddenCategoriesPane(ui: CategoriesUi, actions: SettingsActions) {
                 Paragraph(stringResource(R.string.settings_hidden_intro), Modifier.padding(top = dimens.gap - 2.dp))
             }
             item(key = "tabs", contentType = "tabs") {
-                SectionTabs(ui.section, actions::selectCategorySection, Modifier.padding(vertical = dimens.gap - 2.dp))
+                SectionTabs(ui.section, tabFocus, actions::selectCategorySection, Modifier.padding(vertical = dimens.gap - 2.dp))
             }
             if (ui.error != null) {
                 item(key = "error", contentType = "text") {
@@ -313,8 +317,13 @@ private fun HiddenCategoriesPane(ui: CategoriesUi, actions: SettingsActions) {
                         message = stringResource(R.string.catalog_empty_message),
                     )
                 }
-                else -> items(items, key = { "${ui.section.name}:${it.id}" }, contentType = { "category" }) { category ->
-                    CategoryToggleRow(category, onToggle = { actions.toggleCategory(category) })
+                else -> itemsIndexed(items, key = { _, it -> "${ui.section.name}:${it.id}" }, contentType = { _, _ -> "category" }) { index, category ->
+                    CategoryToggleRow(
+                        category = category,
+                        onToggle = { actions.toggleCategory(category) },
+                        // Haut depuis la première : l'onglet ouvert, pas le plus proche (qui changerait la liste).
+                        modifier = if (index == 0) Modifier.focusProperties { up = tabFocus.getValue(ui.section) } else Modifier,
+                    )
                 }
             }
         }
@@ -327,10 +336,14 @@ private fun HiddenCategoriesPane(ui: CategoriesUi, actions: SettingsActions) {
  * focus retrouve l'onglet ouvert.
  */
 @Composable
-private fun SectionTabs(selected: Section, onSelect: (Section) -> Unit, modifier: Modifier = Modifier) {
+private fun SectionTabs(
+    selected: Section,
+    focus: Map<Section, FocusRequester>,
+    onSelect: (Section) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val dimens = Hs.dimens
     val shape = RoundedCornerShape(dimens.radius)
-    val focus = remember { Section.entries.associateWith { FocusRequester() } }
     Row(
         modifier
             .focusRestorer(focus.getValue(selected))
@@ -366,7 +379,7 @@ private fun SectionTabs(selected: Section, onSelect: (Section) -> Unit, modifier
 
 /** Catégorie : nom, cadenas si verrouillée, interrupteur (allumé : affichée). */
 @Composable
-private fun CategoryToggleRow(category: CategoryToggle, onToggle: () -> Unit) {
+private fun CategoryToggleRow(category: CategoryToggle, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     val dimens = Hs.dimens
     val state = stringResource(if (category.hidden) R.string.settings_category_hidden else R.string.settings_category_shown)
     HsSurface(
@@ -375,7 +388,7 @@ private fun CategoryToggleRow(category: CategoryToggle, onToggle: () -> Unit) {
         role = Role.Switch,
         contentPadding = PaddingValues(horizontal = if (dimens.isTv) 12.dp else 14.dp),
         contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = dimens.categoryRowHeight)
             .semantics {
@@ -501,16 +514,20 @@ private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true) {
 
 @Composable
 private fun LanguagePane(language: LanguageChoice, actions: SettingsActions) {
+    val focus = remember { LanguageChoice.entries.associateWith { FocusRequester() } }
     Pane(stringResource(R.string.settings_section_language)) {
         Paragraph(stringResource(R.string.settings_language_intro))
         Column(
             Modifier
                 .widthIn(max = 420.dp)
-                .focusRestorer(),
+                // Télécommande : en entrant, la langue retenue (pas la plus proche).
+                .focusRestorer(focus.getValue(language))
+                .focusGroup(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             LanguageChoice.entries.forEach { choice ->
                 OptionRow(
+                    modifier = Modifier.focusRequester(focus.getValue(choice)),
                     label = stringResource(
                         when (choice) {
                             LanguageChoice.System -> R.string.settings_language_system
@@ -528,7 +545,7 @@ private fun LanguagePane(language: LanguageChoice, actions: SettingsActions) {
 
 /** Choix unique : coche sur l'option retenue. */
 @Composable
-private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val dimens = Hs.dimens
     HsSurface(
         onClick = onClick,
@@ -537,7 +554,7 @@ private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
         role = Role.RadioButton,
         contentPadding = PaddingValues(horizontal = if (dimens.isTv) 12.dp else 14.dp),
         contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = dimens.categoryRowHeight),
     ) {
@@ -607,7 +624,12 @@ private fun ResultLine(result: SectionResult) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (result.outcome == RefreshOutcome.Failed) Lucide.CircleAlert else Lucide.CircleCheck,
+            when (result.outcome) {
+                RefreshOutcome.Failed -> Lucide.CircleAlert
+                // Pas retenté (moins d'une minute après un essai, réussi ou non).
+                RefreshOutcome.UpToDate -> Lucide.Clock
+                else -> Lucide.CircleCheck
+            },
             contentDescription = null,
             tint = Hs.colors.text,
             modifier = Modifier.size(dimens.icon),

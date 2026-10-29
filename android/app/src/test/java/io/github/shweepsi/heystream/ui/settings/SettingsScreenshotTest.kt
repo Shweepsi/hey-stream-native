@@ -94,6 +94,22 @@ class SettingsScreenshotTest {
 
     @Test fun aboutTabletFrench() = settingsFrench("about", Device.Tablet, SettingsSection.About)
 
+    /** Deuxième mise à jour moins d'une minute après la première. */
+    private val notRetried = state.copy(
+        section = SettingsSection.Catalog,
+        catalog = CatalogUi(
+            results = listOf(
+                SectionResult(Section.LIVE, RefreshOutcome.UpToDate, 0),
+                SectionResult(Section.MOVIES, RefreshOutcome.UpToDate, 0),
+                SectionResult(Section.SERIES, RefreshOutcome.UpToDate, 0),
+            ),
+        ),
+    )
+
+    @Test fun catalogNotRetriedPhoneFrench() = compose.captureFrench("settings_catalog_again", Device.Phone) {
+        SettingsContent(notRetried, LanguageChoice.French, appVersion = "0.1.0", actions = actions)
+    }
+
     @Test fun signOutTv() = compose.capture("settings_sign_out", Device.Tv) {
         SignOutPanel(busy = false, onConfirm = {}, onDismiss = {})
     }

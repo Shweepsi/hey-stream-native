@@ -75,7 +75,11 @@ data class ParentalUi(
     val error: UiText? = null,
 )
 
-/** Résultat d'une section après une mise à jour manuelle. */
+/**
+ * Résultat d'une section après une mise à jour manuelle. [UpToDate] : pas
+ * retéléchargée, car déjà tentée il y a moins d'une minute (la mise à jour
+ * manuelle force toutes les sections ; le cœur espace les essais d'une minute).
+ */
 enum class RefreshOutcome { Updated, KeptCache, Failed, UpToDate }
 
 @Immutable
@@ -197,12 +201,23 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
         viewModelScope.launch {
             try {
                 session.withCore { it.setCategoryHidden(target, category.id, hidden) }
+                session.notifyUserDataChanged()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
-                categories.update { it.copy(error = failure.toUiText()) }
+                // Rien n'a changé : l'interrupteur revient et l'erreur reste
+                // affichée (un rechargement l'effacerait aussitôt).
+                categories.update { ui ->
+                    if (ui.section != target) {
+                        ui
+                    } else {
+                        ui.copy(
+                            items = ui.items?.map { if (it.id == category.id) it.copy(hidden = !hidden) else it },
+                            error = failure.toUiText(),
+                        )
+                    }
+                }
             }
-            session.notifyUserDataChanged()
         }
     }
 
@@ -228,10 +243,14 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
         viewModelScope.launch {
             try {
                 session.signOut()
-                player.stop()
-            } finally {
-                signOut.value = SignOutState(running = false, done = true)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                // Échec improbable (fermeture du cœur) : on passe tout de même
+                // à la connexion, plutôt que de fermer l'app.
             }
+            player.stop()
+            signOut.value = SignOutState(running = false, done = true)
         }
     }
 

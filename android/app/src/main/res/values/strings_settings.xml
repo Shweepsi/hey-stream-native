@@ -37,7 +37,7 @@
     <string name="settings_catalog_running">Downloading the catalog. You can keep using the app.</string>
     <string name="settings_catalog_kept">The provider sent an empty list: the previous catalog was kept</string>
     <string name="settings_catalog_failed">Download failed: the previous catalog was kept</string>
-    <string name="settings_catalog_up_to_date">Already up to date</string>
+    <string name="settings_catalog_up_to_date">Already tried less than a minute ago, not retried</string>
     <plurals name="settings_catalog_updated_live">
         <item quantity="one">Updated: %1$s channel</item>
         <item quantity="other">Updated: %1$s channels</item>
@@ -55,9 +55,9 @@
     <string name="settings_subscription_connections">Simultaneous connections allowed: %1$d</string>
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_signing_out">Signing out…</string>
-    <string name="settings_sign_out_warning">Signing out deletes from this device the catalog, favorites, playback positions, watched marks and the parental code.</string>
+    <string name="settings_sign_out_warning">Signing out deletes from this device the catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code.</string>
     <string name="settings_sign_out_title">Sign out?</string>
-    <string name="settings_sign_out_message">The catalog, favorites, playback positions, watched marks and the parental code will be deleted from this device. You will need your credentials to sign in again.</string>
+    <string name="settings_sign_out_message">The catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code will be deleted from this device. You will need your credentials to sign in again.</string>
 
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_versions">Version %1$s · core %2$s</string>

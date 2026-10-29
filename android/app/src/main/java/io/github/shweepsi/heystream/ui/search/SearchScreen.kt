@@ -106,7 +106,7 @@ fun SearchScreen(onOpenChannel: (Long) -> Unit, onOpenMovie: (Long) -> Unit, onO
 /**
  * Écran de recherche, sans logique. [focusKey] : résultat qui reçoit le
  * focus à l'ouverture (retour d'une fiche) ; sinon le champ, et sur TV le
- * clavier du système s'ouvre.
+ * clavier du système s'ouvre (à la première ouverture seulement).
  */
 @Composable
 fun SearchContent(
@@ -121,10 +121,19 @@ fun SearchContent(
     val isTv = dimens.isTv
     val fieldFocus = remember { FocusRequester() }
     val restoreFocus = remember { FocusRequester() }
+    // Bas depuis le champ : la première rangée de résultats, sur son premier
+    // résultat (ou celui qu'on y a quitté), pas sur celui qui se trouve sous
+    // le milieu du champ.
+    val firstFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
-        val restored = focusKey != null && restoreFocus.requestFocusWhenReady()
-        if (!restored && fieldFocus.requestFocusWhenReady() && isTv) keyboard?.show()
+        if (focusKey == null) {
+            if (fieldFocus.requestFocusWhenReady() && isTv) keyboard?.show()
+        } else if (!restoreFocus.requestFocusWhenReady()) {
+            // Retour d'une fiche dont le résultat n'est plus là : le champ,
+            // sans rouvrir le clavier par-dessus les résultats.
+            fieldFocus.requestFocusWhenReady()
+        }
     }
     Column(
         Modifier
@@ -136,6 +145,7 @@ fun SearchContent(
             value = query,
             onValueChange = onQueryChange,
             onSubmit = { keyboard?.hide() },
+            results = firstFocus,
             modifier = Modifier
                 .padding(
                     start = dimens.screenHorizontal,
@@ -164,7 +174,7 @@ fun SearchContent(
                         icon = Lucide.Search,
                     )
                 } else {
-                    ResultList(results, onOpen, focusKey, restoreFocus)
+                    ResultList(results, onOpen, focusKey, restoreFocus, firstFocus)
                 }
             }
         }
@@ -176,6 +186,7 @@ private fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    results: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val dimens = Hs.dimens
@@ -200,9 +211,9 @@ private fun SearchField(
             .onFocusChanged { focused = it.isFocused }
             // Bas : du champ vers les résultats (télécommande, clavier).
             .onPreviewKeyEvent { event ->
-                event.type == KeyEventType.KeyDown &&
-                    event.key == Key.DirectionDown &&
-                    focusManager.moveFocus(FocusDirection.Down)
+                if (event.type != KeyEventType.KeyDown || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
+                // Sans résultat composé, le requérant n'est rattaché à rien.
+                runCatching { results.requestFocus() }.getOrDefault(false) || focusManager.moveFocus(FocusDirection.Down)
             }
             .widthIn(max = 720.dp)
             .fillMaxWidth()
@@ -236,27 +247,34 @@ private fun SearchField(
 
 /** Résultats groupés par section, chacune en rangée horizontale. */
 @Composable
-private fun ResultList(found: SearchResults.Found, onOpen: (SearchHit) -> Unit, focusKey: String?, restoreFocus: FocusRequester) {
+private fun ResultList(
+    found: SearchResults.Found,
+    onOpen: (SearchHit) -> Unit,
+    focusKey: String?,
+    restoreFocus: FocusRequester,
+    firstFocus: FocusRequester,
+) {
     val dimens = Hs.dimens
+    val firstKey = (found.channels.firstOrNull() ?: found.movies.firstOrNull() ?: found.series.firstOrNull())?.key
+    fun Modifier.requesters(hit: SearchHit): Modifier = this
+        .then(if (hit.key == focusKey) Modifier.focusRequester(restoreFocus) else Modifier)
+        .then(if (hit.key == firstKey) Modifier.focusRequester(firstFocus) else Modifier)
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = dimens.gapLarge, bottom = dimens.screenVertical),
         verticalArrangement = Arrangement.spacedBy(dimens.gapLarge),
     ) {
         resultSection(Section.LIVE, R.string.search_section_live, found.channels) { hit, modifier ->
-            ChannelResult(hit, onClick = { onOpen(hit) }, modifier = modifier.restoring(hit, focusKey, restoreFocus))
+            ChannelResult(hit, onClick = { onOpen(hit) }, modifier = modifier.requesters(hit))
         }
         resultSection(Section.MOVIES, R.string.search_section_movies, found.movies) { hit, modifier ->
-            PosterResult(hit, onClick = { onOpen(hit) }, modifier = modifier.restoring(hit, focusKey, restoreFocus))
+            PosterResult(hit, onClick = { onOpen(hit) }, modifier = modifier.requesters(hit))
         }
         resultSection(Section.SERIES, R.string.search_section_series, found.series) { hit, modifier ->
-            PosterResult(hit, onClick = { onOpen(hit) }, modifier = modifier.restoring(hit, focusKey, restoreFocus))
+            PosterResult(hit, onClick = { onOpen(hit) }, modifier = modifier.requesters(hit))
         }
     }
 }
-
-private fun Modifier.restoring(hit: SearchHit, focusKey: String?, requester: FocusRequester): Modifier =
-    if (hit.key == focusKey) focusRequester(requester) else this
 
 /** Une section : titre, nombre de résultats, rangée défilante (absente si vide). */
 private fun LazyListScope.resultSection(

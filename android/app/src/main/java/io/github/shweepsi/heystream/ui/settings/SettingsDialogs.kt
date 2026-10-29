@@ -127,7 +127,8 @@ fun LicensePanel(title: String, subtitle: String, text: String?, onDismiss: () -
     val textFocus = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
     val step = with(LocalDensity.current) { (if (dimens.isTv) 120.dp else 160.dp).toPx() }
-    LaunchedEffect(text != null) { if (text != null) runCatching { textFocus.requestFocus() } }
+    // Télécommande seulement : au doigt, le texte défile sans focus ni contour.
+    LaunchedEffect(text != null) { if (text != null && dimens.isTv) runCatching { textFocus.requestFocus() } }
     val shape = RoundedCornerShape(dimens.radius)
     Column(
         modifier
@@ -145,7 +146,7 @@ fun LicensePanel(title: String, subtitle: String, text: String?, onDismiss: () -
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .border(dimens.focusBorder, if (focused) HsColors.Focus else Hs.colors.separator, shape)
+                .border(dimens.focusBorder, if (focused && dimens.isTv) HsColors.Focus else Hs.colors.separator, shape)
                 .onFocusChanged { focused = it.isFocused }
                 .focusRequester(textFocus)
                 .onKeyEvent { event ->
