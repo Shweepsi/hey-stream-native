@@ -19,9 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
+import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
+import java.text.NumberFormat
 
 /** Intitulé d'un panneau (« CATÉGORIES »). */
 @Composable
@@ -86,7 +88,7 @@ fun CategoryRow(
                 )
             } else if (count != null) {
                 Text(
-                    text = count.toString(),
+                    text = NumberFormat.getIntegerInstance(currentLocale()).format(count),
                     style = Hs.type.small.tabular(),
                     color = if (selected && !dimens.isTv) LocalContentColor.current else Hs.colors.textSecondary,
                     maxLines = 1,

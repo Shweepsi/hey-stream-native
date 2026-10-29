@@ -72,7 +72,6 @@
     <string name="subscription_unlimited">Abonnement sans date de fin</string>
     <string name="subscription_valid_until">Abonnement valable jusqu’au %1$s</string>
     <string name="subscription_expired">Abonnement expiré le %1$s</string>
-    <string name="coming_soon">Bientôt disponible</string>
     <plurals name="remaining_minutes">
         <item quantity="one">%1$d min restante</item>
         <item quantity="many">%1$d min restantes</item>

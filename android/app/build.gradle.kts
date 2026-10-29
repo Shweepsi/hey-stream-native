@@ -192,6 +192,11 @@ android {
             isIncludeAndroidResources = true
             all { test ->
                 test.maxHeapSize = "1536m"
+                // Une JVM par classe de tests : Robolectric et Compose gardent un
+                // état global (répartiteur d'images) qu'un test peut laisser
+                // bloqué pour les suivants. Deux JVM à la fois.
+                test.forkEvery = 1
+                test.maxParallelForks = 2
                 // Miroir de Maven Central pour les fichiers d'Android de Robolectric
                 // (propriété `robolectric.repo` de ~/.gradle/gradle.properties).
                 providers.gradleProperty("robolectric.repo").orNull?.let {

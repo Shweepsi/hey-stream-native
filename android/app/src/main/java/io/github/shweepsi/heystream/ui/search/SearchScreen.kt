@@ -213,7 +213,12 @@ private fun SearchField(
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown || event.key != Key.DirectionDown) return@onPreviewKeyEvent false
                 // Sans résultat composé, le requérant n'est rattaché à rien.
-                runCatching { results.requestFocus() }.getOrDefault(false) || focusManager.moveFocus(FocusDirection.Down)
+                if (!runCatching { results.requestFocus() }.getOrDefault(false)) {
+                    focusManager.moveFocus(FocusDirection.Down)
+                }
+                // Touche consommée même sans résultat : le focus reste dans le
+                // champ au lieu de partir chercher une vue hors de Compose.
+                true
             }
             .widthIn(max = 720.dp)
             .fillMaxWidth()
