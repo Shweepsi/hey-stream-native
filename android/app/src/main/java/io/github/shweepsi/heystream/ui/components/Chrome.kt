@@ -113,7 +113,7 @@ fun HsTopBar(
             .fillMaxWidth()
             .background(Hs.colors.surface)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-            .height(64.dp)
+            .height(Hs.dimens.topBarHeight)
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

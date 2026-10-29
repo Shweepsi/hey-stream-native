@@ -6,7 +6,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Mesures (docs/DESIGN.md). TV : maquettes × 0,75 (écran de 960 × 540 dp).
- * Tablette et téléphone : zones tactiles d'au moins 48 dp.
+ * Tablette : zones tactiles d'au moins 48 dp. Téléphone : plus dense
+ * ([PhoneDimens]).
  */
 @Immutable
 data class HsDimens(
@@ -48,6 +49,8 @@ data class HsDimens(
     val progressHeight: Dp,
     /** Affiche d'une fiche. */
     val detailPosterWidth: Dp,
+    /** Barre du haut (au doigt). */
+    val topBarHeight: Dp = 64.dp,
 )
 
 val TvDimens = HsDimens(
@@ -102,4 +105,24 @@ val TouchDimens = HsDimens(
     iconLarge = 48.dp,
     progressHeight = 4.dp,
     detailPosterWidth = 240.dp,
+)
+
+/**
+ * Téléphone : plus dense que la tablette, surtout les barres et les marges
+ * (barre du haut de 52 dp, marges et espacements réduits). Cibles tactiles
+ * d'au moins 40 dp.
+ */
+val PhoneDimens = TouchDimens.copy(
+    screenHorizontal = 16.dp,
+    screenVertical = 10.dp,
+    gapSmall = 6.dp,
+    gap = 12.dp,
+    gapLarge = 16.dp,
+    minTouch = 40.dp,
+    categoryRowHeight = 40.dp,
+    channelRowHeight = 52.dp,
+    channelLogoWidth = 42.dp,
+    channelLogoHeight = 28.dp,
+    iconLarge = 40.dp,
+    topBarHeight = 52.dp,
 )

@@ -5,7 +5,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 
-/** Barre du haut (tactile, `HsTopBar`) et son séparateur. */
+/** Barre du haut d'une tablette (`HsTopBar`) et son séparateur ; plus basse sur téléphone. */
 val LiveTopBarHeight = 64.dp + 1.dp
 
 /**
@@ -41,7 +41,14 @@ data class LiveLayout(
  * séparées par un trait. Téléphone (moins de 960 dp de large) : colonnes
  * proportionnelles, plus étroites.
  */
-fun liveLayout(isTv: Boolean, width: Dp, height: Dp, categories: Dp, channels: Dp): LiveLayout {
+fun liveLayout(
+    isTv: Boolean,
+    width: Dp,
+    height: Dp,
+    categories: Dp,
+    channels: Dp,
+    topBar: Dp = LiveTopBarHeight,
+): LiveLayout {
     if (isTv) {
         val horizontal = 30.dp
         val vertical = 24.dp
@@ -68,7 +75,7 @@ fun liveLayout(isTv: Boolean, width: Dp, height: Dp, categories: Dp, channels: D
     val channelsWidth = if (compact) min(channels, width * 0.32f) else channels
     val padding = if (compact) 12.dp else 24.dp
     val x = categoriesWidth + channelsWidth + padding
-    val y = LiveTopBarHeight + padding
+    val y = topBar + padding
     val (videoWidth, videoHeight) = video((width - x - padding).coerceAtLeast(0.dp), height - y)
     return LiveLayout(
         categoriesWidth = categoriesWidth,
@@ -76,7 +83,7 @@ fun liveLayout(isTv: Boolean, width: Dp, height: Dp, categories: Dp, channels: D
         marginHorizontal = 0.dp,
         marginVertical = 0.dp,
         gap = 0.dp,
-        topBar = LiveTopBarHeight,
+        topBar = topBar,
         previewPadding = padding,
         videoX = x,
         videoY = y,

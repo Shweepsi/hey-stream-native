@@ -31,8 +31,8 @@ enum class Device(val qualifiers: String, val isTv: Boolean, val dark: Boolean) 
     /** Tablette en thème sombre. */
     TabletDark("w1280dp-h800dp-land-xhdpi", isTv = false, dark = true),
 
-    /** Téléphone en paysage. */
-    Phone("w800dp-h360dp-land-xxhdpi", isTv = false, dark = true),
+    /** Téléphone récent en paysage (Pixel 8 Pro, Xiaomi 14 : environ 915 × 412 dp). */
+    Phone("w915dp-h412dp-land-xxhdpi", isTv = false, dark = true),
 }
 
 /** Télécommande : Robolectric reste en mode tactile, où rien ne prend le focus. */

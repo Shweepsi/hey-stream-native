@@ -130,13 +130,15 @@ fun LiveContent(
         val end = insets.calculateEndPadding(direction)
         val top = insets.calculateTopPadding()
         val bottom = insets.calculateBottomPadding()
-        val layout = remember(maxWidth, maxHeight, start, end, top, bottom, isTv) {
+        val layout = remember(maxWidth, maxHeight, start, end, top, bottom, isTv, dimens) {
             liveLayout(
                 isTv = isTv,
                 width = maxWidth - start - end,
                 height = maxHeight - top - bottom,
                 categories = dimens.categoriesPanelWidth,
                 channels = dimens.channelsPanelWidth,
+                // Barre du haut et son séparateur.
+                topBar = dimens.topBarHeight + 1.dp,
             )
         }
         val categories = state.categories
@@ -166,7 +168,7 @@ fun LiveContent(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(LiveTopBarHeight - 64.dp)
+                        .height(1.dp)
                         .background(Hs.colors.separator),
                 )
             }

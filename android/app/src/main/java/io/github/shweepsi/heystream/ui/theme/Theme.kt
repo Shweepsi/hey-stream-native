@@ -17,6 +17,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 
 val LocalHsColors = staticCompositionLocalOf { DarkColors }
@@ -52,8 +53,8 @@ fun Context.isTelevision(): Boolean {
 
 /**
  * Thème de l'app : toujours sombre sur TV, sinon celui du système. Les
- * tailles suivent l'appareil (TV : écran de 960 × 540 dp ; tablette et
- * téléphone : valeurs tactiles).
+ * tailles suivent l'appareil (TV : écran de 960 × 540 dp ; tablette :
+ * valeurs tactiles ; téléphone : plus dense).
  */
 @Composable
 fun HeyStreamTheme(
@@ -62,8 +63,18 @@ fun HeyStreamTheme(
     content: @Composable () -> Unit,
 ) {
     val colors = if (isTv || systemDark) DarkColors else LightColors
-    val type = if (isTv) TvType else TouchType
-    val dimens = if (isTv) TvDimens else TouchDimens
+    // Téléphone : plus petit côté sous 600 dp (une tablette en a plus).
+    val phone = !isTv && LocalConfiguration.current.smallestScreenWidthDp < 600
+    val type = when {
+        isTv -> TvType
+        phone -> PhoneType
+        else -> TouchType
+    }
+    val dimens = when {
+        isTv -> TvDimens
+        phone -> PhoneDimens
+        else -> TouchDimens
+    }
     val scheme = if (colors.isDark) {
         darkColorScheme(
             primary = colors.text,
