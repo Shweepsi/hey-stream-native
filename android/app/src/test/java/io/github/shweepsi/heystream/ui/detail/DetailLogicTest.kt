@@ -175,6 +175,15 @@ class DetailLogicTest {
     }
 
     @Test
+    fun episodeInProgressCarriesItsProgressForTheFiche() {
+        // « Vu jusqu’à … » de l'épisode repris ; sa durée vient de la reprise s'il n'en a pas.
+        val rows = episodeRows(series, watched = setOf(11L), positions = mapOf(12L to 600_000L, 22L to 90_000L), resume = resume(22, 90_000, 1_800_000))
+        assertEquals(PlayTarget(22, 2, 2, resume = true, progress = WatchProgress(90_000, 1_800_000)), playTarget(rows, resumeEpisodeId = 22))
+        // Pas d'épisode repris : « Lecture », sans progression même si un épisode est commencé.
+        assertEquals(PlayTarget(12, 1, 2, resume = false), playTarget(rows, resumeEpisodeId = null))
+    }
+
+    @Test
     fun seasonShownKeepsTheChoiceElseFollowsTheFirstButton() {
         val target = PlayTarget(21, 2, 1, resume = true)
         assertEquals(2L, chooseSeason(listOf(1, 2), current = null, target = target))

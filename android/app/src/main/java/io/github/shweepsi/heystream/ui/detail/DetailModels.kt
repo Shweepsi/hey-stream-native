@@ -144,7 +144,10 @@ data class EpisodeRow(
     val watched: Boolean,
 )
 
-/** Premier bouton d'une série : « Reprendre S2 · E3 » ou « Lecture ». */
+/**
+ * Premier bouton d'une série : « Reprendre S2 · E3 » (avec « Depuis le
+ * début » et « Vu jusqu’à … ») ou « Lecture ».
+ */
 @Immutable
 data class PlayTarget(
     val episodeId: Long,
@@ -152,6 +155,8 @@ data class PlayTarget(
     val number: Long,
     /** Épisode commencé (dernier regardé de la série). */
     val resume: Boolean,
+    /** Où en est cet épisode, s'il est repris : « Vu jusqu’à … » et la barre. */
+    val progress: WatchProgress? = null,
 )
 
 @Immutable
@@ -224,11 +229,11 @@ internal fun episodeRows(
 
 /**
  * Épisode du premier bouton : celui en cours ([resumeEpisodeId], « Reprendre
- * S2 · E3 »), sinon le premier non vu, sinon le premier.
+ * S2 · E3 », avec sa progression), sinon le premier non vu, sinon le premier.
  */
 internal fun playTarget(rows: List<EpisodeRow>, resumeEpisodeId: Long?): PlayTarget? {
     rows.firstOrNull { it.id == resumeEpisodeId }?.let {
-        return PlayTarget(it.id, it.season, it.number, resume = true)
+        return PlayTarget(it.id, it.season, it.number, resume = true, progress = it.progress)
     }
     val row = rows.firstOrNull { !it.watched } ?: rows.firstOrNull() ?: return null
     return PlayTarget(row.id, row.season, row.number, resume = false)

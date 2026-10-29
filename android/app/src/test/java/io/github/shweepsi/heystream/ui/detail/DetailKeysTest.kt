@@ -1,5 +1,6 @@
 package io.github.shweepsi.heystream.ui.detail
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.InputMode
@@ -13,7 +14,9 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -60,9 +63,9 @@ class DetailKeysTest {
         val toggled = mutableListOf<Long>()
     }
 
-    private fun showSeries(calls: SeriesCalls) = show {
+    private fun showSeries(calls: SeriesCalls, state: SeriesDetailState = DetailFakes.series) = show {
         SeriesDetailContent(
-            state = DetailFakes.series,
+            state = state,
             onPlayEpisode = { id, fromStart -> calls.played += id to fromStart },
             onSelectSeason = {},
             onToggleFavorite = {},
@@ -80,6 +83,37 @@ class DetailKeysTest {
         compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
         assertEquals(listOf(23L to false), calls.played)
+    }
+
+    @Test
+    fun fromStartReplaysTheEpisodeInProgressFromZero() {
+        val calls = SeriesCalls()
+        showSeries(calls)
+        // « Reprendre S2 · E3 » a le focus ; à droite, « Depuis le début ».
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(listOf(23L to true), calls.played)
+    }
+
+    @Test
+    fun aSeriesNotStartedHasNeitherProgressNorFromStart() {
+        val calls = SeriesCalls()
+        showSeries(calls, DetailFakes.seriesNotStarted)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        compose.onNodeWithText(context.getString(R.string.play)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.from_start)).assertDoesNotExist()
+        // Aucun « Vu jusqu’à … », quelle que soit la position.
+        val watchedUntil = context.getString(R.string.watched_until, "").trim()
+        compose.onNodeWithText(watchedUntil, substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun theEpisodeInProgressShowsHowFarItWasWatched() {
+        showSeries(SeriesCalls())
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        compose.onNodeWithText(context.getString(R.string.from_start)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.watched_until, "22:00")).assertExists()
     }
 
     @Test
