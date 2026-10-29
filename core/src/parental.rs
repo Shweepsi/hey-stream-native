@@ -1,10 +1,13 @@
 //! Contrôle parental et catégories masquées.
 //!
-//! Les catégories adultes (détectées par leur nom) et les flux que le
-//! fournisseur marque `is_adult` sont verrouillés. Les catégories restent
-//! listées, mais leur contenu n'apparaît nulle part (listes,
-//! recherche, favoris, récents, « Continuer ») tant que le code PIN n'a pas
-//! été saisi. Le déverrouillage ne vaut que pour la session en cours.
+//! Les catégories adultes et les flux que le fournisseur marque `is_adult`
+//! sont verrouillés. Une catégorie est adulte par son nom, ou quand le
+//! fournisseur marque toutes ses entrées (recalculé à chaque
+//! rafraîchissement) ; dans une catégorie mixte, seules les entrées marquées
+//! sont cachées. Les catégories restent listées, mais leur contenu
+//! n'apparaît nulle part (listes, recherche, favoris, récents, « Continuer »)
+//! tant que le code PIN n'a pas été saisi. Le déverrouillage ne vaut que pour
+//! la session en cours.
 //!
 //! Les catégories masquées disparaissent de la navigation et de la recherche ;
 //! les favoris et les récents qu'elles contiennent restent visibles, puisque

@@ -1,5 +1,7 @@
 use serde_json::{from_value, json};
-use xtream_core::{Catalog, Category, Error, Movie, PlaybackKind, Resume, Section, Series};
+use xtream_core::{
+    Catalog, Category, Error, LiveStream, Movie, PlaybackKind, Resume, Section, Series,
+};
 
 /// Films : une catégorie « Action », une catégorie adulte, une « Arabe ».
 fn catalog() -> Catalog {
@@ -451,4 +453,195 @@ fn account_info_is_cached_for_offline_use() {
     assert_eq!(c.cached_account().unwrap(), None);
     drop(c);
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Direct : « |FR| Charme » (2) n'a que des flux marqués adultes par le
+/// fournisseur, sans aucun marqueur dans son nom ; « |FR| Sport » (1) est
+/// ordinaire, « |FR| Ciné » (3) mêle flux marqués et ordinaires.
+fn live_with_flagged_category(c: &mut Catalog, charme: serde_json::Value, now: i64) {
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "1", "category_name": "|FR| Sport"},
+        {"category_id": "2", "category_name": "|FR| Charme"},
+        {"category_id": "3", "category_name": "|FR| Ciné"}
+    ]))
+    .unwrap();
+    let mut streams = vec![
+        json!({"stream_id": 1, "name": "Sport 1", "num": 1, "category_id": "1"}),
+        json!({"stream_id": 3, "name": "Ciné 1", "num": 3, "category_id": "3"}),
+        json!({"stream_id": 4, "name": "Ciné nuit", "num": 4, "category_id": "3", "is_adult": "1"}),
+    ];
+    streams.extend(charme.as_array().unwrap().iter().cloned());
+    let streams: Vec<LiveStream> = from_value(serde_json::Value::Array(streams)).unwrap();
+    c.store_live(&cats, &streams, now).unwrap();
+}
+
+fn category(c: &Catalog, section: Section, id: &str) -> xtream_core::CachedCategory {
+    c.all_categories(section)
+        .unwrap()
+        .into_iter()
+        .find(|cat| cat.id == id)
+        .unwrap()
+}
+
+#[test]
+fn category_whose_items_are_all_flagged_is_adult() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    live_with_flagged_category(
+        &mut c,
+        json!([
+            {"stream_id": 20, "name": "Charme 1", "num": 20, "category_id": "2", "is_adult": "1"},
+            {"stream_id": 21, "name": "Charme 2", "num": 21, "category_id": "2", "is_adult": 1}
+        ]),
+        0,
+    );
+
+    // Listée, verrouillée et adulte, comme une catégorie détectée par son nom.
+    let charme = category(&c, Section::Live, "2");
+    assert!(charme.is_adult && charme.locked && !charme.hidden);
+    assert_eq!(c.categories(Section::Live).unwrap().len(), 3);
+    // Pas de compte « 0 » ni de liste vide : l'ouvrir demande le code.
+    assert!(matches!(
+        c.count(Section::Live, Some("2")),
+        Err(Error::ParentalLock)
+    ));
+    assert!(matches!(
+        c.items(Section::Live, Some("2"), 0, 10),
+        Err(Error::ParentalLock)
+    ));
+    // Son contenu n'apparaît nulle part ailleurs.
+    assert_eq!(ids(c.items(Section::Live, None, 0, 10).unwrap()), [1, 3]);
+    assert!(c.search(Section::Live, "charme", 10).unwrap().is_empty());
+    c.toggle_favorite(Section::Live, 20, 1).unwrap();
+    c.add_recent(Section::Live, 21, 1).unwrap();
+    assert!(c.favorites(Section::Live, 0, 10).unwrap().is_empty());
+    assert!(c.recents(Section::Live, 10).unwrap().is_empty());
+
+    // Catégorie mixte : inchangée, ouverte, seules les entrées marquées
+    // sont cachées.
+    let cine = category(&c, Section::Live, "3");
+    assert!(!cine.is_adult && !cine.locked);
+    assert_eq!(ids(c.items(Section::Live, Some("3"), 0, 10).unwrap()), [3]);
+    assert_eq!(c.count(Section::Live, Some("3")).unwrap(), 1);
+    assert!(!category(&c, Section::Live, "1").is_adult);
+
+    // Code saisi : la catégorie s'ouvre avec tout son contenu.
+    c.set_pin("1234", None, 0).unwrap();
+    c.unlock_parental("1234", 0).unwrap();
+    let charme = category(&c, Section::Live, "2");
+    assert!(charme.is_adult && !charme.locked);
+    assert_eq!(
+        ids(c.items(Section::Live, Some("2"), 0, 10).unwrap()),
+        [20, 21]
+    );
+    assert_eq!(c.count(Section::Live, Some("2")).unwrap(), 2);
+    assert_eq!(
+        ids(c.items(Section::Live, Some("3"), 0, 10).unwrap()),
+        [3, 4]
+    );
+    assert_eq!(ids(c.favorites(Section::Live, 0, 10).unwrap()), [20]);
+
+    // Reverrouillé : de nouveau fermée.
+    c.lock_parental();
+    assert!(category(&c, Section::Live, "2").locked);
+    assert!(matches!(
+        c.items(Section::Live, Some("2"), 0, 10),
+        Err(Error::ParentalLock)
+    ));
+}
+
+#[test]
+fn provider_flagged_category_is_recomputed_on_each_refresh() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    let all_flagged = json!([
+        {"stream_id": 20, "name": "Charme 1", "num": 20, "category_id": "2", "is_adult": "1"}
+    ]);
+    live_with_flagged_category(&mut c, all_flagged.clone(), 0);
+    assert!(category(&c, Section::Live, "2").locked);
+
+    // Même réponse au rafraîchissement suivant : toujours adulte.
+    live_with_flagged_category(&mut c, all_flagged.clone(), 10);
+    assert!(category(&c, Section::Live, "2").locked);
+
+    // Réponse vide (cache gardé) : le marquage est gardé aussi.
+    let outcome = c.store_live(&[], &[], 20).unwrap();
+    assert_eq!(outcome, xtream_core::RefreshOutcome::KeptCache);
+    assert!(category(&c, Section::Live, "2").locked);
+
+    // Le fournisseur y ajoute un flux ordinaire : la catégorie n'est plus
+    // entièrement adulte, elle devient mixte. Elle s'ouvre sans code, mais le
+    // flux marqué reste caché tant que le verrou est fermé.
+    live_with_flagged_category(
+        &mut c,
+        json!([
+            {"stream_id": 20, "name": "Charme 1", "num": 20, "category_id": "2", "is_adult": "1"},
+            {"stream_id": 22, "name": "Magazine", "num": 22, "category_id": "2"}
+        ]),
+        30,
+    );
+    let charme = category(&c, Section::Live, "2");
+    assert!(!charme.is_adult && !charme.locked);
+    assert_eq!(ids(c.items(Section::Live, Some("2"), 0, 10).unwrap()), [22]);
+    assert!(c.search(Section::Live, "charme", 10).unwrap().is_empty());
+
+    // De nouveau entièrement marquée : de nouveau verrouillée.
+    live_with_flagged_category(&mut c, all_flagged, 40);
+    assert!(category(&c, Section::Live, "2").locked);
+
+    // Vide : rien à cacher, elle n'est pas adulte (et son nom non plus).
+    live_with_flagged_category(&mut c, json!([]), 50);
+    assert!(!category(&c, Section::Live, "2").is_adult);
+}
+
+#[test]
+fn provider_flag_is_per_section_and_does_not_unmark_adult_names() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    live_with_flagged_category(
+        &mut c,
+        json!([{"stream_id": 20, "name": "Charme 1", "category_id": "2", "is_adult": "1"}]),
+        0,
+    );
+    // Même identifiant de catégorie dans les films : ordinaire ; une
+    // catégorie adulte par son nom le reste, même sans entrée marquée.
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "2", "category_name": "Comédies"},
+        {"category_id": "8", "category_name": "XXX Adultes"}
+    ]))
+    .unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 20, "name": "Comédie", "category_id": "2"},
+        {"stream_id": 80, "name": "Film", "category_id": "8"}
+    ]))
+    .unwrap();
+    c.store_movies(&cats, &movies, 0).unwrap();
+    assert!(category(&c, Section::Live, "2").locked);
+    assert!(!category(&c, Section::Movies, "2").is_adult);
+    assert!(category(&c, Section::Movies, "8").locked);
+    // Direct rafraîchi après les films : le film ordinaire de la catégorie
+    // « 2 » des films ne compte pas pour la catégorie « 2 » du direct.
+    live_with_flagged_category(
+        &mut c,
+        json!([{"stream_id": 20, "name": "Charme 1", "category_id": "2", "is_adult": "1"}]),
+        10,
+    );
+    assert!(category(&c, Section::Live, "2").locked);
+
+    // Les séries suivent la même règle. Leur catégorie « 2 », vide, n'est pas
+    // adulte : les flux marqués de la catégorie « 2 » du direct ne comptent
+    // pas pour elle.
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "2", "category_name": "Policier"},
+        {"category_id": "4", "category_name": "Soirée"}
+    ]))
+    .unwrap();
+    let series: Vec<Series> = from_value(json!([
+        {"series_id": 40, "name": "Série marquée", "category_id": "4", "is_adult": 1}
+    ]))
+    .unwrap();
+    c.store_series(&cats, &series, 0).unwrap();
+    assert!(!category(&c, Section::Series, "2").is_adult);
+    assert!(category(&c, Section::Series, "4").locked);
+    assert!(matches!(
+        c.count(Section::Series, Some("4")),
+        Err(Error::ParentalLock)
+    ));
 }
