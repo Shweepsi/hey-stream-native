@@ -5,6 +5,7 @@ import io.github.shweepsi.heystream.core.AccountInfo
 import io.github.shweepsi.heystream.core.HeyStreamCore
 import io.github.shweepsi.heystream.core.HeyStreamException
 import io.github.shweepsi.heystream.core.SectionRefresh
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +73,14 @@ class CoreSession(
     private val _userDataVersion = MutableStateFlow(0L)
     val userDataVersion: StateFlow<Long> = _userDataVersion.asStateFlow()
 
+    /**
+     * Ouvre la session dans la portée de l'app : une activité recréée
+     * (changement de langue) pendant l'ouverture ne l'interrompt pas.
+     */
+    fun ensureStarted() {
+        scope.launch { start() }
+    }
+
     /** Ouvre le cache de l'abonnement enregistré, sans requête réseau. */
     suspend fun start() {
         lock.withLock {
@@ -81,7 +90,13 @@ class CoreSession(
                 _state.value = SessionState.SignedOut
                 return
             }
-            core = runCatching { withContext(Dispatchers.IO) { open(saved) } }.getOrNull()
+            core = try {
+                withContext(Dispatchers.IO) { open(saved) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                null
+            }
             _state.value = if (core != null) SessionState.Ready else SessionState.SignedOut
         }
         if (core != null) {
@@ -144,6 +159,22 @@ class CoreSession(
      */
     suspend fun <T> withCore(block: (HeyStreamCore) -> T): T = withContext(Dispatchers.IO) {
         block(core ?: throw HeyStreamException.SignedOut())
+    }
+
+    /** Identifiants enregistrés, pour préremplir « Modifier l'adresse du serveur ». Jamais journalisés. */
+    suspend fun savedCredentials(): Credentials? = withContext(Dispatchers.IO) { credentials.load() }
+
+    /**
+     * Quitter l'app reverrouille les catégories adultes (spec : le
+     * déverrouillage vaut pour la session).
+     */
+    fun lockParental() {
+        scope.launch {
+            val wasUnlocked = runCatching {
+                withCore { core -> core.isParentalUnlocked().also { if (it) core.lockParental() } }
+            }.getOrDefault(false)
+            if (wasUnlocked) notifyUserDataChanged()
+        }
     }
 
     /** À appeler après un changement de favoris, vus, reprise, masquage ou code PIN. */

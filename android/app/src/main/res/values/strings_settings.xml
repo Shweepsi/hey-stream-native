@@ -20,11 +20,11 @@
     <string name="settings_parental_intro">Adult categories are detected automatically (provider flag, or a name containing “XXX”, “Adult”, “+18”…) and locked by default. While locked, they stay listed but their content appears nowhere: lists, search, favorites, recent items, Continue.</string>
     <string name="settings_parental_no_pin">No parental code yet</string>
     <string name="settings_parental_locked">Adult categories are locked</string>
-    <string name="settings_parental_unlocked">Adult categories are unlocked until the app is closed</string>
+    <string name="settings_parental_unlocked">Adult categories are unlocked until you leave the app</string>
     <string name="settings_parental_create">Create a code</string>
     <string name="settings_parental_change">Change the code</string>
     <string name="settings_parental_lock_now">Lock now</string>
-    <string name="settings_parental_note">Unlocking with the code lasts until the app is closed. After 5 wrong codes, entry is blocked for 30 seconds.</string>
+    <string name="settings_parental_note">Unlocking with the code lasts until you leave the app. After 5 wrong codes, entry is blocked for 30 seconds.</string>
 
     <string name="settings_language_intro">Language of the app’s texts.</string>
     <string name="settings_language_system">System language</string>
@@ -74,4 +74,5 @@
     <string name="settings_credit_ffmpeg">FFmpeg decoder (Jellyfin)</string>
     <string name="settings_credit_ffmpeg_license" translatable="false">GNU GPL</string>
     <string name="settings_license_unavailable">The license text could not be read.</string>
+    <string name="settings_change_server">Change server address</string>
 </resources>

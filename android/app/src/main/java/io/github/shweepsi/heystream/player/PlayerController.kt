@@ -59,6 +59,9 @@ class PlayerController(private val context: Context) {
     private var resumeOnForeground = false
     private var pendingRetry: Runnable? = null
 
+    /** App en arrière-plan : aucun flux ne s'ouvre avant son retour. */
+    private var inBackground = false
+
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
 
@@ -86,6 +89,7 @@ class PlayerController(private val context: Context) {
 
     /** L'app passe en arrière-plan : le flux est fermé (connexion libérée). */
     fun onBackground() {
+        inBackground = true
         val player = exoPlayer ?: return
         cancelRetry()
         resumeOnForeground = current != null && player.playWhenReady
@@ -93,12 +97,21 @@ class PlayerController(private val context: Context) {
         player.stop()
     }
 
-    /** Retour au premier plan : le flux reprend s'il jouait. */
+    /**
+     * Retour au premier plan : le flux reprend s'il jouait ; un film ou un
+     * épisode en pause est rouvert en pause, à sa position (sinon « Lecture »
+     * ne ferait plus rien sur un lecteur arrêté).
+     */
     fun onForeground() {
+        inBackground = false
         val item = current ?: return
-        if (resumeOnForeground) {
-            resumeOnForeground = false
-            open(item, resumeMs)
+        when {
+            resumeOnForeground -> {
+                resumeOnForeground = false
+                open(item, resumeMs)
+            }
+            !live && !_status.value.failed && exoPlayer?.playbackState == Player.STATE_IDLE ->
+                open(item, resumeMs, playWhenReady = false)
         }
     }
 
@@ -123,15 +136,22 @@ class PlayerController(private val context: Context) {
         current = item
         resumeMs = startMs.coerceAtLeast(0)
         _status.value = PlaybackStatus(active = true, live = live, buffering = true)
+        if (inBackground) {
+            // Chaîne ou titre choisi juste avant la mise en arrière-plan : le
+            // flux s'ouvrira au retour, pas en cachette.
+            exoPlayer?.stop()
+            resumeOnForeground = true
+            return
+        }
         open(item, resumeMs)
     }
 
-    private fun open(item: MediaItem, startMs: Long) {
+    private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
         player.stop()
         if (live) player.setMediaItem(item) else player.setMediaItem(item, startMs)
-        player.playWhenReady = true
+        player.playWhenReady = playWhenReady
         player.prepare()
     }
 

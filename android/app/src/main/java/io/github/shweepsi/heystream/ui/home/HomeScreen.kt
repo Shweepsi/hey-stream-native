@@ -17,7 +17,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -38,6 +41,9 @@ import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
 
+/** Élément de l'accueil qui reprend le focus au retour. */
+enum class HomeTarget { Live, Movies, Series, Search, Settings }
+
 /** Accueil : trois tuiles, heure et date, abonnement, Rechercher et Réglages. */
 @Composable
 fun HomeScreen(
@@ -50,13 +56,16 @@ fun HomeScreen(
     val session = appGraph().session
     val viewModel = viewModel { HomeViewModel(session) }
     val subscription by viewModel.subscription.collectAsStateWithLifecycle()
+    // Au retour, le focus revient sur ce qui a été ouvert.
+    var opened by rememberSaveable { mutableStateOf(HomeTarget.Live) }
     HomeContent(
         subscription = subscription,
-        onOpenLive = onOpenLive,
-        onOpenMovies = onOpenMovies,
-        onOpenSeries = onOpenSeries,
-        onOpenSearch = onOpenSearch,
-        onOpenSettings = onOpenSettings,
+        onOpenLive = { opened = HomeTarget.Live; onOpenLive() },
+        onOpenMovies = { opened = HomeTarget.Movies; onOpenMovies() },
+        onOpenSeries = { opened = HomeTarget.Series; onOpenSeries() },
+        onOpenSearch = { opened = HomeTarget.Search; onOpenSearch() },
+        onOpenSettings = { opened = HomeTarget.Settings; onOpenSettings() },
+        focusOn = opened,
     )
 }
 
@@ -68,10 +77,11 @@ fun HomeContent(
     onOpenSeries: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
+    focusOn: HomeTarget = HomeTarget.Live,
 ) {
     val dimens = Hs.dimens
-    val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    val focus = remember { HomeTarget.entries.associateWith { FocusRequester() } }
+    LaunchedEffect(Unit) { runCatching { focus.getValue(focusOn).requestFocus() } }
     Column(
         Modifier
             .fillMaxSize()
@@ -98,16 +108,31 @@ fun HomeContent(
             val tile = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-            HomeTile(Lucide.Tv, stringResource(R.string.home_live), stringResource(R.string.home_live_subtitle), onOpenLive, tile.focusRequester(first))
-            HomeTile(Lucide.Film, stringResource(R.string.home_movies), stringResource(R.string.home_movies_subtitle), onOpenMovies, tile)
-            HomeTile(Lucide.MonitorPlay, stringResource(R.string.home_series), stringResource(R.string.home_series_subtitle), onOpenSeries, tile)
+            HomeTile(
+                Lucide.Tv, stringResource(R.string.home_live), stringResource(R.string.home_live_subtitle), onOpenLive,
+                tile.focusRequester(focus.getValue(HomeTarget.Live)),
+            )
+            HomeTile(
+                Lucide.Film, stringResource(R.string.home_movies), stringResource(R.string.home_movies_subtitle), onOpenMovies,
+                tile.focusRequester(focus.getValue(HomeTarget.Movies)),
+            )
+            HomeTile(
+                Lucide.MonitorPlay, stringResource(R.string.home_series), stringResource(R.string.home_series_subtitle), onOpenSeries,
+                tile.focusRequester(focus.getValue(HomeTarget.Series)),
+            )
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(dimens.gap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            HsButton(stringResource(R.string.home_search), onOpenSearch, icon = Lucide.Search, style = ButtonStyle.Surface)
-            HsButton(stringResource(R.string.home_settings), onOpenSettings, icon = Lucide.Settings, style = ButtonStyle.Surface)
+            HsButton(
+                stringResource(R.string.home_search), onOpenSearch, icon = Lucide.Search, style = ButtonStyle.Surface,
+                modifier = Modifier.focusRequester(focus.getValue(HomeTarget.Search)),
+            )
+            HsButton(
+                stringResource(R.string.home_settings), onOpenSettings, icon = Lucide.Settings, style = ButtonStyle.Surface,
+                modifier = Modifier.focusRequester(focus.getValue(HomeTarget.Settings)),
+            )
             Spacer(Modifier.weight(1f))
             if (subscription != null) {
                 val expired = subscription is Subscription.Expired

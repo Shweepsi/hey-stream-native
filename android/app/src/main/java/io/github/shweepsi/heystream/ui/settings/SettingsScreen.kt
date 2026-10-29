@@ -23,7 +23,7 @@ import io.github.shweepsi.heystream.ui.components.PinPurpose
  * abonnement (et déconnexion), à propos.
  */
 @Composable
-fun SettingsScreen(onSignedOut: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: () -> Unit) {
     val graph = appGraph()
     val viewModel = viewModel { SettingsViewModel(graph.session, graph.player) }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -32,6 +32,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onBack: () -> Unit) {
     var shownLicense by remember { mutableStateOf<License?>(null) }
     var confirmSignOut by remember { mutableStateOf(false) }
     val currentOnBack by rememberUpdatedState(onBack)
+    val currentOnChangeServer by rememberUpdatedState(onChangeServer)
 
     LaunchedEffect(state.signedOut) { if (state.signedOut) onSignedOut() }
     BackHandler(onBack = onBack)
@@ -67,6 +68,8 @@ fun SettingsScreen(onSignedOut: () -> Unit, onBack: () -> Unit) {
                 confirmSignOut = true
             }
 
+            override fun changeServer() = currentOnChangeServer()
+
             override fun showLicense(license: License) {
                 shownLicense = license
             }
@@ -78,7 +81,13 @@ fun SettingsScreen(onSignedOut: () -> Unit, onBack: () -> Unit) {
     SettingsContent(state = state, language = language, appVersion = BuildConfig.VERSION_NAME, actions = actions)
 
     pinPurpose?.let { purpose ->
-        ParentalPinDialog(purpose = purpose, onSuccess = { pinPurpose = null }, onDismiss = { pinPurpose = null })
+        // Créer ou changer le code depuis les réglages ne déverrouille rien.
+        ParentalPinDialog(
+            purpose = purpose,
+            onSuccess = { pinPurpose = null },
+            onDismiss = { pinPurpose = null },
+            unlockAfterSet = false,
+        )
     }
     shownLicense?.let { shown -> LicenseDialog(shown, onDismiss = { shownLicense = null }) }
     if (confirmSignOut) {

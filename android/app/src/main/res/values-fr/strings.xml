@@ -82,4 +82,6 @@
         <item quantity="many">%1$d chiffres saisis sur %2$d</item>
         <item quantity="other">%1$d chiffres saisis sur %2$d</item>
     </plurals>
+    <string name="login_edit_title">Modifier l’adresse du serveur</string>
+    <string name="login_edit_intro">Avec le même identifiant, vos favoris, reprises, « vus » et code parental sont gardés ; seul le catalogue est retéléchargé. Rien ne change si la vérification échoue.</string>
 </resources>

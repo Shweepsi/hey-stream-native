@@ -84,7 +84,8 @@ val TouchType = HsType(
     label = style(16.sp, FontWeight.Medium),
     small = style(13.sp, FontWeight.Normal),
     overline = style(13.sp, FontWeight.SemiBold, 0.06.em),
-    badge = style(12.sp, FontWeight.Bold, 0.06.em, 1.1f),
+    // 13 sp au moins au doigt (docs/DESIGN.md).
+    badge = style(13.sp, FontWeight.Bold, 0.06.em, 1.1f),
 )
 
 /** Pour les composants Material (champs, dialogues). */

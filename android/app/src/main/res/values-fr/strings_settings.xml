@@ -20,11 +20,11 @@
     <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement (marquage du fournisseur, ou nom contenant « XXX », « Adult », « +18 »…) et verrouillées par défaut. Verrouillées, elles restent listées mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
     <string name="settings_parental_no_pin">Aucun code parental pour l’instant</string>
     <string name="settings_parental_locked">Catégories adultes verrouillées</string>
-    <string name="settings_parental_unlocked">Catégories adultes déverrouillées jusqu’à la fermeture de l’app</string>
+    <string name="settings_parental_unlocked">Catégories adultes déverrouillées jusqu’à ce que vous quittiez l’app</string>
     <string name="settings_parental_create">Créer un code</string>
     <string name="settings_parental_change">Changer le code</string>
     <string name="settings_parental_lock_now">Verrouiller maintenant</string>
-    <string name="settings_parental_note">Le déverrouillage par le code vaut jusqu’à la fermeture de l’app. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
+    <string name="settings_parental_note">Le déverrouillage par le code vaut jusqu’à ce que vous quittiez l’app. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
 
     <string name="settings_language_intro">Langue des textes de l’app.</string>
     <string name="settings_language_system">Langue du système</string>
@@ -72,4 +72,5 @@
     <string name="settings_credit_androidx_license">Licence Apache 2.0</string>
     <string name="settings_credit_ffmpeg">Décodeur FFmpeg (Jellyfin)</string>
     <string name="settings_license_unavailable">Le texte de la licence est illisible.</string>
+    <string name="settings_change_server">Modifier l’adresse du serveur</string>
 </resources>

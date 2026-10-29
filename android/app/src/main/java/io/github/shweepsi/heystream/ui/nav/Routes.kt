@@ -6,6 +6,9 @@ import io.github.shweepsi.heystream.core.Section
 /** Écrans de l'app. Les arguments sont des identifiants, jamais des URL. */
 object Routes {
     const val LOGIN = "login"
+
+    /** Réglages › Abonnement › Modifier l'adresse du serveur. */
+    const val CHANGE_SERVER = "login/change"
     const val HOME = "home"
     const val SEARCH = "search"
     const val SETTINGS = "settings"

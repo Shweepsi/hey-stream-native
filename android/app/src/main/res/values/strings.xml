@@ -82,4 +82,6 @@
         <item quantity="one">%1$d of %2$d digits entered</item>
         <item quantity="other">%1$d of %2$d digits entered</item>
     </plurals>
+    <string name="login_edit_title">Change the server address</string>
+    <string name="login_edit_intro">With the same username, your favorites, progress, watched marks and parental code are kept; only the catalog is downloaded again. Nothing changes if the check fails.</string>
 </resources>

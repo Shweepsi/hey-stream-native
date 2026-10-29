@@ -1,5 +1,6 @@
 package io.github.shweepsi.heystream.ui.login
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -49,13 +50,20 @@ import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 
-/** Premier lancement : serveur, identifiant, mot de passe (spec, rien d'autre). */
+/**
+ * Premier lancement : serveur, identifiant, mot de passe (spec, rien
+ * d'autre). [editing] : « Modifier l'adresse du serveur » depuis les
+ * réglages, formulaire prérempli ; avec le même identifiant, favoris,
+ * reprises, « vus » et code sont gardés, et rien n'est effacé si la
+ * vérification échoue.
+ */
 @Composable
-fun LoginScreen(onSignedIn: () -> Unit) {
+fun LoginScreen(onSignedIn: () -> Unit, editing: Boolean = false, onBack: (() -> Unit)? = null) {
     val session = appGraph().session
-    val viewModel = viewModel { LoginViewModel(session) }
+    val viewModel = viewModel { LoginViewModel(session, editing) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn() }
+    if (onBack != null) BackHandler(onBack = onBack)
     LoginContent(
         state = state,
         onServerChange = viewModel::onServerChange,
@@ -88,8 +96,12 @@ fun LoginContent(
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(dimens.gap)) {
             Logo(size = if (dimens.isTv) 40.dp else 44.dp)
-            Text(stringResource(R.string.login_title), style = Hs.type.title)
-            Text(stringResource(R.string.login_intro), style = Hs.type.body, color = Hs.colors.textSecondary)
+            Text(stringResource(if (state.editing) R.string.login_edit_title else R.string.login_title), style = Hs.type.title)
+            Text(
+                stringResource(if (state.editing) R.string.login_edit_intro else R.string.login_intro),
+                style = Hs.type.body,
+                color = Hs.colors.textSecondary,
+            )
             Text(stringResource(R.string.login_privacy), style = Hs.type.small, color = Hs.colors.textSecondary)
         }
         Column(
@@ -132,7 +144,8 @@ fun LoginContent(
             HsButton(
                 text = stringResource(if (state.busy) R.string.login_checking else R.string.login_submit),
                 onClick = onSubmit,
-                enabled = !state.busy,
+                // Toujours activable (un second appui est ignoré pendant la
+                // vérification) : le focus reste sur le bouton.
                 style = ButtonStyle.Primary,
                 modifier = Modifier.fillMaxWidth(),
             )

@@ -106,6 +106,8 @@ interface SettingsActions {
 
     fun signOut() {}
 
+    fun changeServer() {}
+
     fun showLicense(license: License) {}
 
     fun back() {}
@@ -664,6 +666,12 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
         if (ui.maxConnections != null) {
             Paragraph(stringResource(R.string.settings_subscription_connections, ui.maxConnections.toInt()))
         }
+        // Autre adresse du même fournisseur : rien n'est effacé (spec).
+        HsButton(
+            text = stringResource(R.string.settings_change_server),
+            onClick = actions::changeServer,
+            icon = Lucide.Server,
+        )
         Box(
             Modifier
                 .padding(vertical = dimens.gapSmall)

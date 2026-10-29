@@ -13,8 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,6 +52,14 @@ private fun SafeArea(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) { content() }
 }
 
+/**
+ * Un seul écran par appui : un second OK pendant le fondu (l'écran de départ
+ * n'est plus au premier plan) n'empile pas la destination une seconde fois.
+ */
+private fun NavHostController.go(from: NavBackStackEntry, route: String, options: NavOptionsBuilder.() -> Unit = {}) {
+    if (from.lifecycle.currentState == Lifecycle.State.RESUMED) navigate(route, options)
+}
+
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val session = appGraph().session
@@ -72,20 +83,31 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         popExitTransition = { fadeOut(tween(FADE_MS)) },
     ) {
         composable(Routes.LOGIN) {
-            SafeArea { LoginScreen(
-                onSignedIn = {
-                    navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } }
-                },
-            ) }
+            SafeArea {
+                LoginScreen(
+                    onSignedIn = { navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } },
+                )
+            }
         }
-        composable(Routes.HOME) {
-            SafeArea { HomeScreen(
-                onOpenLive = { navController.navigate(Routes.live()) },
-                onOpenMovies = { navController.navigate(Routes.vod(Section.MOVIES)) },
-                onOpenSeries = { navController.navigate(Routes.vod(Section.SERIES)) },
-                onOpenSearch = { navController.navigate(Routes.SEARCH) },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-            ) }
+        composable(Routes.CHANGE_SERVER) { entry ->
+            SafeArea {
+                LoginScreen(
+                    editing = true,
+                    onSignedIn = { navController.go(entry, Routes.HOME) { popUpTo(0) { inclusive = true } } },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+        }
+        composable(Routes.HOME) { entry ->
+            SafeArea {
+                HomeScreen(
+                    onOpenLive = { navController.go(entry, Routes.live()) },
+                    onOpenMovies = { navController.go(entry, Routes.vod(Section.MOVIES)) },
+                    onOpenSeries = { navController.go(entry, Routes.vod(Section.SERIES)) },
+                    onOpenSearch = { navController.go(entry, Routes.SEARCH) },
+                    onOpenSettings = { navController.go(entry, Routes.SETTINGS) },
+                )
+            }
         }
         composable(
             Routes.LIVE,
@@ -101,13 +123,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument("section") { type = NavType.StringType }),
         ) { entry ->
             val section = Section.valueOf(entry.arguments?.getString("section") ?: Section.MOVIES.name)
-            SafeArea { VodScreen(
-                section = section,
-                onOpenItem = { id ->
-                    navController.navigate(if (section == Section.SERIES) Routes.series(id) else Routes.movie(id))
-                },
-                onBack = { navController.popBackStack() },
-            ) }
+            SafeArea {
+                VodScreen(
+                    section = section,
+                    onOpenItem = { id ->
+                        navController.go(entry, if (section == Section.SERIES) Routes.series(id) else Routes.movie(id))
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
         composable(
             Routes.MOVIE,
@@ -116,7 +140,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             val id = entry.arguments?.getLong("id") ?: 0L
             MovieDetailScreen(
                 id = id,
-                onPlay = { fromStart -> navController.navigate(Routes.player(PlaybackKind.MOVIE, id, fromStart = fromStart)) },
+                onPlay = { fromStart -> navController.go(entry, Routes.player(PlaybackKind.MOVIE, id, fromStart = fromStart)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -128,7 +152,7 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             SeriesDetailScreen(
                 id = id,
                 onPlayEpisode = { episodeId, fromStart ->
-                    navController.navigate(Routes.player(PlaybackKind.EPISODE, episodeId, seriesId = id, fromStart = fromStart))
+                    navController.go(entry, Routes.player(PlaybackKind.EPISODE, episodeId, seriesId = id, fromStart = fromStart))
                 },
                 onBack = { navController.popBackStack() },
             )
@@ -151,21 +175,24 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 onExit = { navController.popBackStack() },
             )
         }
-        composable(Routes.SEARCH) {
-            SafeArea { SearchScreen(
-                onOpenChannel = { id -> navController.navigate(Routes.live(id)) },
-                onOpenMovie = { id -> navController.navigate(Routes.movie(id)) },
-                onOpenSeries = { id -> navController.navigate(Routes.series(id)) },
-                onBack = { navController.popBackStack() },
-            ) }
+        composable(Routes.SEARCH) { entry ->
+            SafeArea {
+                SearchScreen(
+                    onOpenChannel = { id -> navController.go(entry, Routes.live(id)) },
+                    onOpenMovie = { id -> navController.go(entry, Routes.movie(id)) },
+                    onOpenSeries = { id -> navController.go(entry, Routes.series(id)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
-        composable(Routes.SETTINGS) {
-            SafeArea { SettingsScreen(
-                onSignedOut = {
-                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-                },
-                onBack = { navController.popBackStack() },
-            ) }
+        composable(Routes.SETTINGS) { entry ->
+            SafeArea {
+                SettingsScreen(
+                    onSignedOut = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
+                    onChangeServer = { navController.go(entry, Routes.CHANGE_SERVER) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
     }
 }

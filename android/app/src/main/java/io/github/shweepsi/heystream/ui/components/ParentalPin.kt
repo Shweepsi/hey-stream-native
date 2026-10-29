@@ -68,9 +68,18 @@ const val PIN_LENGTH = 4
  * utilisable à la télécommande. Les chiffres du clavier ou de la
  * télécommande marchent aussi. Les erreurs (code faux, trop d'essais)
  * viennent du cœur.
+ *
+ * [unlockAfterSet] : un code créé pour ouvrir une catégorie adulte la
+ * déverrouille aussitôt ; créé ou changé depuis les réglages, il ne
+ * déverrouille rien.
  */
 @Composable
-fun ParentalPinDialog(purpose: PinPurpose, onSuccess: () -> Unit, onDismiss: () -> Unit) {
+fun ParentalPinDialog(
+    purpose: PinPurpose,
+    onSuccess: () -> Unit,
+    onDismiss: () -> Unit,
+    unlockAfterSet: Boolean = true,
+) {
     val session = appGraph().session
     val scope = rememberCoroutineScope()
     var step by remember { mutableStateOf(if (purpose == PinPurpose.Change) PinStep.Current else PinStep.New) }
@@ -107,7 +116,7 @@ fun ParentalPinDialog(purpose: PinPurpose, onSuccess: () -> Unit, onDismiss: () 
                     }
                     else -> session.withCore { core ->
                         core.setPin(pin, current)
-                        core.unlockParental(pin)
+                        if (unlockAfterSet) core.unlockParental(pin)
                     }
                 }
                 session.notifyUserDataChanged()
@@ -132,7 +141,7 @@ fun ParentalPinDialog(purpose: PinPurpose, onSuccess: () -> Unit, onDismiss: () 
         step == PinStep.New -> R.string.pin_title_new
         else -> R.string.pin_title_confirm
     }
-    val message = if (purpose == PinPurpose.Create && step == PinStep.New) R.string.pin_create_message else null
+    val message = if (purpose == PinPurpose.Create && step == PinStep.New && unlockAfterSet) R.string.pin_create_message else null
 
     Dialog(onDismissRequest = onDismiss) {
         PinPad(
@@ -228,20 +237,21 @@ fun PinPad(
             rows.forEachIndexed { rowIndex, digits ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     digits.forEachIndexed { columnIndex, digit ->
+                        // Touches toujours activables (clic ignoré pendant la
+                        // vérification) : le focus ne saute pas sur Annuler.
                         PinKey(
                             label = digit.toString(),
                             size = key,
-                            enabled = enabled,
                             modifier = if (rowIndex == 0 && columnIndex == 0) Modifier.focusRequester(first) else Modifier,
-                            onClick = { onDigit(digit) },
+                            onClick = { if (enabled) onDigit(digit) },
                         )
                     }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PinIconKey(Lucide.X, stringResource(R.string.cancel), key, enabled = true, onClick = onCancel)
-                PinKey("0", key, enabled, onClick = { onDigit('0') })
-                PinIconKey(Lucide.Delete, stringResource(R.string.pin_delete), key, enabled, onClick = onDelete)
+                PinIconKey(Lucide.X, stringResource(R.string.cancel), key, onClick = onCancel)
+                PinKey("0", key, onClick = { if (enabled) onDigit('0') })
+                PinIconKey(Lucide.Delete, stringResource(R.string.pin_delete), key, onClick = { if (enabled) onDelete() })
             }
         }
     }
@@ -251,13 +261,11 @@ fun PinPad(
 private fun PinKey(
     label: String,
     size: androidx.compose.ui.unit.Dp,
-    enabled: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     HsSurface(
         onClick = onClick,
-        enabled = enabled,
         color = Hs.colors.surface2,
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center,
@@ -271,12 +279,10 @@ private fun PinIconKey(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     size: androidx.compose.ui.unit.Dp,
-    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     HsSurface(
         onClick = onClick,
-        enabled = enabled,
         color = Hs.colors.surface,
         modifier = Modifier
             .size(size)

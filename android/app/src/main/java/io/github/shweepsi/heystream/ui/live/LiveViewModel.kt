@@ -315,12 +315,10 @@ class LiveViewModel(
         _state.update { it.copy(preview = preview) }
         updatePlayback()
         startJob = viewModelScope.launch {
-            val url = attempt {
-                session.withCore { core ->
-                    if (addRecent) runCatching { core.addRecent(Section.LIVE, id) }
-                    core.liveUrl(id, LiveFormat.TS)
-                }
-            }
+            // L'URL d'abord, l'écriture des récents ensuite : pendant un
+            // rafraîchissement du catalogue, une écriture attendrait sa fin et
+            // retarderait le zapping.
+            val url = attempt { session.withCore { core -> core.liveUrl(id, LiveFormat.TS) } }
             // Une autre chaîne a été choisie entre-temps : celle-ci n'est pas ouverte.
             if (_state.value.preview?.id != id) return@launch
             url.onSuccess { player.playLive(it) }
@@ -329,7 +327,10 @@ class LiveViewModel(
                     player.stop()
                     updatePlayback()
                 }
-            if (addRecent) updateRecentsCount()
+            if (addRecent) {
+                runCatching { session.withCore { core -> core.addRecent(Section.LIVE, id) } }
+                updateRecentsCount()
+            }
         }
         loadNowNext(id)
     }

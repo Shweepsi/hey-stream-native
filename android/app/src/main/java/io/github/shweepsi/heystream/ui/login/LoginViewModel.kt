@@ -17,15 +17,33 @@ data class LoginState(
     val username: String = "",
     val password: String = "",
     val busy: Boolean = false,
+    /** « Modifier l'adresse du serveur » (réglages), et non premier lancement. */
+    val editing: Boolean = false,
     val error: UiText? = null,
     val signedIn: Boolean = false,
 ) {
     override fun toString(): String = "LoginState(busy=$busy, error=$error, signedIn=$signedIn)"
 }
 
-class LoginViewModel(private val session: CoreSession) : ViewModel() {
-    private val _state = MutableStateFlow(LoginState())
+class LoginViewModel(private val session: CoreSession, editing: Boolean = false) : ViewModel() {
+    private val _state = MutableStateFlow(LoginState(editing = editing))
     val state: StateFlow<LoginState> = _state.asStateFlow()
+
+    init {
+        if (editing) {
+            // Préremplissage par les identifiants enregistrés (jamais journalisés).
+            viewModelScope.launch {
+                val saved = runCatching { session.savedCredentials() }.getOrNull() ?: return@launch
+                _state.update { state ->
+                    if (state.server.isNotEmpty() || state.username.isNotEmpty()) {
+                        state
+                    } else {
+                        state.copy(server = saved.server, username = saved.username, password = saved.password)
+                    }
+                }
+            }
+        }
+    }
 
     fun onServerChange(value: String) = _state.update { it.copy(server = value, error = null) }
 
