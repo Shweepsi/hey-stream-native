@@ -616,15 +616,29 @@ fn provider_flag_is_per_section_and_does_not_unmark_adult_names() {
     assert!(category(&c, Section::Live, "2").locked);
     assert!(!category(&c, Section::Movies, "2").is_adult);
     assert!(category(&c, Section::Movies, "8").locked);
+    // Direct rafraîchi après les films : le film ordinaire de la catégorie
+    // « 2 » des films ne compte pas pour la catégorie « 2 » du direct.
+    live_with_flagged_category(
+        &mut c,
+        json!([{"stream_id": 20, "name": "Charme 1", "category_id": "2", "is_adult": "1"}]),
+        10,
+    );
+    assert!(category(&c, Section::Live, "2").locked);
 
-    // Les séries suivent la même règle.
-    let cats: Vec<Category> =
-        from_value(json!([{"category_id": "4", "category_name": "Soirée"}])).unwrap();
+    // Les séries suivent la même règle. Leur catégorie « 2 », vide, n'est pas
+    // adulte : les flux marqués de la catégorie « 2 » du direct ne comptent
+    // pas pour elle.
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "2", "category_name": "Policier"},
+        {"category_id": "4", "category_name": "Soirée"}
+    ]))
+    .unwrap();
     let series: Vec<Series> = from_value(json!([
         {"series_id": 40, "name": "Série marquée", "category_id": "4", "is_adult": 1}
     ]))
     .unwrap();
     c.store_series(&cats, &series, 0).unwrap();
+    assert!(!category(&c, Section::Series, "2").is_adult);
     assert!(category(&c, Section::Series, "4").locked);
     assert!(matches!(
         c.count(Section::Series, Some("4")),
