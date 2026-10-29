@@ -69,8 +69,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
@@ -86,9 +86,11 @@ import io.github.shweepsi.heystream.ui.components.FocusScale
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
+import io.github.shweepsi.heystream.ui.components.LocalSurfaceFocused
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ProgressRail
+import io.github.shweepsi.heystream.ui.components.marqueeWhen
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -592,12 +594,15 @@ private fun ChannelRow(
             }
             ChannelLogo(channel.image, channel.name)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                // Nom et programme complets sur la chaîne en aperçu ou focalisée.
+                val highlighted = inPreview || LocalSurfaceFocused.current
                 Text(
                     text = channel.name,
                     style = Hs.type.itemTitle,
                     color = content,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.marqueeWhen(highlighted),
                 )
                 if (nowTitle != null) {
                     Text(
@@ -606,6 +611,7 @@ private fun ChannelRow(
                         color = secondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.marqueeWhen(highlighted),
                     )
                 }
             }

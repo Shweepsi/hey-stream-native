@@ -37,7 +37,7 @@ data class HsDimens(
     /** Largeur des panneaux du direct et des films / séries. */
     val categoriesPanelWidth: Dp,
     val channelsPanelWidth: Dp,
-    /** Grille d'affiches : colonnes sur TV, largeur minimale ailleurs. */
+    /** Grille d'affiches : colonnes fixes (TV, téléphone), sinon largeur minimale (tablette). */
     val posterColumns: Int,
     val posterMinWidth: Dp,
     val posterGapHorizontal: Dp,
@@ -125,4 +125,6 @@ val PhoneDimens = TouchDimens.copy(
     channelLogoHeight = 28.dp,
     iconLarge = 40.dp,
     topBarHeight = 52.dp,
+    // Téléphone récent en paysage : 5 affiches par ligne.
+    posterColumns = 5,
 )

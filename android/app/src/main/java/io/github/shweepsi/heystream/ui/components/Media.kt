@@ -16,9 +16,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -167,6 +172,7 @@ fun PosterCard(
     onLongClick: (() -> Unit)? = null,
 ) {
     val dimens = Hs.dimens
+    var focused by remember { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp)) {
         HsSurface(
             onClick = onClick,
@@ -176,7 +182,8 @@ fun PosterCard(
             onClickLabel = title,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f),
+                .aspectRatio(2f / 3f)
+                .onFocusChanged { focused = it.isFocused },
         ) {
             RemoteImage(imageUrl, Modifier.fillMaxSize())
             if (watched) {
@@ -202,6 +209,8 @@ fun PosterCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
+            // Titre complet sous l'affiche focalisée.
+            modifier = Modifier.marqueeWhen(focused),
         )
     }
 }

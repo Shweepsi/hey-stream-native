@@ -1,9 +1,13 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
@@ -11,6 +15,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,7 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -54,6 +61,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -63,6 +75,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -190,6 +203,14 @@ fun PlayerContent(
         val swallowUp = remember { arrayOfNulls<Key>(1) }
         val controlsShown = chrome.visible && !failed && state.next == null
         val seeking = rememberUpdatedState(state.pendingSeekMs != null)
+        val haptic = LocalHapticFeedback.current
+        // Dernier tap d'avance ou de recul au doigt : l'onde part de là.
+        var flash by remember { mutableStateOf<TapFlash?>(null) }
+        val tapNudge = { forward: Boolean, at: Offset ->
+            actions.nudge(forward)
+            haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            flash = TapFlash(forward, at, (flash?.id ?: 0) + 1)
+        }
 
         LaunchedEffect(controlsShown, chrome.focus, chrome.menu) {
             withFrameNanos { }
@@ -226,11 +247,11 @@ fun PlayerContent(
                     // Double tap sur un côté : recul (gauche) ou avance (droite).
                     // Pendant le cumul, chaque tap de ce côté ajoute un pas.
                     detectTapGestures(
-                        onDoubleTap = { offset -> sideOf(offset.x, size.width)?.let(actions::nudge) },
+                        onDoubleTap = { offset -> sideOf(offset.x, size.width)?.let { tapNudge(it, offset) } },
                         onTap = { offset ->
                             val side = sideOf(offset.x, size.width)
                             if (seeking.value && side != null) {
-                                actions.nudge(side)
+                                tapNudge(side, offset)
                             } else if (chrome.visible) {
                                 chrome.hide()
                             } else {
@@ -241,9 +262,8 @@ fun PlayerContent(
                 },
         ) {
             video()
-            state.pendingSeekMs?.let { offset ->
-                SeekPill(offset, Modifier.align(if (offset >= 0) BiasAlignment(0.6f, 0f) else BiasAlignment(-0.6f, 0f)))
-            }
+            flash?.let { SeekRipple(it) }
+            SeekPill(state.pendingSeekMs)
             if (!failed && (state.resolving || (status.buffering && status.reconnectAttempt == 0))) {
                 Text(
                     text = stringResource(R.string.loading),
@@ -322,20 +342,80 @@ private fun sideOf(x: Float, width: Int): Boolean? = when {
     else -> null
 }
 
-/** « +1:30 » ou « −0:20 » : saut cumulé, appliqué à la fin des appuis. */
+/** Tap d'avance ou de recul au doigt ; [id] relance l'onde à chaque tap. */
+private class TapFlash(val forward: Boolean, val at: Offset, val id: Int)
+
+/**
+ * Onde partie du point touché, limitée au côté du tap, avec la flèche du
+ * saut : le geste est vu tout de suite, même avant que le saut ne parte.
+ */
 @Composable
-private fun SeekPill(offsetMs: Long, modifier: Modifier = Modifier) {
-    val sign = if (offsetMs >= 0) "+" else "\u2212"
-    Text(
-        text = sign + Formats.clock(kotlin.math.abs(offsetMs)),
-        style = Hs.type.title.tabular(),
-        color = HsColors.OnMedia,
-        modifier = modifier
-            .clip(RoundedCornerShape(Hs.dimens.radius))
-            .background(HsColors.MediaScrim)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-    )
+private fun BoxScope.SeekRipple(flash: TapFlash) {
+    key(flash.id) {
+        val progress = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { progress.animateTo(1f, tween(RIPPLE_MS, easing = LinearOutSlowInEasing)) }
+        val fade = 1f - progress.value
+        Canvas(Modifier.fillMaxSize()) {
+            val half = size.width / 2f
+            clipRect(left = if (flash.forward) half else 0f, right = if (flash.forward) size.width else half) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.22f * fade),
+                    radius = size.height * (0.15f + 0.6f * progress.value),
+                    center = flash.at,
+                )
+            }
+        }
+        Icon(
+            if (flash.forward) Lucide.RotateCw else Lucide.RotateCcw,
+            contentDescription = null,
+            tint = HsColors.OnMedia.copy(alpha = fade),
+            modifier = Modifier
+                .align(if (flash.forward) BiasAlignment(0.75f, 0f) else BiasAlignment(-0.75f, 0f))
+                .size(40.dp),
+        )
+    }
 }
+
+/**
+ * « +1:30 » ou « −0:20 » : saut cumulé, appliqué à la fin des appuis. Apparaît
+ * en fondu, grossit un instant à chaque appui ; reste du côté du saut.
+ */
+@Composable
+private fun BoxScope.SeekPill(offsetMs: Long?) {
+    // Dernière valeur gardée pendant le fondu de sortie.
+    var shown by remember { mutableLongStateOf(0L) }
+    if (offsetMs != null) shown = offsetMs
+    val bump = remember { Animatable(1f) }
+    LaunchedEffect(offsetMs) {
+        if (offsetMs == null) return@LaunchedEffect
+        bump.snapTo(1.12f)
+        bump.animateTo(1f, tween(BUMP_MS))
+    }
+    AnimatedVisibility(
+        visible = offsetMs != null,
+        enter = fadeIn(tween(FADE_MS)) + scaleIn(tween(FADE_MS), initialScale = 0.85f),
+        exit = fadeOut(tween(FADE_MS)),
+        modifier = Modifier.align(if (shown >= 0) BiasAlignment(0.6f, 0f) else BiasAlignment(-0.6f, 0f)),
+    ) {
+        val sign = if (shown >= 0) "+" else "\u2212"
+        Text(
+            text = sign + Formats.clock(kotlin.math.abs(shown)),
+            style = Hs.type.title.tabular(),
+            color = HsColors.OnMedia,
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = bump.value
+                    scaleY = bump.value
+                }
+                .clip(RoundedCornerShape(Hs.dimens.radius))
+                .background(HsColors.MediaScrim)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+        )
+    }
+}
+
+private const val RIPPLE_MS = 450
+private const val BUMP_MS = 160
 
 /** Commandes qui prennent le focus selon la touche qui les a montrées. */
 @Stable

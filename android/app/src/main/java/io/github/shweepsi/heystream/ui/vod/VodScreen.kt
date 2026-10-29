@@ -509,7 +509,7 @@ private fun PosterGrid(
         }
     }
     LazyVerticalGrid(
-        columns = if (dimens.isTv) GridCells.Fixed(dimens.posterColumns) else GridCells.Adaptive(dimens.posterMinWidth),
+        columns = if (dimens.posterColumns > 0) GridCells.Fixed(dimens.posterColumns) else GridCells.Adaptive(dimens.posterMinWidth),
         state = gridState,
         contentPadding = contentPadding,
         horizontalArrangement = Arrangement.spacedBy(dimens.posterGapHorizontal),

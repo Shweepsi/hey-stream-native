@@ -77,7 +77,9 @@ fun CategoryRow(
                 color = LocalContentColor.current,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .marqueeWhen(selected || LocalSurfaceFocused.current),
             )
             if (locked) {
                 Icon(
