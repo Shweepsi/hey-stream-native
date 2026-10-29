@@ -18,9 +18,11 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.FixMethodOrder
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.runners.MethodSorters
 
 /**
  * De bout en bout sur un vrai Android (émulateur de la CI) : la bibliothèque
@@ -28,7 +30,10 @@ import org.junit.runner.RunWith
  * catalogue se télécharge et le Direct l'affiche. Aucun vrai fournisseur
  * n'est contacté.
  */
+// Ordre alphabétique : le parcours complet passe en premier, dans un
+// processus où rien n'a encore chargé le cœur (comme pour un utilisateur).
 @RunWith(AndroidJUnit4::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class SmokeTest {
     @get:Rule
     val compose = createAndroidComposeRule<MainActivity>()
@@ -55,7 +60,7 @@ class SmokeTest {
     }
 
     @Test
-    fun signInDownloadsTheCatalogAndOpensLive() {
+    fun appSignsInDownloadsTheCatalogAndOpensLive() {
         step("formulaire de connexion") { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size >= 3 }
         val fields = compose.onAllNodes(hasSetTextAction())
         fields[0].performTextInput(server.url("/").toString().trimEnd('/'))
