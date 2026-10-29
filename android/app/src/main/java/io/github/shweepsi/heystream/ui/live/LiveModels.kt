@@ -78,6 +78,17 @@ data class LivePreview(
 fun LivePreview.withEpg(nowNext: NowNext): LivePreview =
     copy(now = nowNext.now?.toLive(), next = nowNext.next?.toLive())
 
+/**
+ * Le programme affiché est dépassé à [nowSecs] : le « en cours » est fini, ou
+ * le « suivant » a commencé. Il faut relire `nowNext` (le cœur répond depuis
+ * son cache et ne redemande au fournisseur qu'au plus une fois par 15 min).
+ */
+fun epgOutdated(preview: LivePreview, nowSecs: Long): Boolean {
+    val now = preview.now
+    val next = preview.next
+    return (now != null && now.stop <= nowSecs) || (next != null && next.start <= nowSecs)
+}
+
 /** Ce que l'aperçu montre de la lecture. */
 @Immutable
 sealed interface LivePlayback {

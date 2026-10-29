@@ -37,28 +37,30 @@ fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit) {
     val now by rememberNow()
 
     // Quitter le direct ferme le flux (une seule connexion par abonnement).
-    val leave = remember(player, onBack) {
+    val leave = remember(viewModel, onBack) {
         {
-            player.stop()
+            viewModel.onLeave()
             onBack()
         }
     }
     BackHandler {
         if (viewModel.state.value.fullscreen) viewModel.onExitFullscreen() else leave()
     }
-    DisposableEffect(player) {
-        onDispose { player.stop() }
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.onLeave() }
     }
     LaunchedEffect(viewModel) { viewModel.resumeIfStopped() }
     if (!Hs.isTv) HideSystemBars(state.fullscreen)
 
+    // Écran allumé seulement pendant la lecture (la mise en veille reste possible sans flux).
+    val keepScreenOn = state.playback.let { it is LivePlayback.Playing || it is LivePlayback.Reconnecting }
     LiveContent(
         state = state,
         channels = channels,
         nowSecs = now / 1000,
         actions = viewModel,
         onBack = leave,
-        video = { modifier -> VideoSurface(player.player, modifier) },
+        video = { modifier -> VideoSurface(player.player, modifier, keepScreenOn = keepScreenOn) },
     )
 
     state.pinRequest?.let { request ->

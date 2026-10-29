@@ -3,13 +3,20 @@ package io.github.shweepsi.heystream.ui.live
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -37,7 +44,6 @@ import io.github.shweepsi.heystream.ui.components.FocusScale
 import io.github.shweepsi.heystream.ui.components.HsButton
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.LiveBadge
-import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -45,6 +51,9 @@ import io.github.shweepsi.heystream.ui.theme.Lucide
 
 /** Texte secondaire sur la vidéo, hors thème. */
 private val OnMediaSecondary = HsColors.OnMedia.copy(alpha = 0.78f)
+
+/** Rail d'une barre de progression sur le bandeau (fond noir à 60 %). */
+private val OnMediaTrack = HsColors.OnMedia.copy(alpha = 0.3f)
 
 /**
  * Le lecteur et ce qui s'affiche dessus (badge « EN DIRECT », reconnexion,
@@ -105,11 +114,13 @@ internal fun LiveVideo(
                 .padding(inset),
         )
         if (fullscreen && state.overlayVisible && preview != null) {
+            // Plein écran : barres du système masquées, mais pas l'encoche de la caméra.
             FullscreenInfo(
                 preview = preview,
                 nowSecs = nowSecs,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(horizontal = dimens.screenHorizontal, vertical = dimens.screenVertical),
             )
             if (!isTv) {
@@ -117,6 +128,7 @@ internal fun LiveVideo(
                     onClick = actions::onExitFullscreen,
                     modifier = Modifier
                         .align(Alignment.TopStart)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
                         .padding(16.dp),
                 )
             }
@@ -203,15 +215,39 @@ private fun FullscreenInfo(preview: LivePreview, nowSecs: Long, modifier: Modifi
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                ProgressRail(
+                BannerRail(
                     fraction = Formats.fraction(nowSecs - now.start, now.stop - now.start),
-                    onMedia = true,
                     modifier = Modifier
                         .padding(top = 4.dp)
                         .width(if (dimens.isTv) 240.dp else 280.dp),
                 )
             }
         }
+    }
+}
+
+/**
+ * Progression du programme sur le bandeau. Le rail « sur image » (noir à 60 %)
+ * disparaîtrait sur le fond du bandeau, lui-même noir à 60 % : rail blanc
+ * translucide, barre `#F4F4F5`.
+ */
+@Composable
+private fun BannerRail(fraction: Float, modifier: Modifier = Modifier) {
+    val height = Hs.dimens.progressHeight
+    val shape = RoundedCornerShape(height / 2)
+    Box(
+        modifier
+            .height(height)
+            .clip(shape)
+            .background(OnMediaTrack),
+    ) {
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .clip(shape)
+                .background(HsColors.OnMedia),
+        )
     }
 }
 

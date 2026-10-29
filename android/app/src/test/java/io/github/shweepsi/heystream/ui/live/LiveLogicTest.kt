@@ -96,6 +96,22 @@ class LiveLogicTest {
     }
 
     @Test
+    fun programmeIsReloadedOnceItIsOver() {
+        val preview = LivePreview(
+            id = 1,
+            name = "Info Monde",
+            now = LiveProgramme("Le journal du soir", start = 1_000, stop = 2_000),
+            next = LiveProgramme("Grand entretien", start = 2_000, stop = 3_000),
+        )
+        assertFalse(epgOutdated(preview, nowSecs = 1_500))
+        assertTrue(epgOutdated(preview, nowSecs = 2_000))
+        // Rien de connu : pas de nouvelle demande chaque minute.
+        assertFalse(epgOutdated(preview.copy(now = null, next = null), nowSecs = 9_000))
+        // Trou dans la grille : le suivant a commencé.
+        assertTrue(epgOutdated(preview.copy(now = null), nowSecs = 2_100))
+    }
+
+    @Test
     fun visibleWindowAddsAMarginWithinBounds() {
         assertEquals(0..9, visibleWindow(firstVisible = 2, lastVisible = 5, itemCount = 100))
         assertEquals(46..58, visibleWindow(firstVisible = 50, lastVisible = 54, itemCount = 59))

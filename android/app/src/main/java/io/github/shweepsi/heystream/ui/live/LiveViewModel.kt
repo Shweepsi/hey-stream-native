@@ -14,7 +14,6 @@ import io.github.shweepsi.heystream.data.CatalogPaging
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
-import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -78,7 +77,6 @@ class LiveViewModel(
     /** Nouveau programme en cache (après `nowNext`) : relire les lignes visibles. */
     private val epgChanges = MutableStateFlow(0)
 
-    private var playerStatus = PlaybackStatus()
     private var previewError: UiText? = null
     private var startJob: Job? = null
     private var nowNextJob: Job? = null
@@ -115,14 +113,21 @@ class LiveViewModel(
             }
         }
         viewModelScope.launch {
-            player.status.collect { status ->
-                playerStatus = status
-                updatePlayback()
-            }
+            player.status.collect { updatePlayback() }
         }
         viewModelScope.launch {
             combine(visibleIds.debounce(VISIBLE_DEBOUNCE_MS), epgChanges, minuteTicks()) { ids, _, _ -> ids }
                 .collectLatest { ids -> loadNowTitles(ids) }
+        }
+        viewModelScope.launch {
+            // Programme de l'aperçu terminé (on regarde parfois des heures) : relu, sinon
+            // l'aperçu et le bandeau du plein écran montreraient un programme passé.
+            minuteTicks().collect {
+                val preview = _state.value.preview
+                if (preview != null && nowNextJob?.isActive != true && epgOutdated(preview, System.currentTimeMillis() / 1000)) {
+                    loadNowNext(preview.id)
+                }
+            }
         }
     }
 
@@ -203,6 +208,11 @@ class LiveViewModel(
             }
             return
         }
+        // Catégorie déjà ouverte : rechargée sur place (favori retiré, récents réordonnés).
+        if (_state.value.selected == key) {
+            sources?.invalidate()
+            return
+        }
         _state.update { it.copy(selected = key) }
     }
 
@@ -266,7 +276,7 @@ class LiveViewModel(
 
     override fun onRetryPlayback() {
         val preview = _state.value.preview ?: return
-        if (previewError != null || !playerStatus.active) startPreview(preview, addRecent = false) else player.retry()
+        if (previewError != null || !player.status.value.active) startPreview(preview, addRecent = false) else player.retry()
     }
 
     override fun onReloadCategories() {
@@ -278,6 +288,16 @@ class LiveViewModel(
         session.refreshInBackground(force = true)
     }
 
+    /**
+     * L'écran se ferme (Retour) ou quitte la composition : le flux est fermé, et
+     * une chaîne en cours d'ouverture ne l'est plus (jamais de flux sans écran).
+     */
+    fun onLeave() {
+        startJob?.cancel()
+        nowNextJob?.cancel()
+        player.stop()
+    }
+
     /** L'écran revient (recréation de l'activité) : l'aperçu reprend s'il a été arrêté. */
     fun resumeIfStopped() {
         val preview = _state.value.preview ?: return
@@ -287,10 +307,13 @@ class LiveViewModel(
     private fun startPreview(preview: LivePreview, addRecent: Boolean) {
         val id = preview.id
         previewError = null
+        // Une chaîne choisie remplace la précédente avant même son ouverture : l'ancien
+        // flux est fermé tout de suite, et son état (échec, reconnexion) ne s'affiche
+        // pas sur la nouvelle chaîne.
+        startJob?.cancel()
+        player.stop()
         _state.update { it.copy(preview = preview) }
         updatePlayback()
-        // Une chaîne choisie remplace la précédente avant même son ouverture.
-        startJob?.cancel()
         startJob = viewModelScope.launch {
             val url = attempt {
                 session.withCore { core ->
@@ -308,6 +331,11 @@ class LiveViewModel(
                 }
             if (addRecent) updateRecentsCount()
         }
+        loadNowNext(id)
+    }
+
+    /** Programme en cours et suivant de [id] (cache du cœur, fournisseur au plus une fois par 15 min). */
+    private fun loadNowNext(id: Long) {
         nowNextJob?.cancel()
         nowNextJob = viewModelScope.launch {
             // Erreurs ignorées : sans programme, rien ne s'affiche.
@@ -333,7 +361,8 @@ class LiveViewModel(
     }
 
     private fun updatePlayback() {
-        _state.update { it.copy(playback = livePlaybackOf(playerStatus, it.preview != null, previewError)) }
+        val status = player.status.value
+        _state.update { it.copy(playback = livePlaybackOf(status, it.preview != null, previewError)) }
     }
 
     private fun enterFullscreen() {

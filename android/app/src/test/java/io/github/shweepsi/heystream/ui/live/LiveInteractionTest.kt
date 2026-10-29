@@ -9,6 +9,8 @@ import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -22,9 +24,11 @@ import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.CatalogItem
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.Device
+import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
@@ -61,6 +65,10 @@ class LiveInteractionTest {
 
         override fun onVideoClick() {
             calls += "video"
+        }
+
+        override fun onReloadCategories() {
+            calls += "reload"
         }
     }
 
@@ -138,6 +146,37 @@ class LiveInteractionTest {
         focused.performKeyInput { pressKey(Key.DirectionCenter) }
         // Ni changement de chaîne ni de catégorie : seulement le bandeau, puis OK.
         assertEquals(listOf("fullscreen info", "fullscreen info", "fullscreen ok"), calls)
+    }
+
+    @Test
+    fun menuAndSpaceAreIgnoredInFullscreen() {
+        show(Device.Tv, state.copy(fullscreen = true))
+        val focused = compose.onNode(isFocused())
+        // Ni favori ni lecture pour la ligne cachée derrière la vidéo.
+        focused.performKeyInput { pressKey(Key.Menu) }
+        focused.performKeyInput { pressKey(Key.Spacebar) }
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    @Test
+    fun channelFromSearchHasTheFocusBehindTheFullscreen() {
+        // Chaîne venue de la recherche : Retour quitte le plein écran sur elle, pas sur la première.
+        show(Device.Tv, state.copy(preview = LivePreview(id = 3, name = "Éco Direct"), fullscreen = true))
+        compose.onNode(isFocused()).assert(hasText("Éco Direct"))
+    }
+
+    @Test
+    fun okOnTheFocusedChannelInPreviewGoesFullscreen() {
+        show(Device.Tv, state.copy(preview = LivePreview(id = 3, name = "Éco Direct")))
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionCenter) }
+        assertEquals(listOf("click 3"), calls)
+    }
+
+    @Test
+    fun failedCategoriesFocusTryAgain() {
+        show(Device.Tv, LiveUiState(categories = CategoriesUi.Failed(UiText(R.string.error_storage))))
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionCenter) }
+        assertEquals(listOf("reload"), calls)
     }
 
     @Test

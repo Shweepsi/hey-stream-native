@@ -68,6 +68,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -141,6 +142,29 @@ fun LiveContent(
         val categories = state.categories
         val showPanels = categories is CategoriesUi.Ready && !categories.catalogEmpty
 
+        // Télécommande : « Réessayer » d'un écran d'erreur ou de catalogue vide a le focus.
+        val rootAction = remember { FocusRequester() }
+        val actionShown = when {
+            categories is CategoriesUi.Failed -> 1
+            categories is CategoriesUi.Ready && !showPanels && !state.downloading -> 2
+            else -> 0
+        }
+        LaunchedEffect(actionShown) {
+            if (!isTv || actionShown == 0) return@LaunchedEffect
+            withFrameNanos { }
+            runCatching { rootAction.requestFocus() }
+        }
+
+        // Au doigt : la barre d'état prend la couleur de la barre du haut.
+        if (!isTv && top > 0.dp) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(top)
+                    .background(Hs.colors.surface),
+            )
+        }
+
         Column(
             Modifier
                 .fillMaxSize()
@@ -171,6 +195,7 @@ fun LiveContent(
                         icon = Lucide.CircleAlert,
                         action = stringResource(R.string.retry),
                         onAction = actions::onReloadCategories,
+                        modifier = Modifier.focusRequester(rootAction),
                     )
                     !showPanels && state.downloading -> MessageState(
                         title = stringResource(R.string.catalog_downloading),
@@ -181,6 +206,7 @@ fun LiveContent(
                         message = stringResource(R.string.catalog_empty_message),
                         action = stringResource(R.string.retry),
                         onAction = actions::onRefreshCatalog,
+                        modifier = Modifier.focusRequester(rootAction),
                     )
                     else -> LivePanels(
                         state = state,
@@ -232,8 +258,11 @@ private fun fullscreenKey(event: KeyEvent, actions: LiveActions): Boolean = when
         if (event.type == KeyEventType.KeyDown) actions.onFullscreenKey(ok = false)
         true
     }
-    // Pas de zapping en plein écran (spec).
-    Key.DirectionLeft, Key.DirectionRight, Key.ChannelUp, Key.ChannelDown, Key.PageUp, Key.PageDown, Key.Tab -> true
+    // Pas de zapping en plein écran (spec). Menu et Espace iraient à la ligne qui garde le
+    // focus derrière la vidéo (favori ou lecture d'une autre chaîne, sans rien montrer).
+    Key.DirectionLeft, Key.DirectionRight, Key.ChannelUp, Key.ChannelDown, Key.PageUp, Key.PageDown, Key.Tab,
+    Key.Menu, Key.Spacebar, Key.MoveHome, Key.MoveEnd,
+    -> true
     else -> false
 }
 
@@ -248,15 +277,32 @@ private fun LivePanels(
 ) {
     val isTv = Hs.isTv
     val firstChannel = remember { FocusRequester() }
+    val previewChannel = remember { FocusRequester() }
     val selectedCategory = remember { FocusRequester() }
+    // Chaque catégorie s'ouvre en haut de sa liste.
+    val channelList = remember(state.selected) { LazyListState() }
 
-    // Focus de départ (télécommande) : la première chaîne, sinon la catégorie ouverte.
+    // Focus de départ (télécommande) : la chaîne déjà en aperçu (venue de la recherche,
+    // en plein écran : Retour revient sur elle), sinon la première chaîne, sinon la
+    // catégorie ouverte. Au doigt, la chaîne en aperçu est seulement montrée.
     var initialFocusDone by rememberSaveable { mutableStateOf(false) }
     val hasChannels = channels.itemCount > 0 && channels.peek(0) != null
     val settled = channels.loadState.refresh is LoadState.NotLoading && state.selected != null
+    val previewId by rememberUpdatedState(state.preview?.id)
     LaunchedEffect(hasChannels, settled, initialFocusDone) {
-        if (!isTv || initialFocusDone || !(hasChannels || settled)) return@LaunchedEffect
-        val target = if (hasChannels) firstChannel else selectedCategory
+        if (initialFocusDone || !(hasChannels || settled)) return@LaunchedEffect
+        // Pages déjà chargées seulement (aucune requête) : sinon, la première chaîne.
+        val previewIndex = previewId?.let { id -> channels.itemSnapshotList.indexOfFirst { it?.id == id } } ?: -1
+        if (previewIndex > 0) channelList.scrollToItem((previewIndex - 2).coerceAtLeast(0))
+        if (!isTv) {
+            initialFocusDone = true
+            return@LaunchedEffect
+        }
+        val target = when {
+            previewIndex >= 0 -> previewChannel
+            hasChannels -> firstChannel
+            else -> selectedCategory
+        }
         // Les lignes d'une liste paresseuse sont composées à la mise en page : attendre une image.
         repeat(3) {
             withFrameNanos { }
@@ -286,7 +332,9 @@ private fun LivePanels(
         ChannelsPanel(
             state = state,
             channels = channels,
+            listState = channelList,
             firstFocus = firstChannel,
+            previewFocus = previewChannel,
             compact = layout.compact,
             actions = actions,
             modifier = Modifier
@@ -337,7 +385,7 @@ private fun CategoriesPanel(
         } else {
             modifier
                 .endLine(Hs.colors.separator)
-                .padding(vertical = if (compact) 8.dp else 16.dp, horizontal = if (compact) 8.dp else 12.dp)
+                .padding(horizontal = if (compact) 8.dp else 12.dp)
         },
     ) {
         if (isTv) PanelLabel(stringResource(R.string.live_categories))
@@ -346,6 +394,8 @@ private fun CategoriesPanel(
             modifier = Modifier
                 .fillMaxSize()
                 .focusRestorer(),
+            // Marges dans la liste : les lignes défilent jusqu'au bord, sans être coupées avant.
+            contentPadding = PaddingValues(vertical = if (isTv) 0.dp else if (compact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 3.dp else 2.dp),
         ) {
             items(categories, key = { it.key.listKey }, contentType = { "category" }) { category ->
@@ -374,29 +424,32 @@ private fun CategoriesPanel(
 private fun ChannelsPanel(
     state: LiveUiState,
     channels: LazyPagingItems<CatalogItem>,
+    listState: LazyListState,
     firstFocus: FocusRequester,
+    previewFocus: FocusRequester,
     compact: Boolean,
     actions: LiveActions,
     modifier: Modifier,
 ) {
     val isTv = Hs.isTv
     val colors = Hs.colors
+    val vertical = if (isTv) 9.dp else if (compact) 8.dp else 16.dp
     val panel = if (isTv) {
         modifier
             .clip(RoundedCornerShape(Hs.dimens.radius))
             .background(colors.surface)
-            .padding(9.dp)
+            .padding(horizontal = 9.dp)
     } else {
         modifier
             .background(colors.surface)
             .endLine(colors.separator)
-            .padding(vertical = if (compact) 8.dp else 16.dp, horizontal = if (compact) 8.dp else 12.dp)
+            .padding(horizontal = if (compact) 8.dp else 12.dp)
     }
     Box(panel) {
         val refresh = channels.loadState.refresh
         val selected = state.selected
         when {
-            channels.itemCount > 0 -> ChannelList(state, channels, firstFocus, compact, actions)
+            channels.itemCount > 0 -> ChannelList(state, channels, listState, vertical, firstFocus, previewFocus, compact, actions)
             refresh is LoadState.Error -> MessageState(
                 title = refresh.error.toUiText().resolve(),
                 icon = Lucide.CircleAlert,
@@ -424,13 +477,14 @@ private fun ChannelsPanel(
 private fun ChannelList(
     state: LiveUiState,
     channels: LazyPagingItems<CatalogItem>,
+    listState: LazyListState,
+    vertical: Dp,
     firstFocus: FocusRequester,
+    previewFocus: FocusRequester,
     compact: Boolean,
     actions: LiveActions,
 ) {
     val isTv = Hs.isTv
-    // Chaque catégorie s'ouvre en haut de sa liste.
-    val listState = remember(state.selected) { LazyListState() }
     LaunchedEffect(listState, channels) {
         snapshotFlow {
             val visible = listState.layoutInfo.visibleItemsInfo
@@ -450,6 +504,7 @@ private fun ChannelList(
         modifier = Modifier
             .fillMaxSize()
             .focusRestorer(),
+        contentPadding = PaddingValues(vertical = vertical),
         verticalArrangement = Arrangement.spacedBy(if (isTv) 3.dp else 4.dp),
     ) {
         items(
@@ -475,7 +530,9 @@ private fun ChannelList(
                     compact = compact,
                     onClick = { actions.onChannelClick(channel) },
                     onToggleFavorite = { actions.onToggleFavorite(channel) },
-                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                    modifier = Modifier
+                        .then(if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
+                        .then(if (channel.id == previewId) Modifier.focusRequester(previewFocus) else Modifier),
                 )
             }
         }
