@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_pause">Pause</string>
+    <string name="player_rewind">Reculer de 10&#160;s</string>
+    <string name="player_forward">Avancer de 10&#160;s</string>
+    <string name="player_position">Position de lecture</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_subtitles">Sous-titres</string>
+    <string name="player_subtitles_off">Désactivés</string>
+    <string name="player_track">Piste %1$d</string>
+    <string name="player_episode">S%1$d · E%2$d</string>
+    <string name="player_episode_title">S%1$d · E%2$d · %3$s</string>
+    <string name="player_next_in">Épisode suivant dans %1$d&#160;s</string>
+    <string name="player_play_now">Lire maintenant</string>
+    <string name="player_error_title">Impossible d’ouvrir cette vidéo</string>
+</resources>
