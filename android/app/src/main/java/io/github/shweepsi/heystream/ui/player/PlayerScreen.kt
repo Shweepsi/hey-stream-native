@@ -96,11 +96,16 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         }
     }
 
-    // Arrière-plan : position enregistrée avant que le flux ne soit fermé.
+    // Arrière-plan : position enregistrée avant que le flux ne soit fermé, et
+    // aucun flux ouvert avant le retour au premier plan.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) viewModel.onBackground()
+            when (event) {
+                Lifecycle.Event.ON_STOP -> viewModel.onBackground()
+                Lifecycle.Event.ON_START -> viewModel.onForeground()
+                else -> Unit
+            }
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }

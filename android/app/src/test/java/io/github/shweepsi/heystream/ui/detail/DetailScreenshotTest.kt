@@ -50,6 +50,8 @@ class DetailScreenshotTest {
 
     @Test fun movieNewTabletDark() = movie("detail_movie_new", Device.TabletDark, DetailFakes.newMovie)
 
+    @Test fun movieNewPhone() = movie("detail_movie_new", Device.Phone, DetailFakes.newMovie)
+
     @Test fun movieStartedTvEnglish() = movie("detail_movie_started_en", Device.Tv, DetailFakes.startedMovie, french = false)
 
     @Test fun movieNewTv() = movie("detail_movie_new", Device.Tv, DetailFakes.newMovie)

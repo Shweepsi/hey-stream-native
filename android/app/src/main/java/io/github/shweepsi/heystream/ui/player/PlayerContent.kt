@@ -15,16 +15,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -53,6 +58,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -202,6 +209,15 @@ fun PlayerContent(
                 }
                 .focusRequester(root)
                 .focusable()
+                // Tout toucher (commandes comprises) relance le masquage automatique.
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.changes.any { it.changedToDownIgnoreConsumed() }) chrome.poke()
+                        }
+                    }
+                }
                 .pointerInput(Unit) {
                     detectTapGestures { if (chrome.visible) chrome.hide() else chrome.show() }
                 },
@@ -260,6 +276,7 @@ fun PlayerContent(
                     onCancel = actions::cancelNext,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .windowInsetsPadding(WindowInsets.displayCutout)
                         .padding(horizontal = Hs.dimens.screenHorizontal, vertical = Hs.dimens.screenVertical),
                 )
             }
@@ -368,6 +385,8 @@ private fun Controls(
                 style = ButtonStyle.Secondary,
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    // Téléphone en paysage : rien sous l'encoche de la caméra.
+                    .windowInsetsPadding(WindowInsets.displayCutout)
                     .padding(horizontal = dimens.screenHorizontal, vertical = dimens.screenVertical),
             )
         }
@@ -376,8 +395,9 @@ private fun Controls(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(HsColors.MediaScrim)
+                .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
                 .padding(
-                    horizontal = if (dimens.isTv) dimens.screenHorizontal else dimens.screenHorizontal,
+                    horizontal = dimens.screenHorizontal,
                     vertical = if (dimens.isTv) 18.dp else 16.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 10.dp else 12.dp),
@@ -596,8 +616,9 @@ private fun TrackMenuPanel(
             .focusProperties { onExit = { cancelFocusChange() } }
             .focusGroup()
             .fillMaxHeight()
-            .width(if (dimens.isTv) 300.dp else 340.dp)
             .background(Hs.colors.surface)
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.End))
+            .width(if (dimens.isTv) 300.dp else 340.dp)
             .padding(vertical = dimens.screenVertical, horizontal = dimens.gap),
     ) {
         PanelLabel(stringResource(if (menu == TrackMenu.Audio) R.string.player_audio else R.string.player_subtitles))

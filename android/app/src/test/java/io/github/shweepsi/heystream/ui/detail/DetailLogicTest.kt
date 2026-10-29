@@ -144,6 +144,24 @@ class DetailLogicTest {
     }
 
     @Test
+    fun anEpisodeRepeatedByThePanelIsListedOnce() {
+        // Même identifiant sous deux numéros : une seule ligne (clé de la liste).
+        val repeated = series.copy(
+            seasons = listOf(Season(1, null, listOf(episode(11, 1, 1), episode(12, 1, 2), episode(11, 1, 3)))),
+        )
+        assertEquals(listOf(11L, 12L), episodeRows(repeated, emptySet(), emptyMap(), null).map { it.id })
+    }
+
+    @Test
+    fun missingEntryIsTreatedAsLockedWhileParentalControlIsOn() {
+        // Verrou fermé et entrée absente (verrouillée) : ni fiche ni flux demandés.
+        assertTrue(lockedOut(null, parentalUnlocked = false))
+        // Déverrouillé pour la session : la fiche du fournisseur peut compléter.
+        assertFalse(lockedOut(null, parentalUnlocked = true))
+        assertFalse(lockedOut(item(), parentalUnlocked = false))
+    }
+
+    @Test
     fun firstButtonResumesTheEpisodeInProgressElseTheFirstUnwatched() {
         val rows = episodeRows(series, watched = setOf(11L, 12L), positions = emptyMap(), resume = null)
         assertEquals(PlayTarget(21, 2, 1, resume = false), playTarget(rows, resumeEpisodeId = null))

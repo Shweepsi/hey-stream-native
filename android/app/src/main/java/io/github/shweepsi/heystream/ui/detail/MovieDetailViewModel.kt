@@ -82,6 +82,8 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
 
     /** « Réessayer » de l'écran d'erreur. */
     fun retry() {
+        // L'échec précédent oublié : le chargement reste affiché jusqu'à la nouvelle réponse.
+        infoFailure = null
         _state.update { it.copy(loading = true, error = null) }
         reloadUserData()
         fetchInfo()
@@ -109,7 +111,11 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
         infoJob?.cancel()
         infoJob = viewModelScope.launch {
             try {
-                info = session.withCore { it.movieInfo(id) }
+                info = session.withCore { core ->
+                    // Contenu peut-être verrouillé : rien n'est demandé au fournisseur.
+                    core.visibleItem(Section.MOVIES, id)
+                    core.movieInfo(id)
+                }
                 infoFailure = null
             } catch (cancel: CancellationException) {
                 throw cancel

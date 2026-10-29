@@ -113,7 +113,7 @@ private fun MovieBody(
                     )
                 }
                 FavoriteButton(movie.favorite, onToggleFavorite)
-                WatchedButton(movie.watched, onToggleWatched)
+                WatchedButton(movie.watched, onToggleWatched, compact = compact)
             }
         }
     }

@@ -252,9 +252,23 @@ internal fun FavoriteButton(favorite: Boolean, onClick: () -> Unit, modifier: Mo
     )
 }
 
-/** « Marquer comme vu / non vu » (icône `check`). */
+/**
+ * « Marquer comme vu / non vu » (icône `check`). Sur un écran bas
+ * ([compact], téléphone en paysage), icône seule, libellé lu par
+ * l'accessibilité (docs/DESIGN.md) : tous les boutons tiennent sur une ligne,
+ * visibles sans défiler. L'icône montre l'état, comme le cœur du favori.
+ */
 @Composable
-internal fun WatchedButton(watched: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun WatchedButton(watched: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
+    if (compact) {
+        HsIconButton(
+            icon = if (watched) Lucide.CircleCheck else Lucide.Check,
+            label = stringResource(if (watched) R.string.mark_unwatched else R.string.mark_watched),
+            onClick = onClick,
+            modifier = modifier,
+        )
+        return
+    }
     HsButton(
         text = stringResource(if (watched) R.string.mark_unwatched else R.string.mark_watched),
         onClick = onClick,

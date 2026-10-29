@@ -19,6 +19,7 @@ import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
+import io.github.shweepsi.heystream.ui.detail.visibleItem
 import io.github.shweepsi.heystream.ui.toUiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -113,6 +114,19 @@ class PlayerViewModel(
     private var resolveJob: Job? = null
     private var nextJob: Job? = null
 
+    /** « Depuis le début » demandé pour le titre en cours (repris par « Réessayer »). */
+    private var startOver = fromStart
+
+    /**
+     * L'écran est au premier plan. En arrière-plan (TV éteinte, touche
+     * Accueil), aucun flux ne s'ouvre : l'abonnement n'a souvent qu'une
+     * connexion, et la lecture ne doit pas continuer seule.
+     */
+    private var foreground = true
+
+    /** Flux préparé pendant que l'app était en arrière-plan : ouvert au retour. */
+    private var deferred: Resolved? = null
+
     /** Épisode annoncé par le compte à rebours. */
     private var pendingNext: Episode? = null
 
@@ -174,7 +188,7 @@ class PlayerViewModel(
     /** « Réessayer » : flux coupé (lecteur) ou adresse introuvable (fiche). */
     fun retry() {
         if (_state.value.error != null || !started) {
-            resolve(fromStart = false)
+            resolve(fromStart = startOver)
         } else {
             _state.update { it.copy(retrying = true) }
             controller.retry()
@@ -183,10 +197,9 @@ class PlayerViewModel(
 
     /** « Lire maintenant » ou fin du compte à rebours. */
     fun playNextNow() {
-        val job = nextJob ?: return
-        job.cancel()
-        nextJob = null
         val next = pendingNext ?: return
+        nextJob?.cancel()
+        nextJob = null
         pendingNext = null
         _state.update { it.copy(next = null) }
         kind = PlaybackKind.EPISODE
@@ -216,9 +229,31 @@ class PlayerViewModel(
         controller.stop()
     }
 
-    /** L'app passe en arrière-plan (le lecteur ferme alors le flux) : position enregistrée. */
+    /**
+     * L'app passe en arrière-plan (le lecteur ferme alors le flux) : position
+     * enregistrée, compte à rebours suspendu. Un titre fini ou pas encore
+     * ouvert n'est pas rouvert par le lecteur au retour.
+     */
     fun onBackground() {
-        if (started && !endHandled && !closed) saveProgress()
+        if (closed || !foreground) return
+        foreground = false
+        if (started && !endHandled) saveProgress()
+        nextJob?.cancel()
+        nextJob = null
+        if (!started || endHandled) controller.stop()
+    }
+
+    /** Retour au premier plan : flux préparé entre-temps ouvert, compte à rebours relancé. */
+    fun onForeground() {
+        if (closed || foreground) return
+        foreground = true
+        deferred?.let {
+            deferred = null
+            open(it)
+        }
+        val next = pendingNext
+        val seriesId = seriesId
+        if (next != null && seriesId != null && nextJob == null) startCountdown(next, seriesId)
     }
 
     override fun onCleared() {
@@ -229,9 +264,11 @@ class PlayerViewModel(
 
     private fun resolve(fromStart: Boolean) {
         resolveJob?.cancel()
+        startOver = fromStart
         started = false
         endHandled = false
         wasPlaying = false
+        deferred = null
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
         val kind = kind
         val id = id
@@ -243,14 +280,18 @@ class PlayerViewModel(
                 _state.update {
                     it.copy(title = resolved.media.title, episode = resolved.media.episode, resolving = false, error = null)
                 }
-                controller.playVod(resolved.url, resolved.startMs)
-                started = true
+                if (foreground) open(resolved) else deferred = resolved
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (failure: Throwable) {
                 _state.update { it.copy(resolving = false, error = failure.toUiText()) }
             }
         }
+    }
+
+    private fun open(resolved: Resolved) {
+        controller.playVod(resolved.url, resolved.startMs)
+        started = true
     }
 
     /** Appel bloquant (cœur) : fiche, extension, position de reprise, récents. */
@@ -270,7 +311,8 @@ class PlayerViewModel(
     }
 
     private fun movieMedia(core: HeyStreamCore, id: Long): Media {
-        val item = core.item(Section.MOVIES, id)
+        // Contenu peut-être verrouillé (écran restauré, session verrouillée) : pas de flux.
+        val item = core.visibleItem(Section.MOVIES, id)
         // La fiche (réseau) seulement si le catalogue ne donne pas l'extension.
         val info = if (item?.extension.isNullOrBlank()) {
             try {
@@ -293,7 +335,7 @@ class PlayerViewModel(
     }
 
     private fun episodeMedia(core: HeyStreamCore, episodeId: Long, seriesId: Long): Media {
-        val seriesName = core.item(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }
+        val seriesName = core.visibleItem(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }
         val info: SeriesInfo = try {
             SeriesInfoMemory.load(core, seriesId)
         } catch (failure: HeyStreamException) {
@@ -368,6 +410,9 @@ class PlayerViewModel(
             ?.indexOfFirst { it.id == next.id } ?: -1
         val label = EpisodeLabel(next.season, next.number ?: (index + 1).coerceAtLeast(1).toLong(), next.title?.takeIf { it.isNotBlank() })
         pendingNext = next
+        _state.update { it.copy(next = NextEpisodeUi(label, NEXT_EPISODE_SECONDS)) }
+        // En arrière-plan, le compte à rebours attend le retour (onForeground).
+        if (!foreground) return
         nextJob = viewModelScope.launch {
             for (seconds in NEXT_EPISODE_SECONDS downTo 1) {
                 _state.update { it.copy(next = NextEpisodeUi(label, seconds)) }

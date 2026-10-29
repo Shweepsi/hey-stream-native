@@ -2,8 +2,11 @@ package io.github.shweepsi.heystream.ui.detail
 
 import androidx.compose.runtime.Immutable
 import io.github.shweepsi.heystream.core.CatalogItem
+import io.github.shweepsi.heystream.core.HeyStreamCore
+import io.github.shweepsi.heystream.core.HeyStreamException
 import io.github.shweepsi.heystream.core.MovieInfo
 import io.github.shweepsi.heystream.core.Resume
+import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.core.SeriesInfo
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
@@ -61,6 +64,22 @@ fun displayRating(raw: String?): String? {
 }
 
 internal fun String?.nonBlank(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+
+/**
+ * Contrôle parental : `item` ne renvoie rien pour un contenu verrouillé.
+ * Verrou fermé, une entrée absente du catalogue est traitée comme verrouillée
+ * (spec : une catégorie inconnue reste verrouillée) : ni sa fiche ni son flux
+ * ne sont demandés au fournisseur. Cas typique : un écran restauré après
+ * l'arrêt de l'app, quand le déverrouillage de la session précédente a pris fin.
+ */
+internal fun lockedOut(item: CatalogItem?, parentalUnlocked: Boolean): Boolean = item == null && !parentalUnlocked
+
+/** Entrée du catalogue (appel bloquant) ; lève `ParentalLock` si elle peut être verrouillée. */
+internal fun HeyStreamCore.visibleItem(section: Section, id: Long): CatalogItem? {
+    val item = item(section, id)
+    if (lockedOut(item, isParentalUnlocked())) throw HeyStreamException.ParentalLock()
+    return item
+}
 
 // Film ---------------------------------------------------------------------------
 
@@ -174,7 +193,8 @@ internal fun seriesHeader(item: CatalogItem?, info: SeriesInfo?): DetailHeader? 
 /**
  * Épisodes de toutes les saisons, dans l'ordre de la fiche, avec leur état.
  * [resume] : dernier épisode commencé de la série (sa durée complète celle
- * d'un épisode sans durée connue).
+ * d'un épisode sans durée connue). Un épisode répété par le panneau (même
+ * identifiant) n'apparaît qu'une fois : la liste s'en sert comme clé.
  */
 internal fun episodeRows(
     info: SeriesInfo,
@@ -200,7 +220,7 @@ internal fun episodeRows(
             watched = episode.id in watched,
         )
     }
-}
+}.distinctBy { it.id }
 
 /**
  * Épisode du premier bouton : celui en cours ([resumeEpisodeId], « Reprendre

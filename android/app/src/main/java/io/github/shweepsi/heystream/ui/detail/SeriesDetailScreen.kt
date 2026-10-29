@@ -163,7 +163,7 @@ private fun SeriesBody(
                     PrimarySeriesButton(state, first, onPlay = playTarget, onRetry = onRetry)
                     FavoriteButton(state.favorite, onToggleFavorite)
                     if (state.episodes.isNotEmpty() || state.seasons.isNotEmpty()) {
-                        WatchedButton(state.watched, onToggleWatched)
+                        WatchedButton(state.watched, onToggleWatched, compact = compact)
                     }
                 }
             }
@@ -324,7 +324,8 @@ private fun EpisodeItem(
                 style = Hs.type.body.tabular(),
                 color = Hs.colors.textSecondary,
                 maxLines = 1,
-                modifier = Modifier.width(if (dimens.isTv) 26.dp else 32.dp),
+                // Au moins la place de deux chiffres ; un numéro plus long (feuilleton) n'est pas coupé.
+                modifier = Modifier.widthIn(min = if (dimens.isTv) 26.dp else 32.dp),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(

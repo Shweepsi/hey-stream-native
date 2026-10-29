@@ -87,6 +87,7 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
     }
 
     fun retry() {
+        infoFailure = null
         _state.update { it.copy(error = null, episodesError = null, episodesLoading = true, loading = it.header == null) }
         fetchInfo(fresh = true)
     }
@@ -135,8 +136,12 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
         infoJob?.cancel()
         infoJob = viewModelScope.launch {
             try {
-                // `fresh` : « Réessayer » redemande toujours la fiche.
-                info = session.withCore { SeriesInfoMemory.load(it, id, fresh) }
+                // `fresh` : « Réessayer » redemande toujours la fiche. Contenu
+                // peut-être verrouillé : rien n'est demandé au fournisseur.
+                info = session.withCore { core ->
+                    core.visibleItem(Section.SERIES, id)
+                    SeriesInfoMemory.load(core, id, fresh)
+                }
                 infoFailure = null
             } catch (cancel: CancellationException) {
                 throw cancel

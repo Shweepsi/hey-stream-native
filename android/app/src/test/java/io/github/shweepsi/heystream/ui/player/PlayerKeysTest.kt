@@ -1,13 +1,18 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -125,6 +130,91 @@ class PlayerKeysTest {
         assertTrue(chrome.visible)
         assertEquals(0, actions.toggles)
         assertTrue(actions.seeks.isEmpty())
+    }
+
+    @Test
+    fun remoteStillWorksOnceTheNextEpisodeCardIsGone() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        var state by mutableStateOf(
+            PlayerUiState(
+                title = "Les Veilleurs du large",
+                resolving = false,
+                next = NextEpisodeUi(EpisodeLabel(2, 4, "Marée haute"), secondsLeft = 3),
+            ),
+        )
+        compose.setContent {
+            CompositionLocalProvider(LocalInputModeManager provides keyboard) {
+                HeyStreamTheme(isTv = true, systemDark = true) {
+                    PlayerContent(
+                        state = state,
+                        status = PlaybackStatus(active = true, playing = true),
+                        position = PlaybackPosition(60_000, 600_000),
+                        chrome = chrome,
+                        actions = actions,
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        // Fin du compte à rebours : l'épisode suivant se lance dans le même écran.
+        state = state.copy(next = null)
+        compose.waitForIdle()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        compose.waitForIdle()
+        assertEquals(listOf(PlayerController.SEEK_STEP_MS), actions.seeks)
+    }
+
+    @Test
+    fun remoteStillWorksAfterRetryFromTheFailureCard() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        var state by mutableStateOf(PlayerUiState(title = "Nord Express", resolving = false))
+        val failed = PlaybackStatus(active = true, failed = true)
+        compose.setContent {
+            CompositionLocalProvider(LocalInputModeManager provides keyboard) {
+                HeyStreamTheme(isTv = true, systemDark = true) {
+                    PlayerContent(
+                        state = state,
+                        status = failed,
+                        position = PlaybackPosition(60_000, 600_000),
+                        chrome = chrome,
+                        actions = actions,
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        // « Réessayer » : la carte disparaît en attendant la réponse du lecteur.
+        state = state.copy(retrying = true)
+        compose.waitForIdle()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+    }
+
+    @Test
+    fun touchingAControlRestartsTheHideTimer() {
+        val chrome = PlayerChrome(visible = true)
+        val actions = Recorder()
+        compose.setContent {
+            HeyStreamTheme(isTv = false, systemDark = true) {
+                PlayerContent(
+                    state = PlayerUiState(title = "Nord Express", resolving = false),
+                    status = PlaybackStatus(active = true, playing = true),
+                    position = PlaybackPosition(60_000, 600_000),
+                    chrome = chrome,
+                    actions = actions,
+                )
+            }
+        }
+        compose.waitForIdle()
+        val before = chrome.interaction
+        compose.onNodeWithContentDescription("Pause").performClick()
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+        assertTrue(chrome.interaction > before)
+        assertTrue(chrome.visible)
     }
 
     @Test
