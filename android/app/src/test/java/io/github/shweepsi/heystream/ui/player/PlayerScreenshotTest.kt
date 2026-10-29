@@ -28,7 +28,7 @@ class PlayerScreenshotTest {
     private val noActions = object : PlayerActions {
         override fun togglePause() = Unit
 
-        override fun seekBy(deltaMs: Long) = Unit
+        override fun nudge(forward: Boolean) = Unit
 
         override fun seekTo(fraction: Float) = Unit
 

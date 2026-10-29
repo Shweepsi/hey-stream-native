@@ -44,9 +44,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -72,7 +74,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.player.PlaybackStatus
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.FocusScale
@@ -142,7 +143,8 @@ class PlayerChrome(visible: Boolean = true, menu: TrackMenu? = null, focus: Cont
 interface PlayerActions {
     fun togglePause()
 
-    fun seekBy(deltaMs: Long)
+    /** Avance (+30 s) ou recul (−10 s), cumulable. */
+    fun nudge(forward: Boolean)
 
     fun seekTo(fraction: Float)
 
@@ -165,8 +167,9 @@ interface PlayerActions {
  * (sur la vidéo, les couleurs ne suivent pas le thème).
  *
  * Télécommande : OK met en pause et montre les commandes ; gauche / droite
- * avancent ou reculent de 10 s même commandes masquées ; haut / bas montrent
- * les commandes.
+ * avancent (30 s) ou reculent (10 s), appuis cumulés, même commandes
+ * masquées ; haut / bas montrent les commandes. Au doigt : double tap sur un
+ * côté de la vidéo.
  */
 @Composable
 fun PlayerContent(
@@ -186,6 +189,7 @@ fun PlayerContent(
         // Touche dont le relâchement ne doit pas atteindre la commande qui vient de prendre le focus.
         val swallowUp = remember { arrayOfNulls<Key>(1) }
         val controlsShown = chrome.visible && !failed && state.next == null
+        val seeking = rememberUpdatedState(state.pendingSeekMs != null)
 
         LaunchedEffect(controlsShown, chrome.focus, chrome.menu) {
             withFrameNanos { }
@@ -219,10 +223,27 @@ fun PlayerContent(
                     }
                 }
                 .pointerInput(Unit) {
-                    detectTapGestures { if (chrome.visible) chrome.hide() else chrome.show() }
+                    // Double tap sur un côté : recul (gauche) ou avance (droite).
+                    // Pendant le cumul, chaque tap de ce côté ajoute un pas.
+                    detectTapGestures(
+                        onDoubleTap = { offset -> sideOf(offset.x, size.width)?.let(actions::nudge) },
+                        onTap = { offset ->
+                            val side = sideOf(offset.x, size.width)
+                            if (seeking.value && side != null) {
+                                actions.nudge(side)
+                            } else if (chrome.visible) {
+                                chrome.hide()
+                            } else {
+                                chrome.show()
+                            }
+                        },
+                    )
                 },
         ) {
             video()
+            state.pendingSeekMs?.let { offset ->
+                SeekPill(offset, Modifier.align(if (offset >= 0) BiasAlignment(0.6f, 0f) else BiasAlignment(-0.6f, 0f)))
+            }
             if (!failed && (state.resolving || (status.buffering && status.reconnectAttempt == 0))) {
                 Text(
                     text = stringResource(R.string.loading),
@@ -294,6 +315,28 @@ fun PlayerContent(
 
 private const val FADE_MS = 150
 
+/** Tiers gauche : recul ; tiers droit : avance ; milieu : rien. */
+private fun sideOf(x: Float, width: Int): Boolean? = when {
+    x < width / 3f -> false
+    x > width * 2 / 3f -> true
+    else -> null
+}
+
+/** « +1:30 » ou « −0:20 » : saut cumulé, appliqué à la fin des appuis. */
+@Composable
+private fun SeekPill(offsetMs: Long, modifier: Modifier = Modifier) {
+    val sign = if (offsetMs >= 0) "+" else "\u2212"
+    Text(
+        text = sign + Formats.clock(kotlin.math.abs(offsetMs)),
+        style = Hs.type.title.tabular(),
+        color = HsColors.OnMedia,
+        modifier = modifier
+            .clip(RoundedCornerShape(Hs.dimens.radius))
+            .background(HsColors.MediaScrim)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+    )
+}
+
 /** Commandes qui prennent le focus selon la touche qui les a montrées. */
 @Stable
 private class ControlFocusRequesters {
@@ -335,11 +378,11 @@ private fun handleKey(
             return true
         }
         Key.MediaFastForward -> {
-            if (down) actions.seekBy(PlayerController.SEEK_STEP_MS)
+            if (down) actions.nudge(forward = true)
             return true
         }
         Key.MediaRewind -> {
-            if (down) actions.seekBy(-PlayerController.SEEK_STEP_MS)
+            if (down) actions.nudge(forward = false)
             return true
         }
     }
@@ -352,7 +395,7 @@ private fun handleKey(
             true
         }
         Key.DirectionLeft, Key.DirectionRight -> {
-            actions.seekBy(if (event.key == Key.DirectionRight) PlayerController.SEEK_STEP_MS else -PlayerController.SEEK_STEP_MS)
+            actions.nudge(forward = event.key == Key.DirectionRight)
             chrome.show(ControlFocus.Seek)
             swallowUp[0] = event.key
             true
@@ -407,7 +450,7 @@ private fun Controls(
                 TimeText(position.positionMs)
                 SeekBar(
                     position = position,
-                    onSeekBy = actions::seekBy,
+                    onNudge = actions::nudge,
                     onSeekTo = actions::seekTo,
                     onToggle = actions::togglePause,
                     modifier = Modifier
@@ -419,9 +462,10 @@ private fun Controls(
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.gap)) {
                 HsIconButton(
-                    icon = Lucide.Rewind,
+                    icon = Lucide.RotateCcw,
+                    caption = (BACK_STEP_MS / 1000).toString(),
                     label = stringResource(R.string.player_rewind),
-                    onClick = { actions.seekBy(-PlayerController.SEEK_STEP_MS) },
+                    onClick = { actions.nudge(forward = false) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )
                 HsIconButton(
@@ -434,9 +478,10 @@ private fun Controls(
                         .focusProperties { up = focus.seek },
                 )
                 HsIconButton(
-                    icon = Lucide.FastForward,
+                    icon = Lucide.RotateCw,
+                    caption = (FORWARD_STEP_MS / 1000).toString(),
                     label = stringResource(R.string.player_forward),
-                    onClick = { actions.seekBy(PlayerController.SEEK_STEP_MS) },
+                    onClick = { actions.nudge(forward = true) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )
                 Spacer(Modifier.weight(1f))
@@ -514,13 +559,13 @@ private fun TimeText(ms: Long?) {
 }
 
 /**
- * Barre de progression : gauche / droite avancent ou reculent de 10 s quand
+ * Barre de progression : gauche / droite avancent (30 s) ou reculent (10 s) quand
  * elle a le focus ; au doigt, toucher ou glisser y place la lecture.
  */
 @Composable
 private fun SeekBar(
     position: PlaybackPosition,
-    onSeekBy: (Long) -> Unit,
+    onNudge: (Boolean) -> Unit,
     onSeekTo: (Float) -> Unit,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -538,9 +583,7 @@ private fun SeekBar(
             .onPreviewKeyEvent { event ->
                 when (event.key) {
                     Key.DirectionLeft, Key.DirectionRight -> {
-                        if (event.type == KeyEventType.KeyDown) {
-                            onSeekBy(if (event.key == Key.DirectionRight) PlayerController.SEEK_STEP_MS else -PlayerController.SEEK_STEP_MS)
-                        }
+                        if (event.type == KeyEventType.KeyDown) onNudge(event.key == Key.DirectionRight)
                         true
                     }
                     else -> false

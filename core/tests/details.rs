@@ -58,6 +58,18 @@ async fn movie_info_reads_year_duration_and_extension() {
 }
 
 #[tokio::test]
+async fn movie_info_reads_a_bare_duration_as_minutes() {
+    let server = serve(
+        "get_vod_info",
+        ("vod_id", "7"),
+        json!({"info": {"duration": "109"}, "movie_data": {"name": "X", "container_extension": "mkv"}}),
+    )
+    .await;
+    let info = client(&server).movie_info(7).await.unwrap();
+    assert_eq!(info.duration_secs, Some(109 * 60));
+}
+
+#[tokio::test]
 async fn movie_info_tolerates_empty_info() {
     let server = serve(
         "get_vod_info",

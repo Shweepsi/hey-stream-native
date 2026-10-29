@@ -146,8 +146,8 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
             override fun togglePause() = viewModel.togglePause()
 
             // La barre suit aussitôt (sans attendre la relecture suivante).
-            override fun seekBy(deltaMs: Long) {
-                viewModel.seekBy(deltaMs)
+            override fun nudge(forward: Boolean) {
+                viewModel.nudge(forward)
                 readPosition()
             }
 

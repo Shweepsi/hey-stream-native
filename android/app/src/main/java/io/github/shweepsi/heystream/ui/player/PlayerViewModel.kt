@@ -59,6 +59,11 @@ data class PlayerUiState(
     val tracks: TrackLists = TrackLists(),
     /** Fin de lecture ou « Annuler » : l'écran se ferme. */
     val exit: Boolean = false,
+    /**
+     * Avance (positive) ou recul (négatif) cumulé par des appuis rapprochés,
+     * pas encore appliqué ; `null` sans appui en cours.
+     */
+    val pendingSeekMs: Long? = null,
 )
 
 /** Ce que le lecteur doit ouvrir. L'URL ne sort jamais de ce fichier (ni journal, ni état). */
@@ -74,6 +79,13 @@ private class Media(
 )
 
 private class Resolved(val media: Media, val url: String, val startMs: Long)
+
+/** Pas d'un appui : on avance pour sauter un passage, on recule pour revoir une réplique. */
+internal const val FORWARD_STEP_MS = 30_000L
+internal const val BACK_STEP_MS = 10_000L
+
+/** Délai sans nouvel appui avant d'appliquer le saut cumulé. */
+internal const val SEEK_COMMIT_MS = 700L
 
 /** Toutes les 10 s pendant la lecture, la position est enregistrée. */
 private const val SAVE_EVERY_MS = 10_000L
@@ -168,8 +180,40 @@ class PlayerViewModel(
         }
     }
 
-    /** Avance ou recul rapide (±10 s), dans les limites du flux. */
-    fun seekBy(deltaMs: Long) {
+    /**
+     * Un appui sur avance (+30 s) ou recul (−10 s) : les appuis rapprochés
+     * s'additionnent (« +1:30 » affiché), et le saut part une seule fois,
+     * [SEEK_COMMIT_MS] après le dernier — une seule requête au serveur.
+     */
+    fun nudge(forward: Boolean) {
+        val step = if (forward) FORWARD_STEP_MS else -BACK_STEP_MS
+        _state.update { it.copy(pendingSeekMs = (it.pendingSeekMs ?: 0L) + step) }
+        pendingSeek?.cancel()
+        pendingSeek = viewModelScope.launch {
+            delay(SEEK_COMMIT_MS)
+            commitSeek()
+        }
+    }
+
+    /** Applique tout de suite le saut cumulé (fermeture de l'écran, autre commande). */
+    private fun commitSeek() {
+        pendingSeek?.cancel()
+        pendingSeek = null
+        val offset = _state.value.pendingSeekMs ?: return
+        _state.update { it.copy(pendingSeekMs = null) }
+        if (offset != 0L) seekBy(offset)
+    }
+
+    private var pendingSeek: Job? = null
+
+    private fun dropPendingSeek() {
+        pendingSeek?.cancel()
+        pendingSeek = null
+        if (_state.value.pendingSeekMs != null) _state.update { it.copy(pendingSeekMs = null) }
+    }
+
+    /** Avance ou recul, dans les limites du flux. */
+    private fun seekBy(deltaMs: Long) {
         val player = player
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
         val target = (player.currentPosition + deltaMs).coerceAtLeast(0)
@@ -178,6 +222,8 @@ class PlayerViewModel(
 
     /** Barre de progression touchée ou glissée au doigt. */
     fun seekToFraction(fraction: Float) {
+        // Position choisie sur la barre : les appuis en attente ne comptent plus.
+        dropPendingSeek()
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         player.seekTo((duration * fraction.coerceIn(0f, 1f)).toLong())
     }
@@ -343,6 +389,7 @@ class PlayerViewModel(
         endHandled = false
         wasPlaying = false
         deferred = null
+        dropPendingSeek()
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
         val kind = args.kind
         val id = args.id

@@ -52,6 +52,14 @@ class DetailLogicTest {
     ) = MovieInfo(name, plot, year, duration, rating, image, "mp4")
 
     @Test
+    fun movieHeaderPrefersTheDurationMeasuredByThePlayer() {
+        // Le fournisseur annonce 109 s (des minutes, en fait) ; le lecteur a mesuré 1 h 49 min 20 s.
+        val header = movieHeader(item(progress = Progress(1_062_000, 6_560_000)), info(duration = 109))!!
+        assertEquals(6_560L, header.durationSecs)
+        assertEquals(6_720L, movieHeader(item(), info())!!.durationSecs)
+    }
+
+    @Test
     fun metaLineShowsOnlyProvidedFields() {
         assertEquals(
             listOf(MetaPart.Year("2025"), MetaPart.Duration(1, 52), MetaPart.Rating("7.4")),
@@ -138,9 +146,9 @@ class DetailLogicTest {
         // Sans numéro du fournisseur : sa place dans la saison.
         assertEquals(listOf(1L, 2L, 1L, 2L), rows.map { it.number })
         assertNull(rows[3].title)
-        // Sans durée dans la fiche : celle de la reprise.
+        // Sans durée dans la fiche : celle mesurée par le lecteur (reprise), affichée aussi.
         assertEquals(WatchProgress(90_000, 1_800_000), rows[3].progress)
-        assertNull(rows[3].durationSecs)
+        assertEquals(1_800L, rows[3].durationSecs)
     }
 
     @Test

@@ -17,7 +17,6 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.player.PlaybackStatus
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,15 +36,16 @@ class PlayerKeysTest {
 
     private class Recorder : PlayerActions {
         var toggles = 0
-        val seeks = mutableListOf<Long>()
+        /** Appuis d'avance (true) et de recul (false). */
+        val seeks = mutableListOf<Boolean>()
         var nextPlayed = 0
 
         override fun togglePause() {
             toggles++
         }
 
-        override fun seekBy(deltaMs: Long) {
-            seeks += deltaMs
+        override fun nudge(forward: Boolean) {
+            seeks += forward
         }
 
         override fun seekTo(fraction: Float) = Unit
@@ -110,13 +110,13 @@ class PlayerKeysTest {
         show(chrome, actions)
         compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true), actions.seeks)
         assertTrue(chrome.visible)
         assertEquals(ControlFocus.Seek, chrome.focus)
         // La barre a maintenant le focus : gauche recule.
         compose.onRoot().performKeyInput { pressKey(Key.DirectionLeft) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS, -PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true, false), actions.seeks)
         assertEquals(0, actions.toggles)
     }
 
@@ -162,7 +162,7 @@ class PlayerKeysTest {
         compose.waitForIdle()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true), actions.seeks)
     }
 
     @Test

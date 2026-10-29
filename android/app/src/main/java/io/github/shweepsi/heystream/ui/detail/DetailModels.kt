@@ -112,7 +112,10 @@ internal fun movieHeader(item: CatalogItem?, info: MovieInfo?): DetailHeader? {
         image = item?.image.nonBlank() ?: info?.image.nonBlank(),
         plot = info?.plot.nonBlank() ?: item?.plot.nonBlank(),
         year = info?.year.nonBlank(),
-        durationSecs = info?.durationSecs?.takeIf { it > 0 },
+        // La durée mesurée par le lecteur passe avant celle du fournisseur,
+        // parfois fausse (minutes envoyées pour des secondes).
+        durationSecs = item?.progress?.durationMs?.takeIf { it > 0 }?.div(1000)
+            ?: info?.durationSecs?.takeIf { it > 0 },
         rating = info?.rating.nonBlank() ?: item?.rating.nonBlank(),
     )
 }
@@ -208,13 +211,12 @@ internal fun episodeRows(
     resume: Resume?,
 ): List<EpisodeRow> = info.seasons.flatMap { season ->
     season.episodes.mapIndexed { index, episode ->
-        val durationSecs = episode.durationSecs?.takeIf { it > 0 }
+        // Durée mesurée par le lecteur (dernier épisode commencé) d'abord :
+        // celle du fournisseur est parfois fausse.
+        val measuredMs = resume?.takeIf { it.id == episode.id }?.durationMs?.takeIf { it > 0 }
+        val durationSecs = measuredMs?.div(1000) ?: episode.durationSecs?.takeIf { it > 0 }
         val position = positions[episode.id]
-        val durationMs = when {
-            durationSecs != null -> durationSecs * 1000
-            resume != null && resume.id == episode.id -> resume.durationMs.coerceAtLeast(0)
-            else -> 0
-        }
+        val durationMs = measuredMs ?: durationSecs?.times(1000) ?: 0
         EpisodeRow(
             id = episode.id,
             season = season.number,

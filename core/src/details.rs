@@ -110,16 +110,18 @@ impl RawInfo {
     }
 
     /// Durée en secondes : `duration_secs`, sinon `duration` au format
-    /// `HH:MM:SS` ou `MM:SS`.
+    /// `HH:MM:SS` ou `MM:SS`. Un nombre seul (« 109 ») est en minutes : des
+    /// panneaux l'envoient ainsi, et le lire en secondes affichait « 2 min »
+    /// pour un film d'1 h 49.
     fn duration_secs(&self) -> Option<i64> {
         self.duration_secs.filter(|&d| d > 0).or_else(|| {
-            let parts: Option<Vec<i64>> = self
-                .duration
-                .as_deref()?
-                .split(':')
-                .map(|p| p.trim().parse().ok())
-                .collect();
-            let secs = parts?.iter().fold(0, |acc, p| acc * 60 + p);
+            let text = self.duration.as_deref()?.trim();
+            let parts: Option<Vec<i64>> = text.split(':').map(|p| p.trim().parse().ok()).collect();
+            let parts = parts?;
+            let secs = match parts.as_slice() {
+                [minutes] => minutes * 60,
+                _ => parts.iter().fold(0, |acc, p| acc * 60 + p),
+            };
             (secs > 0).then_some(secs)
         })
     }
