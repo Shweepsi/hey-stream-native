@@ -73,6 +73,8 @@ import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
 import io.github.shweepsi.heystream.ui.components.PosterCard
+import io.github.shweepsi.heystream.ui.components.posterTitleLines
+import io.github.shweepsi.heystream.ui.components.posterTitleStyle
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -399,7 +401,7 @@ private fun GridPane(
                         .weight(1f)
                         .fillMaxWidth()
                     val poster = @Composable { item: PosterUi, index: Int ->
-                        PosterItem(item, index, restore, onOpenItem)
+                        PosterItem(item, index, state.section, restore, onOpenItem)
                     }
                     if (selected.key == CategoryKey.Continue) {
                         if (state.continueItems.isEmpty()) {
@@ -524,6 +526,7 @@ private fun PosterGrid(
 private fun PosterItem(
     poster: PosterUi,
     index: Int,
+    section: Section,
     restore: FocusRestore,
     onOpenItem: (Long) -> Unit,
 ) {
@@ -542,6 +545,7 @@ private fun PosterItem(
         onClick = { onOpenItem(poster.id) },
         progress = poster.progress,
         watched = poster.watched,
+        fallbackIcon = if (section == Section.SERIES) Lucide.MonitorPlay else Lucide.Film,
         modifier = modifier,
     )
 }
@@ -558,7 +562,7 @@ private fun PosterPlaceholder() {
                 .clip(RoundedCornerShape(dimens.radius))
                 .background(Hs.colors.surface2),
         )
-        Text(" ", style = if (dimens.isTv) Hs.type.small else Hs.type.body, maxLines = 1)
+        Text(" ", style = posterTitleStyle(), minLines = posterTitleLines(), maxLines = posterTitleLines())
     }
 }
 

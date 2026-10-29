@@ -25,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -41,7 +43,8 @@ import io.github.shweepsi.heystream.ui.theme.Lucide
 
 /**
  * Image du fournisseur (affiche, logo). Rien n'est affiché tant qu'elle n'est
- * pas chargée, ni si elle manque : le fond [placeholder] reste visible.
+ * pas chargée : le fond [placeholder] reste visible. Si elle manque ou ne se
+ * charge pas, l'icône [fallback] (s'il y en a une) est posée au centre.
  */
 @Composable
 fun RemoteImage(
@@ -49,14 +52,25 @@ fun RemoteImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     placeholder: Color = Hs.colors.surface2,
+    fallback: ImageVector? = null,
 ) {
-    Box(modifier.background(placeholder)) {
+    var failed by remember(url) { mutableStateOf(false) }
+    Box(modifier.background(placeholder), contentAlignment = Alignment.Center) {
         if (!url.isNullOrBlank()) {
             AsyncImage(
                 model = url,
                 contentDescription = null,
                 contentScale = contentScale,
+                onError = { failed = true },
                 modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (fallback != null && (url.isNullOrBlank() || failed)) {
+            Icon(
+                fallback,
+                contentDescription = null,
+                tint = Hs.colors.textSecondary.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize(0.28f),
             )
         }
     }
@@ -170,6 +184,7 @@ fun PosterCard(
     progress: Float? = null,
     watched: Boolean = false,
     onLongClick: (() -> Unit)? = null,
+    fallbackIcon: ImageVector = Lucide.Film,
 ) {
     val dimens = Hs.dimens
     var focused by remember { mutableStateOf(false) }
@@ -185,7 +200,7 @@ fun PosterCard(
                 .aspectRatio(2f / 3f)
                 .onFocusChanged { focused = it.isFocused },
         ) {
-            RemoteImage(imageUrl, Modifier.fillMaxSize())
+            RemoteImage(imageUrl, Modifier.fillMaxSize(), fallback = fallbackIcon)
             if (watched) {
                 WatchedBadge(
                     Modifier
@@ -203,14 +218,24 @@ fun PosterCard(
                 )
             }
         }
+        val lines = posterTitleLines()
         Text(
             text = title,
-            style = if (dimens.isTv) Hs.type.small else Hs.type.body,
-            maxLines = 1,
+            style = posterTitleStyle(),
+            minLines = lines,
+            maxLines = lines,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            // Titre complet sous l'affiche focalisée.
-            modifier = Modifier.marqueeWhen(focused),
+            // TV : une ligne, titre complet sous l'affiche focalisée. Au doigt :
+            // deux lignes, pour distinguer « FR - Retour vers le futur II » du III.
+            modifier = if (dimens.isTv) Modifier.marqueeWhen(focused) else Modifier,
         )
     }
 }
+
+/** Lignes du titre sous une affiche : une à la TV (il défile au focus), deux au doigt. */
+@Composable
+fun posterTitleLines(): Int = if (Hs.dimens.isTv) 1 else 2
+
+@Composable
+fun posterTitleStyle(): TextStyle = if (Hs.dimens.isTv) Hs.type.small else Hs.type.body

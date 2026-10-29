@@ -392,6 +392,7 @@ private fun PosterResult(hit: SearchHit, onClick: () -> Unit, modifier: Modifier
         onClick = onClick,
         progress = hit.progress,
         watched = hit.watched,
+        fallbackIcon = if (hit.section == Section.SERIES) Lucide.MonitorPlay else Lucide.Film,
         modifier = modifier.width(Hs.dimens.posterMinWidth),
     )
 }

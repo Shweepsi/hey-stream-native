@@ -95,6 +95,11 @@ struct RawInfo {
 /// Plus grand nombre seul lu comme des minutes (10 h) ; au-delà, des secondes.
 const BARE_MINUTES_MAX: i64 = 600;
 
+/// Durée de film en dessous de laquelle le fournisseur a envoyé des minutes
+/// pour des secondes (`duration_secs: 109`) ou des heures:minutes pour des
+/// minutes:secondes (`"01:49"`) : aucun film du catalogue ne dure 10 min.
+const SHORTEST_MOVIE_SECS: i64 = 600;
+
 impl RawInfo {
     fn plot(&self) -> Option<String> {
         self.plot.clone().or_else(|| self.description.clone())
@@ -127,6 +132,18 @@ impl RawInfo {
                 _ => parts.iter().fold(0, |acc, p| acc * 60 + p),
             };
             (secs > 0).then_some(secs)
+        })
+    }
+
+    /// Durée d'un film : comme [`Self::duration_secs`], mais une durée de
+    /// moins de 10 min est lue en minutes (« 01:49 » : 1 h 49, pas 1 min 49).
+    fn movie_duration_secs(&self) -> Option<i64> {
+        self.duration_secs().map(|secs| {
+            if secs < SHORTEST_MOVIE_SECS {
+                secs * 60
+            } else {
+                secs
+            }
         })
     }
 
@@ -199,7 +216,7 @@ impl XtreamClient {
                 .or(info.name.clone()),
             plot: info.plot(),
             year: info.year(),
-            duration_secs: info.duration_secs(),
+            duration_secs: info.movie_duration_secs(),
             rating: info.rating.clone(),
             image: info.image(),
             extension: data.and_then(|d| d.container_extension),

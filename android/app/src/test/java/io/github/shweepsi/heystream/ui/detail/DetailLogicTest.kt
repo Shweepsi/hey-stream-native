@@ -82,6 +82,25 @@ class DetailLogicTest {
     }
 
     @Test
+    fun ratingIsRoundedToOneFrenchDecimal() {
+        assertEquals("7,3", displayRating("7.272"))
+        assertEquals("8", displayRating("8"))
+        assertEquals("8", displayRating("7.96"))
+        assertEquals("6,5", displayRating("6.5"))
+    }
+
+    @Test
+    fun episodeTitleDropsTheSeriesNameAndTheCode() {
+        val names = listOf("13 Reasons Why (2017)_fr", "13 Reasons Why")
+        assertNull(episodeTitle("S01E01", names))
+        assertNull(episodeTitle("13 Reasons Why (2017)_fr - S01E02", names))
+        assertNull(episodeTitle(" ", names))
+        assertEquals("Tape 1, Side A", episodeTitle("13 Reasons Why - S01E01 - Tape 1, Side A", names))
+        assertEquals("Le départ", episodeTitle("S2 E3 : Le départ", names))
+        assertEquals("Le départ", episodeTitle("Le départ", names))
+    }
+
+    @Test
     fun movieHeaderStartsFromTheCacheThenTheProviderFillsIn() {
         val cached = movieHeader(item(rating = "6"), null)!!
         assertEquals("Nord Express", cached.title)

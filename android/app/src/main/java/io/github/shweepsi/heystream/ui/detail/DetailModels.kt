@@ -56,11 +56,17 @@ fun metaParts(header: DetailHeader): List<MetaPart> = buildList {
     displayRating(header.rating)?.let { add(MetaPart.Rating(it)) }
 }
 
-/** Note du fournisseur, telle quelle ; absente si vide ou nulle (« 0 », « 0.0 »). */
+/**
+ * Note du fournisseur : une décimale au plus, virgule française (« 7.272 »
+ * donne « 7,3 », « 8 » reste « 8 ») ; absente si vide ou nulle. Un texte
+ * qui n'est pas un nombre est gardé tel quel.
+ */
 fun displayRating(raw: String?): String? {
     val text = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-    val value = text.replace(',', '.').toDoubleOrNull()
-    return if (value != null && value == 0.0) null else text
+    val value = text.replace(',', '.').toDoubleOrNull() ?: return text
+    if (value == 0.0 || !value.isFinite()) return null
+    val tenths = Math.round(value * 10)
+    return if (tenths % 10 == 0L) (tenths / 10).toString() else "${tenths / 10},${Math.abs(tenths % 10)}"
 }
 
 internal fun String?.nonBlank(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
@@ -141,11 +147,33 @@ data class EpisodeRow(
     val season: Long,
     /** Numéro du fournisseur, sinon sa place dans la saison. */
     val number: Long,
+    /** Vrai titre ; `null` si le fournisseur ne donne que le code (« S01E01 »). */
     val title: String?,
+    val plot: String? = null,
     val durationSecs: Long?,
     val progress: WatchProgress?,
     val watched: Boolean,
 )
+
+/** Code d'épisode (« S01E01 », « S1 E1 », « 1x01 »), à retirer d'un titre. */
+private val EPISODE_CODE = Regex("""(?i)\bS\d{1,3}\s*[-.·]?\s*E\d{1,4}\b|\b\d{1,2}x\d{1,3}\b""")
+
+/** Séparateurs laissés en début ou fin de titre une fois le code retiré. */
+private const val TITLE_SEPARATORS = " -–—|:._·"
+
+/**
+ * Titre d'un épisode sans le nom de la série ni le code : « Ma série -
+ * S01E02 - Le départ » donne « Le départ ». `null` s'il ne reste rien
+ * (le fournisseur ne donne que « S01E02 ») : l'interface affiche « Épisode 2 ».
+ */
+internal fun episodeTitle(raw: String?, seriesNames: List<String>): String? {
+    var text = raw.nonBlank() ?: return null
+    seriesNames.mapNotNull { it.nonBlank() }
+        .firstOrNull { text.startsWith(it, ignoreCase = true) }
+        ?.let { text = text.substring(it.length) }
+    text = EPISODE_CODE.replace(text, " ").trim { it in TITLE_SEPARATORS }
+    return text.replace(Regex("\\s{2,}"), " ").takeIf { t -> t.any { it.isLetter() } }
+}
 
 /**
  * Premier bouton d'une série : « Reprendre S2 · E3 » (avec « Depuis le
@@ -209,7 +237,13 @@ internal fun episodeRows(
     watched: Set<Long>,
     positions: Map<Long, Long>,
     resume: Resume?,
+    seriesName: String? = null,
 ): List<EpisodeRow> = info.seasons.flatMap { season ->
+    // Nom complet (« Ma série (2017)_fr ») et nom nu (« Ma série »), qui préfixe souvent les titres.
+    val names = listOfNotNull(seriesName, info.name)
+        .flatMap { listOf(it, it.substringBefore(" (").substringBefore('_')) }
+        .distinct()
+        .sortedByDescending { it.length }
     season.episodes.mapIndexed { index, episode ->
         // Durée mesurée par le lecteur (dernier épisode commencé) d'abord :
         // celle du fournisseur est parfois fausse.
@@ -221,7 +255,8 @@ internal fun episodeRows(
             id = episode.id,
             season = season.number,
             number = episode.number ?: (index + 1).toLong(),
-            title = episode.title.nonBlank(),
+            title = episodeTitle(episode.title, names),
+            plot = episode.plot.nonBlank(),
             durationSecs = durationSecs,
             progress = position?.let { WatchProgress(it, durationMs) },
             watched = episode.id in watched,
