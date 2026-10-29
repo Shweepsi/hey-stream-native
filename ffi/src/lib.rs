@@ -52,7 +52,9 @@ pub enum HeyStreamError {
     WrongPin,
     #[error("trop de codes incorrects")]
     TooManyAttempts { retry_in_secs: i64 },
-    /// Après `sign_out` : l'objet ne sert plus, en créer un nouveau.
+    /// Après `sign_out`, ou cache repris par un autre objet (connexion à un
+    /// autre identifiant ou à une autre adresse) : l'objet ne sert plus, en
+    /// créer un nouveau.
     #[error("abonnement déconnecté")]
     SignedOut,
 }
@@ -73,6 +75,8 @@ impl From<xc::Error> for HeyStreamError {
             // le transmet pas.
             E::Network(_) => Self::Network,
             E::Storage(_) => Self::Storage,
+            // Cache repris par un objet plus récent : celui-ci ne sert plus.
+            E::AccountChanged => Self::SignedOut,
             E::ParentalLock => Self::ParentalLock,
             E::InvalidPin => Self::InvalidPin,
             E::WrongPin => Self::WrongPin,
@@ -507,7 +511,11 @@ impl HeyStreamCore {
             }
             xc::AccountMatch::OtherServer | xc::AccountMatch::OtherUser => AccountState::Pending,
         };
-        let writer = xc::Catalog::open(&path)?;
+        let mut writer = xc::Catalog::open(&path)?;
+        // Un objet remplacé par une nouvelle connexion (« Modifier l'adresse
+        // du serveur ») peut finir un téléchargement : il n'écrit pas dans le
+        // cache repris par l'autre abonnement.
+        writer.restrict_sections_to(&account);
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -569,6 +577,9 @@ impl HeyStreamCore {
         let mut first_error = None;
         let (mut attempted, mut succeeded) = (0, 0);
         for section in [Section::Live, Section::Movies, Section::Series] {
+            // Cache repris entre-temps par un autre objet : rien de plus à
+            // télécharger pour celui-ci.
+            self.check_bound()?;
             let mut entry = SectionRefresh {
                 section,
                 refreshed: false,
@@ -878,11 +889,22 @@ impl HeyStreamCore {
     }
 
     /// Enregistre une section sur la connexion d'écriture, sauf après une
-    /// déconnexion survenue pendant le téléchargement.
+    /// déconnexion survenue pendant le téléchargement, ou si un autre objet a
+    /// repris le cache entre-temps (refusé par le cœur, dans la transaction
+    /// même : `restrict_sections_to`).
     fn store_section(&self, data: &xc::SectionData) -> Result<xc::RefreshOutcome> {
         let mut writer = self.writer_lock();
         self.check_signed_in()?;
         Ok(writer.store_section(data, now())?)
+    }
+
+    /// Le cache est toujours lié à cet abonnement : sinon un objet plus récent
+    /// l'a repris (autre identifiant, autre adresse) ou s'est déconnecté.
+    fn check_bound(&self) -> Result<()> {
+        match self.lock()?.account_match(&self.account)? {
+            xc::AccountMatch::Same => Ok(()),
+            _ => Err(HeyStreamError::SignedOut),
+        }
     }
 
     /// Lie le cache à cet abonnement après une authentification réussie :

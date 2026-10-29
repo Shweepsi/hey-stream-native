@@ -405,6 +405,51 @@ fn switching_account_clears_everything() {
 }
 
 #[test]
+fn sections_are_stored_only_while_the_cache_is_bound_to_their_account() {
+    let dir = std::env::temp_dir().join(format!("hs-sections-owner-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    let a = key("panel.example", "alice", "p");
+    let cats: Vec<Category> =
+        from_value(json!([{"category_id": "1", "category_name": "Action"}])).unwrap();
+    let movies: Vec<Movie> =
+        from_value(json!([{"stream_id": 10, "name": "Taxi", "category_id": "1"}])).unwrap();
+    let mut other_object = Catalog::open(&path).unwrap();
+    // Connexion d'écriture d'un objet ouvert pour A.
+    let mut writer = Catalog::open(&path).unwrap();
+    writer.restrict_sections_to(&a);
+
+    // Un autre objet lie le cache à B, ou à A sur une autre adresse.
+    for other in [
+        key("panel.example", "bob", "p"),
+        key("autre.example", "alice", "p"),
+    ] {
+        other_object.clear_all().unwrap();
+        other_object.bind_account(&a).unwrap();
+        writer.store_movies(&cats, &movies, 0).unwrap();
+        assert!(!other_object.needs_refresh(Section::Movies, 0).unwrap());
+
+        other_object.bind_account(&other).unwrap();
+        let before = other_object.count(Section::Movies, None).unwrap();
+        assert!(matches!(
+            writer.store_movies(&cats, &movies, 0),
+            Err(Error::AccountChanged)
+        ));
+        assert_eq!(other_object.count(Section::Movies, None).unwrap(), before);
+        assert!(other_object.needs_refresh(Section::Movies, 0).unwrap());
+    }
+    // Déconnexion : le cache n'est plus à personne.
+    other_object.clear_all().unwrap();
+    assert!(matches!(
+        writer.store_movies(&cats, &movies, 0),
+        Err(Error::AccountChanged)
+    ));
+    drop((other_object, writer));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn account_key_ignores_password_but_not_server_or_user() {
     let a = key("panel.example:8080", "u", "p1");
     assert_eq!(a, key("http://panel.example:8080/", "u", "p2"));

@@ -8,6 +8,7 @@ import io.github.shweepsi.heystream.core.SectionRefresh
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,9 +43,11 @@ sealed interface RefreshState {
  * [withCore] les appelle hors du fil principal.
  */
 class CoreSession(
-    private val context: Context,
+    context: Context,
     private val credentials: CredentialStore,
     private val scope: CoroutineScope,
+    /** Ouvre le cœur d'un abonnement (un faux cœur dans les tests). */
+    private val open: (Credentials) -> HeyStreamCore = { saved -> openNative(saved, context.filesDir.absolutePath) },
 ) {
     private val lock = Mutex()
 
@@ -110,8 +113,13 @@ class CoreSession(
     /**
      * Formulaire de connexion : vérifie les identifiants avant de les
      * enregistrer. En cas d'échec, rien n'est enregistré ni effacé.
+     *
+     * Ne s'interrompt pas si l'écran qui l'a demandée disparaît (retour
+     * pendant « Vérification… ») : une fois la vérification réussie, le cœur
+     * a déjà lié le cache au nouvel abonnement, et la session doit le suivre
+     * (infos, listes, rechargement du catalogue).
      */
-    suspend fun signIn(server: String, username: String, password: String): AccountInfo {
+    suspend fun signIn(server: String, username: String, password: String): AccountInfo = withContext(NonCancellable) {
         val result = lock.withLock {
             withContext(Dispatchers.IO) {
                 val candidate = Credentials(server.trim(), username.trim(), password)
@@ -133,7 +141,7 @@ class CoreSession(
         _catalogVersion.update { it + 1 }
         _userDataVersion.update { it + 1 }
         refreshInBackground(force = false)
-        return result
+        result
     }
 
     /** Déconnexion : efface identifiants, catalogue et données de l'abonnement. */
@@ -189,24 +197,30 @@ class CoreSession(
 
     /** Rafraîchissement attendu (bouton manuel, tâche quotidienne). */
     suspend fun refreshNow(force: Boolean): List<SectionRefresh> {
+        // Cœur remplacé pendant le téléchargement (« Modifier l'adresse du
+        // serveur ») : son résultat ne concerne plus la session, et ne doit
+        // pas masquer celui du nouveau.
+        val used = core
         _refresh.value = RefreshState.Running
         return try {
-            val sections = withCore { it.refresh(force) }
-            if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
-            _refresh.value = RefreshState.Done(sections)
+            val sections = withContext(Dispatchers.IO) { (used ?: throw HeyStreamException.SignedOut()).refresh(force) }
+            if (core === used) {
+                if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
+                _refresh.value = RefreshState.Done(sections)
+            }
             sections
         } catch (error: Throwable) {
-            _refresh.value = RefreshState.Failed(error)
+            if (core === used) _refresh.value = RefreshState.Failed(error)
             throw error
         }
     }
 
-    private fun open(saved: Credentials): HeyStreamCore {
-        loadNativeLibrary()
-        return HeyStreamCore(saved.server, saved.username, saved.password, context.filesDir.absolutePath)
-    }
-
     private companion object {
+        fun openNative(saved: Credentials, dataDir: String): HeyStreamCore {
+            loadNativeLibrary()
+            return HeyStreamCore(saved.server, saved.username, saved.password, dataDir)
+        }
+
         @Volatile
         private var loaded = false
 

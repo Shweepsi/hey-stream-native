@@ -6,8 +6,9 @@
 
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
+use crate::account::{AccountKey, AccountMatch, account_match};
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::model::{Category, LiveStream, Movie, Series};
@@ -133,6 +134,8 @@ pub struct Catalog {
     /// Catégories adultes déverrouillées par le code PIN, pour cette session
     /// seulement : chaque ouverture repart verrouillée.
     pub(crate) parental_unlocked: bool,
+    /// Voir [`Catalog::restrict_sections_to`].
+    pub(crate) sections_owner: Option<AccountKey>,
 }
 
 impl Catalog {
@@ -161,6 +164,7 @@ impl Catalog {
         Ok(Self {
             conn,
             parental_unlocked: false,
+            sections_owner: None,
         })
     }
 
@@ -440,7 +444,16 @@ impl Catalog {
             return Ok(RefreshOutcome::KeptCache);
         }
         let key = section.key();
-        let tx = self.conn.transaction()?;
+        // Verrou d'écriture pris dès le début : le compte lié, relu ici, ne
+        // change plus avant la fin de l'enregistrement.
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(owner) = &self.sections_owner
+            && account_match(&tx, owner)? != AccountMatch::Same
+        {
+            return Err(Error::AccountChanged);
+        }
         tx.execute("DELETE FROM category WHERE section = ?1", [key])?;
         tx.execute("DELETE FROM item WHERE section = ?1", [key])?;
         {

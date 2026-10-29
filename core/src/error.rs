@@ -28,6 +28,10 @@ pub enum Error {
     TooManyAttempts { retry_in_secs: i64 },
     #[error("erreur du cache local : {0}")]
     Storage(String),
+    /// Le cache n'est plus lié à l'abonnement de cette connexion (voir
+    /// `Catalog::restrict_sections_to`) : rien n'y est enregistré.
+    #[error("cache qui n'est plus lié à cet abonnement")]
+    AccountChanged,
     #[error("erreur réseau")]
     Network(#[source] reqwest::Error),
 }

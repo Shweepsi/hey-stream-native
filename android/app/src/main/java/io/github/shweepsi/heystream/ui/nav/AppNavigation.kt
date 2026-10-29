@@ -93,11 +93,14 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
                 )
             }
         }
-        composable(Routes.CHANGE_SERVER) { entry ->
+        composable(Routes.CHANGE_SERVER) {
             SafeArea {
                 LoginScreen(
                     editing = true,
-                    onSignedIn = { navController.go(entry, Routes.HOME) { popUpTo(0) { inclusive = true } } },
+                    // Pas de `go` : appelé une seule fois, à la réussite, et
+                    // jamais perdu si l'écran n'est plus au premier plan à cet
+                    // instant (panneau de l'Assistant par-dessus l'app).
+                    onSignedIn = { navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } } },
                     onBack = { navController.popBackStack() },
                 )
             }

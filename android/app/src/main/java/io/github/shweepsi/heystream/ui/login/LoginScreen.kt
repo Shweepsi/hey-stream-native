@@ -71,7 +71,10 @@ fun LoginScreen(onSignedIn: () -> Unit, editing: Boolean = false, onBack: (() ->
     val viewModel = viewModel { LoginViewModel(session, editing) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn() }
-    if (onBack != null) BackHandler(onBack = onBack)
+    // Retour ignoré pendant « Vérification… » : la vérification ne peut plus
+    // être annulée (réussie, elle remplace l'abonnement), l'écran attend son
+    // résultat.
+    if (onBack != null) BackHandler { if (!state.busy) onBack() }
     LoginContent(
         state = state,
         onServerChange = viewModel::onServerChange,

@@ -440,6 +440,59 @@ fn sign_out_during_a_refresh_stores_nothing() {
 }
 
 #[test]
+fn a_replaced_core_stores_nothing() {
+    // « Modifier l'adresse du serveur » : l'ancien objet est remplacé sans
+    // déconnexion pendant qu'il télécharge le direct.
+    let panel = panel(vec![(
+        "get_live_categories",
+        json!([{"category_id": "1", "category_name": "Infos"}]),
+    )]);
+    panel.route(
+        "get_live_streams",
+        json!([{"stream_id": 5, "name": "France Info", "category_id": "1"}]),
+        800,
+    );
+    // Remplacé, l'ancien objet ne télécharge pas les sections suivantes.
+    panel.runtime.block_on(
+        Mock::given(method("GET"))
+            .and(query_param("action", "get_vod_categories"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+            .expect(0)
+            .mount(&panel.server),
+    );
+    panel.accept("a");
+    panel.accept("b");
+    let url = panel.server.uri();
+    // Autre identifiant (tout est effacé), puis même identifiant sur une
+    // autre adresse (seule la date du catalogue est effacée).
+    for (user, address) in [
+        ("b", url.clone()),
+        ("a", url.replace("127.0.0.1", "localhost")),
+    ] {
+        let dir = temp_dir(&format!("replaced-{user}"));
+        let old = open_as(&url, "a", &dir);
+        let refreshing = {
+            let old = Arc::clone(&old);
+            thread::spawn(move || old.refresh(true))
+        };
+        thread::sleep(std::time::Duration::from_millis(200));
+        let new = open_as(&address, user, &dir);
+        new.authenticate().unwrap();
+        assert!(matches!(
+            refreshing.join().unwrap(),
+            Err(HeyStreamError::SignedOut)
+        ));
+        // Ni l'ancien catalogue, ni sa date (même transaction), qui
+        // dispenserait le nouvel abonnement de télécharger le sien.
+        assert_eq!(new.count(Section::Live, None).unwrap(), 0);
+        drop((old, new));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+    // `expect(0)` est vérifié à la fermeture du faux serveur.
+    drop(panel);
+}
+
+#[test]
 fn a_failed_section_is_not_downloaded_again_at_once() {
     let panel = live_panel();
     panel.route(
