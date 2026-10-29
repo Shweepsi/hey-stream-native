@@ -34,7 +34,6 @@
     <string name="pin_title_confirm">Confirmez le code</string>
     <string name="pin_create_message">Les catégories adultes sont verrouillées. Choisissez un code à 4 chiffres pour les ouvrir.</string>
     <string name="pin_mismatch">Les codes ne correspondent pas. Recommencez.</string>
-    <string name="pin_entered">%1$d chiffres saisis sur %2$d</string>
     <string name="pin_delete">Effacer</string>
     <string name="error_invalid_server_url">L’adresse du serveur n’est pas valide.</string>
     <string name="error_missing_server">Saisissez l’adresse du serveur.</string>
@@ -78,5 +77,10 @@
         <item quantity="one">%1$d min restante</item>
         <item quantity="many">%1$d min restantes</item>
         <item quantity="other">%1$d min restantes</item>
+    </plurals>
+    <plurals name="pin_entered">
+        <item quantity="one">%1$d chiffre saisi sur %2$d</item>
+        <item quantity="many">%1$d chiffres saisis sur %2$d</item>
+        <item quantity="other">%1$d chiffres saisis sur %2$d</item>
     </plurals>
 </resources>

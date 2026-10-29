@@ -59,9 +59,9 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - run: cargo install cargo-ndk --version 4.1.2 --locked
       # Tests JVM (Robolectric) : logique et composition de chaque écran.
-      - name: Tests
+      - name: Tests et Android Lint
         working-directory: android
-        run: ./gradlew --console=plain :app:testDebugUnitTest
+        run: ./gradlew --console=plain :app:testDebugUnitTest :app:lintDebug
       - name: APK (release, clé de test)
         working-directory: android
         run: ./gradlew --console=plain :app:assembleRelease

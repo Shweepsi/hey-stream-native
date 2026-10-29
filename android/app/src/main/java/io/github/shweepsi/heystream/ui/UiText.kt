@@ -14,7 +14,8 @@ import java.util.Locale
 /** Langue de l'app (celle choisie dans les réglages), pour les dates et heures. */
 @Composable
 @ReadOnlyComposable
-fun currentLocale(): Locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+// La configuration a toujours au moins une langue ; elle change avec le réglage de langue.
+fun currentLocale(): Locale = LocalConfiguration.current.locales[0]
 
 /** Texte à afficher, choisi hors d'un composable (ViewModel) et traduit à l'affichage. */
 @Immutable

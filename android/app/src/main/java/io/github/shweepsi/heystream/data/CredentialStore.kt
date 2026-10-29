@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -46,14 +47,16 @@ class CredentialStore(context: Context) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val data = cipher.doFinal(json.toString().toByteArray(Charsets.UTF_8))
-        prefs.edit()
-            .putString(KEY_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-            .putString(KEY_DATA, Base64.encodeToString(data, Base64.NO_WRAP))
-            .commit()
+        // Écrit tout de suite (appelé hors du fil principal) : l'app peut être
+        // tuée juste après la connexion.
+        prefs.edit(commit = true) {
+            putString(KEY_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+            putString(KEY_DATA, Base64.encodeToString(data, Base64.NO_WRAP))
+        }
     }
 
     fun clear() {
-        prefs.edit().clear().commit()
+        prefs.edit(commit = true) { clear() }
     }
 
     private fun key(): SecretKey {

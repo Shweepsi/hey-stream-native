@@ -36,7 +36,6 @@
     <string name="pin_title_confirm">Confirm the code</string>
     <string name="pin_create_message">Adult categories are locked. Choose a 4-digit code to open them.</string>
     <string name="pin_mismatch">The codes do not match. Try again.</string>
-    <string name="pin_entered">%1$d of %2$d digits entered</string>
     <string name="pin_delete">Delete</string>
     <string name="error_invalid_server_url">The server address is not valid.</string>
     <string name="error_missing_server">Enter the server address.</string>
@@ -79,5 +78,9 @@
     <plurals name="remaining_minutes">
         <item quantity="one">%1$d min left</item>
         <item quantity="other">%1$d min left</item>
+    </plurals>
+    <plurals name="pin_entered">
+        <item quantity="one">%1$d of %2$d digits entered</item>
+        <item quantity="other">%1$d of %2$d digits entered</item>
     </plurals>
 </resources>

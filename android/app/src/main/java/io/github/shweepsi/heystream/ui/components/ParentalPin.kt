@@ -31,6 +31,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -201,7 +202,7 @@ fun PinPad(
         if (message != null) {
             Text(message, style = Hs.type.small, color = Hs.colors.textSecondary, textAlign = TextAlign.Center)
         }
-        val dotsLabel = stringResource(R.string.pin_entered, entered, PIN_LENGTH)
+        val dotsLabel = pluralStringResource(R.plurals.pin_entered, entered, entered, PIN_LENGTH)
         Row(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.semantics { contentDescription = dotsLabel },
