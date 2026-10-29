@@ -111,7 +111,7 @@ data class MovieDetailState(
  * fiche du fournisseur. `null` si rien n'est connu.
  */
 internal fun movieHeader(item: CatalogItem?, info: MovieInfo?): DetailHeader? {
-    val title = item?.name.nonBlank() ?: info?.name.nonBlank() ?: return null
+    val title = (item?.name.nonBlank() ?: info?.name.nonBlank() ?: return null).let(Formats::displayName)
     return DetailHeader(
         title = title,
         // L'affiche de la grille (déjà en cache d'images) : pas de second chargement.
@@ -216,7 +216,7 @@ data class SeriesDetailState(
  * résumé, note). `null` si rien n'est connu.
  */
 internal fun seriesHeader(item: CatalogItem?, info: SeriesInfo?): DetailHeader? {
-    val title = item?.name.nonBlank() ?: info?.name.nonBlank() ?: return null
+    val title = (item?.name.nonBlank() ?: info?.name.nonBlank() ?: return null).let(Formats::displayName)
     return DetailHeader(
         title = title,
         image = item?.image.nonBlank() ?: info?.cover.nonBlank(),

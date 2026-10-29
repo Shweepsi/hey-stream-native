@@ -167,12 +167,6 @@ fun LiveContent(
                     onBack = onBack,
                     actions = { Clock(showDate = false) },
                 )
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Hs.colors.separator),
-                )
             }
             Box(
                 Modifier
@@ -550,12 +544,13 @@ private fun ChannelRow(
     val dimens = Hs.dimens
     val isTv = dimens.isTv
     val favoriteLabel = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add)
+    val name = Formats.displayName(channel.name)
     HsSurface(
         onClick = onClick,
         onLongClick = onToggleFavorite,
         selected = inPreview,
         focusScale = FocusScale.NONE,
-        onClickLabel = channel.name,
+        onClickLabel = name,
         contentPadding = PaddingValues(horizontal = if (isTv) 9.dp else if (compact) 8.dp else 12.dp),
         contentAlignment = Alignment.CenterStart,
         modifier = modifier
@@ -574,18 +569,17 @@ private fun ChannelRow(
             },
     ) {
         val content = LocalContentColor.current
-        // Au doigt, la ligne en aperçu est en couleurs inversées : le texte secondaire suit.
-        val secondary = if (inPreview && !isTv) content.copy(alpha = 0.72f) else Hs.colors.textSecondary
+        val secondary = Hs.colors.textSecondary
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 10.dp else if (compact) 8.dp else 12.dp),
         ) {
-            ChannelLogo(channel.image, channel.name)
+            ChannelLogo(channel.image, name)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 // Nom et programme complets : chaîne focalisée sur TV, en aperçu au doigt.
                 val highlighted = if (isTv) LocalSurfaceFocused.current else inPreview
                 Text(
-                    text = channel.name,
+                    text = name,
                     style = Hs.type.itemTitle,
                     color = content,
                     maxLines = 1,

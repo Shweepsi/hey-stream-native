@@ -4,6 +4,21 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.3.0 — 2026-10-29
+
+Polissage de l'interface, même style sur TV, tablette et téléphone.
+
+- Élément sélectionné sur fond gris doux partout (plus de pilule blanche
+  au doigt).
+- Focus à la télécommande : contour blanc, ombre douce, agrandissement de 5 %.
+- Barre du haut fondue dans le fond, plus basse (48 dp).
+- Marges et espacements sur une grille commune ; coins de 12 dp partout ;
+  lignes de chaînes plus compactes au doigt.
+- Noms sans « FR - » ni « |FR| » (films, séries, chaînes) ; les catégories
+  gardent le leur.
+- Fiche série : onglets de saisons sur tous les appareils ; épisodes sur
+  toute la largeur.
+
 ## 0.2.0 — 2026-10-29
 
 Retours du Xiaomi Pad 7.

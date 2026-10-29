@@ -109,8 +109,8 @@ fun HeyStreamTheme(
             LocalContentColor provides colors.text,
             LocalTextStyle provides type.body,
             LocalTextSelectionColors provides TextSelectionColors(
-                handleColor = HsColors.Focus,
-                backgroundColor = HsColors.Focus.copy(alpha = 0.35f),
+                handleColor = HsColors.Blue,
+                backgroundColor = HsColors.Blue.copy(alpha = 0.35f),
             ),
             content = content,
         )

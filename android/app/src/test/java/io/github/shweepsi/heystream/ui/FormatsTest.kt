@@ -81,4 +81,16 @@ class FormatsTest {
         assertEquals(1L, Formats.daysAgo(earlyMorning - 3600, earlyMorning, paris))
         assertEquals(3L, Formats.daysAgo(earlyMorning - 3 * 86_400, earlyMorning, paris))
     }
+
+    @Test
+    fun displayNameDropsTheProviderLanguagePrefix() {
+        assertEquals("To Philly with Love (2026) FHD", Formats.displayName("FR - To Philly with Love (2026) FHD"))
+        assertEquals("canal+ FOOT UHD", Formats.displayName("|FR| canal+ FOOT UHD"))
+        assertEquals("CANAL+ SPORT", Formats.displayName("|FR|  CANAL+ SPORT"))
+        assertEquals("Dune", Formats.displayName("VOSTFR: Dune"))
+        // Titres sans préfixe de langue : inchangés.
+        assertEquals("OSS 117 - Le Caire", Formats.displayName("OSS 117 - Le Caire"))
+        assertEquals("France 2", Formats.displayName("France 2"))
+        assertEquals("FR -", Formats.displayName("FR -"))
+    }
 }

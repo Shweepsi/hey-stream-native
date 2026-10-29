@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Couleurs du thème (docs/DESIGN.md). Le bleu et le rouge sont réservés au
- * logo ; seule exception, le bleu du contour de focus.
+ * logo.
  */
 @Immutable
 data class HsColors(
@@ -23,8 +23,8 @@ data class HsColors(
         val Blue = Color(0xFF1F6BFF)
         val Red = Color(0xFFFF2E3B)
 
-        /** Contour de focus de la télécommande. */
-        val Focus = Blue
+        /** Contour de focus de la télécommande (blanc, sur un fond toujours sombre). */
+        val Focus = Color(0xFFFFFFFF)
 
         /**
          * Sur une image ou une vidéo, hors thème : badge « EN DIRECT », barre

@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +30,9 @@ enum class ButtonStyle {
 
     /** Sur une surface : fond Surface (« Rechercher », « Réglages » de l'accueil). */
     Surface,
+
+    /** Sans fond (retour de la barre du haut). */
+    Ghost,
 }
 
 @Composable
@@ -46,6 +50,7 @@ fun HsButton(
         ButtonStyle.Primary -> colors.text to colors.background
         ButtonStyle.Secondary -> colors.surface2 to colors.text
         ButtonStyle.Surface -> colors.surface to colors.text
+        ButtonStyle.Ghost -> Color.Transparent to colors.text
     }
     HsSurface(
         onClick = onClick,
@@ -89,6 +94,7 @@ fun HsIconButton(
         ButtonStyle.Primary -> colors.text
         ButtonStyle.Secondary -> colors.surface2
         ButtonStyle.Surface -> colors.surface
+        ButtonStyle.Ghost -> Color.Transparent
     }
     HsSurface(
         onClick = onClick,

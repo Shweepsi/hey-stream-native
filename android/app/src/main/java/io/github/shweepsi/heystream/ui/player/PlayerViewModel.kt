@@ -18,6 +18,7 @@ import io.github.shweepsi.heystream.core.StreamKind
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
 import io.github.shweepsi.heystream.ui.detail.visibleItem
@@ -460,7 +461,7 @@ class PlayerViewModel(
         return Media(
             kind = PlaybackKind.MOVIE,
             id = id,
-            title = item?.name?.takeIf { it.isNotBlank() } ?: info?.name.orEmpty(),
+            title = Formats.displayName(item?.name?.takeIf { it.isNotBlank() } ?: info?.name.orEmpty()),
             episode = null,
             image = item?.image ?: info?.image,
             extension = item?.extension?.takeIf { it.isNotBlank() } ?: info?.extension,
@@ -469,7 +470,7 @@ class PlayerViewModel(
     }
 
     private fun episodeMedia(core: HeyStreamCore, episodeId: Long, seriesId: Long): Media {
-        val seriesName = core.visibleItem(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }
+        val seriesName = core.visibleItem(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }?.let(Formats::displayName)
         val info: SeriesInfo = try {
             SeriesInfoMemory.load(core, seriesId)
         } catch (failure: HeyStreamException) {

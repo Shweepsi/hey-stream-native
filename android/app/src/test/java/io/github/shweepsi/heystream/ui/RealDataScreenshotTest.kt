@@ -87,7 +87,7 @@ class RealDataScreenshotTest {
     private fun JSONObject.text(key: String): String? = optString(key).takeIf { !isNull(key) && it.isNotEmpty() }
 
     private fun posters(key: String): List<PosterUi> = catalog.getJSONObject(key).getJSONArray("items").objects().map {
-        PosterUi(id = it.getLong("id"), title = it.getString("name"), image = it.text("image"), progress = null, watched = false)
+        PosterUi(id = it.getLong("id"), title = Formats.displayName(it.getString("name")), image = it.text("image"), progress = null, watched = false)
     }
 
     /** Catégories du fournisseur ; celle ouverte porte le nombre de titres relevé. */
@@ -124,7 +124,7 @@ class RealDataScreenshotTest {
         val episodes = (1L..7L).map { EpisodeRow(id = it, season = 1, number = it, title = null, durationSecs = 57 * 60L, progress = null, watched = false) }
         val state = SeriesDetailState(
             header = DetailHeader(
-                title = item.getString("name"),
+                title = Formats.displayName(item.getString("name")),
                 image = item.text("image"),
                 plot = item.text("plot"),
                 year = item.text("year"),

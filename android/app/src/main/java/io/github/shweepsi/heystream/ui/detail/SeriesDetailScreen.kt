@@ -3,7 +3,6 @@ package io.github.shweepsi.heystream.ui.detail
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -19,9 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -196,11 +192,7 @@ private fun SeriesBody(
             }
             if (state.seasons.size > 1) {
                 item(key = "seasons", contentType = "seasons") {
-                    if (Hs.isTv) {
-                        SeasonTabs(state.seasons, state.selectedSeason, onSelectSeason)
-                    } else {
-                        SeasonMenu(state.seasons, state.selectedSeason, onSelectSeason)
-                    }
+                    SeasonTabs(state.seasons, state.selectedSeason, onSelectSeason)
                 }
             }
             item(key = "episodes-label", contentType = "label") {
@@ -211,17 +203,12 @@ private fun SeriesBody(
                     episode = episode,
                     onClick = { playEpisode(episode.id) },
                     onToggleWatched = { onToggleEpisodeWatched(episode.id) },
-                    // Lignes lisibles sur un grand écran : pas plus large que le résumé.
-                    modifier = (if (episode.id == lastPlayed) Modifier.focusRequester(restore) else Modifier)
-                        .widthIn(max = EPISODE_MAX_WIDTH),
+                    modifier = if (episode.id == lastPlayed) Modifier.focusRequester(restore) else Modifier,
                 )
             }
         }
     }
 }
-
-/** Largeur maximale d'une ligne d'épisode. */
-private val EPISODE_MAX_WIDTH = 720.dp
 
 /**
  * « Reprendre S2 · E3 », sinon « Lecture S1 · E1 » (premier épisode non vu) ;
@@ -297,61 +284,6 @@ private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) ->
 @Composable
 private fun seasonName(season: Long): String =
     if (season == 0L) stringResource(R.string.detail_specials) else stringResource(R.string.detail_season, season)
-
-/**
- * Au doigt : « Saison 1 ▾ », qui ouvre la liste des saisons. Une rangée de
- * saisons débordait de l'écran d'un téléphone.
- */
-@Composable
-private fun SeasonMenu(seasons: List<Long>, selected: Long?, onSelect: (Long) -> Unit) {
-    val dimens = Hs.dimens
-    var open by remember { mutableStateOf(false) }
-    Box(Modifier.padding(vertical = 4.dp).padding(bottom = 12.dp)) {
-        HsSurface(
-            onClick = { open = true },
-            color = Hs.colors.surface2,
-            modifier = Modifier.heightIn(min = dimens.minTouch),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = selected?.let { seasonName(it) } ?: seasonName(seasons.first()),
-                    style = Hs.type.label.copy(fontWeight = FontWeight.SemiBold),
-                    color = LocalContentColor.current,
-                    maxLines = 1,
-                )
-                Icon(Lucide.ChevronDown, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = LocalContentColor.current)
-            }
-        }
-        DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            containerColor = Hs.colors.surface2,
-        ) {
-            seasons.forEach { season ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            seasonName(season),
-                            style = Hs.type.body.copy(fontWeight = if (season == selected) FontWeight.SemiBold else FontWeight.Normal),
-                            color = Hs.colors.text,
-                        )
-                    },
-                    trailingIcon = if (season == selected) {
-                        { Icon(Lucide.Check, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = Hs.colors.text) }
-                    } else {
-                        null
-                    },
-                    onClick = {
-                        open = false
-                        onSelect(season)
-                    },
-                )
-            }
-        }
-    }
-}
 
 /** Intitulé « Épisodes », puis l'état de la liste (chargement, erreur, vide) ou l'aide de l'appui long. */
 @Composable

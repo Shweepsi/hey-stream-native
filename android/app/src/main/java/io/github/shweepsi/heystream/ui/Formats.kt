@@ -13,6 +13,21 @@ import java.util.Locale
  * les ressources.
  */
 object Formats {
+    /**
+     * Nom d'un film, d'une série ou d'une chaîne sans le préfixe de langue que
+     * les fournisseurs ajoutent (« FR - », « |FR| », « VOSTFR: »). Les noms de
+     * catégories ne passent pas par ici. Rien n'est retiré si le nom ne
+     * contient que le préfixe.
+     */
+    fun displayName(raw: String): String {
+        val stripped = LANGUAGE_PREFIX.replaceFirst(raw, "").trim()
+        return stripped.ifEmpty { raw.trim() }
+    }
+
+    private val LANGUAGE_PREFIX = Regex(
+        """^\s*(?:\|\s*[A-Za-z]{2,6}\s*\|\s*|(?:FR|EN|UK|US|BE|CH|CA|QC|DE|ES|IT|PT|NL|AR|TR|VF|VO|VOST|VOSTFR|MULTI)\s*[-:|]\s+)""",
+    )
+
     /** Heure (« 21:47 », « 9:47 PM »). */
     fun time(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
         DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)

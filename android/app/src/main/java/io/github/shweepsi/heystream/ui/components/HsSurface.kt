@@ -7,7 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -27,13 +26,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -41,14 +47,17 @@ import io.github.shweepsi.heystream.ui.theme.HsColors
 /** Agrandissement au focus (docs/DESIGN.md). */
 object FocusScale {
     /** Tuiles, boutons, lignes. */
-    const val DEFAULT = 1.04f
+    const val DEFAULT = 1.05f
 
     /** Affiches. */
-    const val POSTER = 1.06f
+    const val POSTER = 1.05f
 
     /** Lignes de liste pleine largeur : pas d'agrandissement (déborderait du panneau). */
     const val NONE = 1f
 }
+
+/** Ombre de l'élément focalisé. */
+private val FOCUS_SHADOW = 12.dp
 
 /** Courbe « ease-out » des animations de focus. */
 val EaseOut = CubicBezierEasing(0f, 0f, 0.58f, 1f)
@@ -59,10 +68,11 @@ const val FOCUS_ANIMATION_MS = 130
 /**
  * Élément activable à la télécommande comme au doigt (docs/DESIGN.md).
  *
- * - **Focus** (télécommande, clavier) : contour bleu de 2 dp dessiné par-dessus
- *   les bords (rien ne bouge autour) et agrandissement [focusScale].
- * - **Sélectionné** ([selected]) : au doigt, couleurs inversées (fond Texte,
- *   texte Fond) ; à la télécommande, fond Surface 2.
+ * - **Focus** (télécommande, clavier) : contour blanc de 2 dp, 2 dp autour des
+ *   bords (lisible aussi sur un bouton blanc ; rien ne bouge autour), ombre
+ *   douce et agrandissement [focusScale].
+ * - **Sélectionné** ([selected]) : fond Surface 2, partout (TV, tablette,
+ *   téléphone) ; le texte garde sa couleur.
  *
  * La couleur du contenu est fournie par `LocalContentColor`.
  */
@@ -102,20 +112,21 @@ fun HsSurface(
         animationSpec = tween(FOCUS_ANIMATION_MS, easing = EaseOut),
         label = "focusBorder",
     )
-    val background = when {
-        selected && !isTv -> colors.text
-        selected -> colors.surface2
-        else -> color
-    }
-    val foreground = if (selected && !isTv) colors.background else contentColor
+    val background = if (selected) colors.surface2 else color
+    val foreground = contentColor
     Box(
         modifier = modifier
             .zIndex(if (focused) 1f else 0f)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                // Ombre douce sous l'élément focalisé, seulement là où il dépasse (agrandi).
+                if (focused && focusScale > 1f) {
+                    this.shape = shape
+                    shadowElevation = FOCUS_SHADOW.toPx()
+                }
             }
-            .border(Hs.dimens.focusBorder, border, shape)
+            .focusRing(border, shape, Hs.dimens.focusBorder)
             .clip(shape)
             .background(background)
             .semantics { this.selected = selected }
@@ -149,3 +160,19 @@ val LocalSurfaceFocused = compositionLocalOf { false }
  */
 fun Modifier.marqueeWhen(active: Boolean): Modifier =
     if (active) basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1_000, repeatDelayMillis = 1_500) else this
+
+/** Contour de focus tracé à [FOCUS_RING_GAP] autour de la forme, hors de ses bords. */
+private fun Modifier.focusRing(color: Color, shape: Shape, width: Dp): Modifier = drawWithContent {
+    drawContent()
+    if (color.alpha > 0f) {
+        val inset = FOCUS_RING_GAP.toPx() + width.toPx() / 2
+        val size = Size(size.width + inset * 2, size.height + inset * 2)
+        val outline = shape.createOutline(size, layoutDirection, this)
+        translate(-inset, -inset) {
+            drawOutline(outline, color, style = Stroke(width.toPx()))
+        }
+    }
+}
+
+/** Écart entre la forme et son contour de focus. */
+private val FOCUS_RING_GAP = 2.dp

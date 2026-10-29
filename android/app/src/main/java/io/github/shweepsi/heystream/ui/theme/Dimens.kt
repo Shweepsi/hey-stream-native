@@ -50,18 +50,19 @@ data class HsDimens(
     /** Affiche d'une fiche. */
     val detailPosterWidth: Dp,
     /** Barre du haut (au doigt). */
-    val topBarHeight: Dp = 64.dp,
+    val topBarHeight: Dp = 48.dp,
 )
 
 val TvDimens = HsDimens(
     isTv = true,
-    screenHorizontal = 30.dp,
-    screenVertical = 24.dp,
-    gapSmall = 6.dp,
-    gap = 12.dp,
+    // Marges sûres d'un téléviseur (48 × 27 dp).
+    screenHorizontal = 48.dp,
+    screenVertical = 27.dp,
+    gapSmall = 8.dp,
+    gap = 16.dp,
     gapLarge = 24.dp,
-    radius = 8.dp,
-    badgeRadius = 4.dp,
+    radius = 12.dp,
+    badgeRadius = 6.dp,
     focusBorder = 2.dp,
     minTouch = 32.dp,
     categoryRowHeight = 34.dp,
@@ -72,8 +73,8 @@ val TvDimens = HsDimens(
     channelsPanelWidth = 285.dp,
     posterColumns = 6,
     posterMinWidth = 110.dp,
-    posterGapHorizontal = 15.dp,
-    posterGapVertical = 21.dp,
+    posterGapHorizontal = 16.dp,
+    posterGapVertical = 24.dp,
     icon = 16.dp,
     iconLarge = 48.dp,
     progressHeight = 3.dp,
@@ -92,7 +93,7 @@ val TouchDimens = HsDimens(
     focusBorder = 2.dp,
     minTouch = 48.dp,
     categoryRowHeight = 48.dp,
-    channelRowHeight = 64.dp,
+    channelRowHeight = 48.dp,
     channelLogoWidth = 48.dp,
     channelLogoHeight = 32.dp,
     categoriesPanelWidth = 220.dp,
@@ -100,7 +101,7 @@ val TouchDimens = HsDimens(
     posterColumns = 0,
     posterMinWidth = 120.dp,
     posterGapHorizontal = 16.dp,
-    posterGapVertical = 20.dp,
+    posterGapVertical = 24.dp,
     icon = 20.dp,
     iconLarge = 48.dp,
     progressHeight = 4.dp,
@@ -108,23 +109,21 @@ val TouchDimens = HsDimens(
 )
 
 /**
- * Téléphone : plus dense que la tablette, surtout les barres et les marges
- * (barre du haut de 52 dp, marges et espacements réduits). Cibles tactiles
- * d'au moins 40 dp.
+ * Téléphone : plus dense que la tablette, surtout les marges (16 dp au lieu
+ * de 24). Cibles tactiles d'au moins 40 dp.
+ *
+ * Grille commune : marges d'écran de 16 (téléphone), 24 (tablette) ou 48 dp
+ * (TV) ; espacements de 8, 16, 24 ou 32 dp ; coins de 12 dp.
  */
 val PhoneDimens = TouchDimens.copy(
     screenHorizontal = 16.dp,
-    screenVertical = 10.dp,
-    gapSmall = 6.dp,
-    gap = 12.dp,
-    gapLarge = 16.dp,
+    screenVertical = 8.dp,
     minTouch = 40.dp,
     categoryRowHeight = 40.dp,
-    channelRowHeight = 52.dp,
+    channelRowHeight = 48.dp,
     channelLogoWidth = 42.dp,
     channelLogoHeight = 28.dp,
     iconLarge = 40.dp,
-    topBarHeight = 52.dp,
     // Téléphone récent en paysage : 5 affiches par ligne.
     posterColumns = 5,
 )

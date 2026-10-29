@@ -95,7 +95,8 @@ fun Clock(modifier: Modifier = Modifier, showDate: Boolean = true) {
 
 /**
  * Barre du haut, au doigt seulement (tablette, téléphone) : retour, titre,
- * actions. Sur TV, la touche Retour de la télécommande suffit.
+ * actions, sur le fond de l'écran (pas de bande grise). Sur TV, la touche
+ * Retour de la télécommande suffit.
  *
  * Son fond va jusqu'aux bords de l'écran (sous la barre d'état et à côté de
  * l'encoche) ; son contenu reste dans la zone sûre. Le contenu en dessous
@@ -111,15 +112,15 @@ fun HsTopBar(
     Row(
         modifier
             .fillMaxWidth()
-            .background(Hs.colors.surface)
+            .background(Hs.colors.background)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .height(Hs.dimens.topBarHeight)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = Hs.dimens.screenHorizontal - 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Surface)
+            HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
         }
         Text(title, style = Hs.type.title, maxLines = 1, modifier = Modifier.weight(1f))
         actions()
