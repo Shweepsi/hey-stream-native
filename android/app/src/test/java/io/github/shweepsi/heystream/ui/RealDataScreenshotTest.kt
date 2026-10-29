@@ -187,6 +187,14 @@ class RealDataScreenshotTest {
 
     @Test fun liveTablet() = live(Device.Tablet)
 
+    @Test fun moviesTv() = movies(Device.Tv)
+
+    @Test fun seriesTv() = series(Device.Tv)
+
+    @Test fun seriesDetailTv() = seriesDetail(Device.Tv)
+
+    @Test fun liveTv() = live(Device.Tv)
+
     private companion object {
         val Loaded = LoadStates(
             refresh = LoadState.NotLoading(endOfPaginationReached = true),
