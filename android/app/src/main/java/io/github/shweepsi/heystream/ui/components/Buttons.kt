@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -15,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.shweepsi.heystream.ui.theme.Hs
 
 /** Importance d'un bouton. */
@@ -78,6 +80,8 @@ fun HsIconButton(
     modifier: Modifier = Modifier,
     style: ButtonStyle = ButtonStyle.Secondary,
     selected: Boolean = false,
+    /** Petit texte au centre d'une icône plus grande (« 10 » dans la flèche du recul). */
+    caption: String? = null,
 ) {
     val colors = Hs.colors
     val dimens = Hs.dimens
@@ -96,6 +100,18 @@ fun HsIconButton(
         contentColor = if (style == ButtonStyle.Primary) colors.background else colors.text,
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = LocalContentColor.current)
+        if (caption == null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = LocalContentColor.current)
+        } else {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon * 1.6f), tint = LocalContentColor.current)
+                Text(
+                    caption,
+                    style = Hs.type.badge.copy(fontSize = if (dimens.isTv) 9.sp else 10.sp, letterSpacing = 0.sp),
+                    color = LocalContentColor.current,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }

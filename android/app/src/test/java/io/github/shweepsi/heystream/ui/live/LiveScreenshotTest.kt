@@ -146,7 +146,7 @@ class LiveScreenshotTest {
     fun liveTvFrench() {
         RuntimeEnvironment.setQualifiers("fr-rFR-" + Device.Tv.qualifiers)
         compose.setContent {
-            HeyStreamTheme(isTv = true, systemDark = true) {
+            HeyStreamTheme(isTv = true) {
                 CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
                     Live(playing.copy(message = UiText(R.string.live_favorite_removed, listOf("Info Monde"))), channels)
                 }
@@ -160,7 +160,7 @@ class LiveScreenshotTest {
 
     @Test fun liveTablet() = live("live", Device.Tablet, playing.copy(message = UiText(R.string.live_favorite_added, listOf("Info Régions"))))
 
-    @Test fun liveTabletDark() = live("live", Device.TabletDark, playing.copy(playback = LivePlayback.Reconnecting))
+    @Test fun liveReconnectingTablet() = live("live_reconnecting", Device.Tablet, playing.copy(playback = LivePlayback.Reconnecting))
 
     @Test fun livePhone() = live("live", Device.Phone, playing)
 

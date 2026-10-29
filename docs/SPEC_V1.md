@@ -57,7 +57,11 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 ## Lecteur (films et épisodes)
 
-- **Avance / recul rapides** (±10 s), barre de progression.
+- **Avance / recul rapides** (+30 s / −10 s), appuis rapprochés cumulés en un
+  seul saut ; barre de progression. Au doigt (décidé le 2026-10-29) : double
+  tap sur un côté de la vidéo pour avancer ou reculer, glissement vertical à
+  droite pour le volume et à gauche pour la luminosité (rendue au système en
+  quittant le lecteur).
 - Choix de la **piste audio** et des **sous-titres** intégrés au flux.
 
 ## Confort

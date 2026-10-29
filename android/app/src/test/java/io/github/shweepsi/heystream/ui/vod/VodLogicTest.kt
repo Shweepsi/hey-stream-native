@@ -147,4 +147,18 @@ class VodLogicTest {
         assertEquals("placeholder:10", posterKey(10, null, repeated))
         assertTrue(repeatedPositions(0, listOf(1L, 2L, 3L)).isEmpty())
     }
+
+    @Test
+    fun emptyContinueAndFavoritesAreHiddenUnlessOpen() {
+        val categories = listOf(
+            VodCategory(CategoryKey.Continue, name = null, count = 0),
+            VodCategory(CategoryKey.Favorites, name = null, count = 4),
+            VodCategory(CategoryKey.Provider("7"), name = "Action", count = 0),
+        )
+        assertEquals(
+            listOf(CategoryKey.Favorites, CategoryKey.Provider("7")),
+            shownCategories(categories, CategoryKey.Provider("7")).map { it.key },
+        )
+        assertEquals(3, shownCategories(categories, CategoryKey.Continue).size)
+    }
 }

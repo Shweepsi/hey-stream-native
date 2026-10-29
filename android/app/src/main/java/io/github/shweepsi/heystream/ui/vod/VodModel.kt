@@ -136,6 +136,10 @@ fun categoriesOf(data: VodData): List<VodCategory> =
         VodCategory(CategoryKey.Favorites, name = null, count = data.favoritesCount),
     ) + data.categories
 
+/** Colonne affichée : « Continuer » et « Favoris » vides sont masqués, sauf s'ils sont ouverts. */
+fun shownCategories(categories: List<VodCategory>, selected: CategoryKey?): List<VodCategory> =
+    categories.filter { it.key is CategoryKey.Provider || (it.count ?: 0L) > 0L || it.key == selected }
+
 /**
  * Positions (dans la liste complète) des titres déjà présents plus haut
  * parmi les entrées chargées [ids], qui commencent à [offset].

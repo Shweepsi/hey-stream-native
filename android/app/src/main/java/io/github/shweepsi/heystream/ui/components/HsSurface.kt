@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,6 +19,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -130,8 +132,20 @@ fun HsSurface(
             .padding(contentPadding),
         contentAlignment = contentAlignment,
     ) {
-        CompositionLocalProvider(LocalContentColor provides foreground) {
+        CompositionLocalProvider(LocalContentColor provides foreground, LocalSurfaceFocused provides focused) {
             content()
         }
     }
 }
+
+/** Le [HsSurface] englobant a le focus (télécommande) : un nom trop long y défile ([marqueeWhen]). */
+val LocalSurfaceFocused = compositionLocalOf { false }
+
+/**
+ * Nom trop long pour sa place : il défile quand l'élément est mis en avant
+ * (focus à la télécommande, sélection au doigt) au lieu d'être coupé par
+ * « … ». Sur TV, seul l'élément focalisé défile : une ligne à la fois sur la
+ * Mi Box S.
+ */
+fun Modifier.marqueeWhen(active: Boolean): Modifier =
+    if (active) basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1_000, repeatDelayMillis = 1_500) else this

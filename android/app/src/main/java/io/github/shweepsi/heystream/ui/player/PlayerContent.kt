@@ -1,16 +1,25 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,17 +50,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -61,6 +80,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -72,7 +92,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.player.PlaybackStatus
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.FocusScale
@@ -87,6 +106,7 @@ import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
+import kotlin.math.roundToInt
 
 /** Position de lecture, lue sur le lecteur ; [durationMs] vaut 0 si inconnue. */
 data class PlaybackPosition(val positionMs: Long = 0, val durationMs: Long = 0)
@@ -138,11 +158,21 @@ class PlayerChrome(visible: Boolean = true, menu: TrackMenu? = null, focus: Cont
     }
 }
 
+/**
+ * Volume du média et luminosité de l'écran (0 à 1), réglés au doigt par un
+ * glissement vertical : à droite le volume, à gauche la luminosité.
+ */
+interface PlayerLevels {
+    var volume: Float
+    var brightness: Float
+}
+
 /** Ce que l'écran demande au lecteur et à la navigation. */
 interface PlayerActions {
     fun togglePause()
 
-    fun seekBy(deltaMs: Long)
+    /** Avance (+30 s) ou recul (−10 s), cumulable. */
+    fun nudge(forward: Boolean)
 
     fun seekTo(fraction: Float)
 
@@ -165,8 +195,9 @@ interface PlayerActions {
  * (sur la vidéo, les couleurs ne suivent pas le thème).
  *
  * Télécommande : OK met en pause et montre les commandes ; gauche / droite
- * avancent ou reculent de 10 s même commandes masquées ; haut / bas montrent
- * les commandes.
+ * avancent (30 s) ou reculent (10 s), appuis cumulés, même commandes
+ * masquées ; haut / bas montrent les commandes. Au doigt : double tap sur un
+ * côté de la vidéo.
  */
 @Composable
 fun PlayerContent(
@@ -176,9 +207,11 @@ fun PlayerContent(
     chrome: PlayerChrome,
     actions: PlayerActions,
     modifier: Modifier = Modifier,
+    /** Absent sur TV et dans les tests : pas de glissement vertical. */
+    levels: PlayerLevels? = null,
     video: @Composable () -> Unit = {},
 ) {
-    HeyStreamTheme(isTv = Hs.isTv, systemDark = true) {
+    HeyStreamTheme(isTv = Hs.isTv) {
         val failed = state.error != null || (status.failed && status.reconnectAttempt == 0 && !state.retrying)
         val blocking = failed || state.next != null || chrome.menu != null
         val root = remember { FocusRequester() }
@@ -186,6 +219,18 @@ fun PlayerContent(
         // Touche dont le relâchement ne doit pas atteindre la commande qui vient de prendre le focus.
         val swallowUp = remember { arrayOfNulls<Key>(1) }
         val controlsShown = chrome.visible && !failed && state.next == null
+        val seeking = rememberUpdatedState(state.pendingSeekMs != null)
+        val haptic = LocalHapticFeedback.current
+        // Dernier tap d'avance ou de recul au doigt : l'onde part de là.
+        var flash by remember { mutableStateOf<TapFlash?>(null) }
+        // Glissement vertical en cours (volume ou luminosité) et niveau affiché.
+        var adjusting by remember { mutableStateOf<LevelKind?>(null) }
+        var level by remember { mutableFloatStateOf(0f) }
+        val tapNudge = { forward: Boolean, at: Offset ->
+            actions.nudge(forward)
+            haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            flash = TapFlash(forward, at, (flash?.id ?: 0) + 1)
+        }
 
         LaunchedEffect(controlsShown, chrome.focus, chrome.menu) {
             withFrameNanos { }
@@ -219,10 +264,69 @@ fun PlayerContent(
                     }
                 }
                 .pointerInput(Unit) {
-                    detectTapGestures { if (chrome.visible) chrome.hide() else chrome.show() }
-                },
+                    // Pendant le cumul, chaque toucher d'un côté ajoute un pas
+                    // tout de suite, sans attendre le délai du double tap (un
+                    // tap rapide ne doit être ni perdu ni compté en double).
+                    awaitEachGesture {
+                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                        val side = sideOf(down.position.x, size.width)
+                        if (seeking.value && side != null) {
+                            down.consume()
+                            tapNudge(side, down.position)
+                            waitForUpOrCancellation(pass = PointerEventPass.Initial)?.consume()
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
+                    // Double tap sur un côté : recul (gauche) ou avance (droite).
+                    detectTapGestures(
+                        onDoubleTap = { offset -> sideOf(offset.x, size.width)?.let { tapNudge(it, offset) } },
+                        onTap = { if (chrome.visible) chrome.hide() else chrome.show() },
+                    )
+                }
+                .then(
+                    if (levels == null) {
+                        Modifier
+                    } else {
+                        Modifier.pointerInput(levels) {
+                            var kind: LevelKind? = null
+                            detectVerticalDragGestures(
+                                onDragStart = { start ->
+                                    // Bords haut et bas laissés au système (barres masquées).
+                                    kind = when {
+                                        start.y < size.height * 0.12f || start.y > size.height * 0.88f -> null
+                                        start.x > size.width / 2f -> LevelKind.Volume
+                                        else -> LevelKind.Brightness
+                                    }
+                                    kind?.let {
+                                        level = if (it == LevelKind.Volume) levels.volume else levels.brightness
+                                        adjusting = it
+                                    }
+                                },
+                                onVerticalDrag = { change, dy ->
+                                    val current = kind ?: return@detectVerticalDragGestures
+                                    change.consume()
+                                    // Les trois quarts de la hauteur : de 0 à 100 %.
+                                    level = (level - dy / (size.height * 0.75f)).coerceIn(0f, 1f)
+                                    if (current == LevelKind.Volume) levels.volume = level else levels.brightness = level
+                                },
+                                onDragEnd = {
+                                    kind = null
+                                    adjusting = null
+                                },
+                                onDragCancel = {
+                                    kind = null
+                                    adjusting = null
+                                },
+                            )
+                        }
+                    },
+                ),
         ) {
             video()
+            flash?.let { SeekRipple(it) }
+            SeekPill(state.pendingSeekMs)
+            LevelIndicator(adjusting, level)
             if (!failed && (state.resolving || (status.buffering && status.reconnectAttempt == 0))) {
                 Text(
                     text = stringResource(R.string.loading),
@@ -294,6 +398,145 @@ fun PlayerContent(
 
 private const val FADE_MS = 150
 
+/** Tiers gauche : recul ; tiers droit : avance ; milieu : rien. */
+private fun sideOf(x: Float, width: Int): Boolean? = when {
+    x < width / 3f -> false
+    x > width * 2 / 3f -> true
+    else -> null
+}
+
+/** Tap d'avance ou de recul au doigt ; [id] relance l'onde à chaque tap. */
+private class TapFlash(val forward: Boolean, val at: Offset, val id: Int)
+
+/**
+ * Onde partie du point touché, limitée au côté du tap, avec la flèche du
+ * saut : le geste est vu tout de suite, même avant que le saut ne parte.
+ */
+@Composable
+private fun BoxScope.SeekRipple(flash: TapFlash) {
+    key(flash.id) {
+        val progress = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { progress.animateTo(1f, tween(RIPPLE_MS, easing = LinearOutSlowInEasing)) }
+        val fade = 1f - progress.value
+        Canvas(Modifier.fillMaxSize()) {
+            val half = size.width / 2f
+            clipRect(left = if (flash.forward) half else 0f, right = if (flash.forward) size.width else half) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.22f * fade),
+                    radius = size.height * (0.15f + 0.6f * progress.value),
+                    center = flash.at,
+                )
+            }
+        }
+        Icon(
+            if (flash.forward) Lucide.RotateCw else Lucide.RotateCcw,
+            contentDescription = null,
+            tint = HsColors.OnMedia.copy(alpha = fade),
+            modifier = Modifier
+                .align(if (flash.forward) BiasAlignment(0.75f, 0f) else BiasAlignment(-0.75f, 0f))
+                .size(40.dp),
+        )
+    }
+}
+
+/**
+ * « +1:30 » ou « −0:20 » : saut cumulé, appliqué à la fin des appuis. Apparaît
+ * en fondu, grossit un instant à chaque appui ; reste du côté du saut.
+ */
+@Composable
+private fun BoxScope.SeekPill(offsetMs: Long?) {
+    // Dernière valeur gardée pendant le fondu de sortie.
+    var shown by remember { mutableLongStateOf(0L) }
+    if (offsetMs != null) shown = offsetMs
+    val bump = remember { Animatable(1f) }
+    LaunchedEffect(offsetMs) {
+        if (offsetMs == null) return@LaunchedEffect
+        bump.snapTo(1.12f)
+        bump.animateTo(1f, tween(BUMP_MS))
+    }
+    AnimatedVisibility(
+        visible = offsetMs != null,
+        enter = fadeIn(tween(FADE_MS)) + scaleIn(tween(FADE_MS), initialScale = 0.85f),
+        exit = fadeOut(tween(FADE_MS)),
+        modifier = Modifier.align(if (shown >= 0) BiasAlignment(0.6f, 0f) else BiasAlignment(-0.6f, 0f)),
+    ) {
+        val sign = if (shown >= 0) "+" else "\u2212"
+        Text(
+            text = sign + Formats.clock(kotlin.math.abs(shown)),
+            style = Hs.type.title.tabular(),
+            color = HsColors.OnMedia,
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = bump.value
+                    scaleY = bump.value
+                }
+                .clip(RoundedCornerShape(Hs.dimens.radius))
+                .background(HsColors.MediaScrim)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+        )
+    }
+}
+
+/** Réglage en cours au doigt. */
+private enum class LevelKind { Volume, Brightness }
+
+/**
+ * Volume ou luminosité pendant le glissement : icône, jauge et pourcentage,
+ * au centre ; s'efface peu après la fin du geste.
+ */
+@Composable
+private fun BoxScope.LevelIndicator(kind: LevelKind?, level: Float) {
+    // Dernier réglage gardé pendant le fondu de sortie.
+    var shown by remember { mutableStateOf(LevelKind.Volume) }
+    if (kind != null) shown = kind
+    AnimatedVisibility(
+        visible = kind != null,
+        enter = fadeIn(tween(FADE_MS)),
+        exit = fadeOut(tween(FADE_MS, delayMillis = LEVEL_LINGER_MS)),
+        modifier = Modifier.align(Alignment.Center),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(Hs.dimens.radius))
+                .background(HsColors.MediaScrim)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
+            Icon(
+                if (shown == LevelKind.Volume) Lucide.Volume2 else Lucide.Sun,
+                contentDescription = null,
+                tint = HsColors.OnMedia,
+                modifier = Modifier.size(Hs.dimens.icon),
+            )
+            Box(
+                Modifier
+                    .width(120.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(HsColors.OnMedia.copy(alpha = 0.3f)),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(level)
+                        .fillMaxHeight()
+                        .background(HsColors.OnMedia),
+                )
+            }
+            Text(
+                text = "${(level * 100).roundToInt()} %",
+                style = Hs.type.label.tabular(),
+                color = HsColors.OnMedia,
+                modifier = Modifier.widthIn(min = 44.dp),
+            )
+        }
+    }
+}
+
+private const val LEVEL_LINGER_MS = 500
+private const val RIPPLE_MS = 450
+private const val BUMP_MS = 160
+
 /** Commandes qui prennent le focus selon la touche qui les a montrées. */
 @Stable
 private class ControlFocusRequesters {
@@ -335,11 +578,11 @@ private fun handleKey(
             return true
         }
         Key.MediaFastForward -> {
-            if (down) actions.seekBy(PlayerController.SEEK_STEP_MS)
+            if (down) actions.nudge(forward = true)
             return true
         }
         Key.MediaRewind -> {
-            if (down) actions.seekBy(-PlayerController.SEEK_STEP_MS)
+            if (down) actions.nudge(forward = false)
             return true
         }
     }
@@ -352,7 +595,7 @@ private fun handleKey(
             true
         }
         Key.DirectionLeft, Key.DirectionRight -> {
-            actions.seekBy(if (event.key == Key.DirectionRight) PlayerController.SEEK_STEP_MS else -PlayerController.SEEK_STEP_MS)
+            actions.nudge(forward = event.key == Key.DirectionRight)
             chrome.show(ControlFocus.Seek)
             swallowUp[0] = event.key
             true
@@ -398,16 +641,16 @@ private fun Controls(
                 .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
                 .padding(
                     horizontal = dimens.screenHorizontal,
-                    vertical = if (dimens.isTv) 18.dp else 16.dp,
+                    vertical = if (dimens.isTv) 12.dp else 10.dp,
                 ),
-            verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 10.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 6.dp else 8.dp),
         ) {
             TitleBlock(state)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.gap)) {
                 TimeText(position.positionMs)
                 SeekBar(
                     position = position,
-                    onSeekBy = actions::seekBy,
+                    onNudge = actions::nudge,
                     onSeekTo = actions::seekTo,
                     onToggle = actions::togglePause,
                     modifier = Modifier
@@ -419,9 +662,10 @@ private fun Controls(
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.gap)) {
                 HsIconButton(
-                    icon = Lucide.Rewind,
+                    icon = Lucide.RotateCcw,
+                    caption = (BACK_STEP_MS / 1000).toString(),
                     label = stringResource(R.string.player_rewind),
-                    onClick = { actions.seekBy(-PlayerController.SEEK_STEP_MS) },
+                    onClick = { actions.nudge(forward = false) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )
                 HsIconButton(
@@ -434,9 +678,10 @@ private fun Controls(
                         .focusProperties { up = focus.seek },
                 )
                 HsIconButton(
-                    icon = Lucide.FastForward,
+                    icon = Lucide.RotateCw,
+                    caption = (FORWARD_STEP_MS / 1000).toString(),
                     label = stringResource(R.string.player_forward),
-                    onClick = { actions.seekBy(PlayerController.SEEK_STEP_MS) },
+                    onClick = { actions.nudge(forward = true) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )
                 Spacer(Modifier.weight(1f))
@@ -514,13 +759,13 @@ private fun TimeText(ms: Long?) {
 }
 
 /**
- * Barre de progression : gauche / droite avancent ou reculent de 10 s quand
+ * Barre de progression : gauche / droite avancent (30 s) ou reculent (10 s) quand
  * elle a le focus ; au doigt, toucher ou glisser y place la lecture.
  */
 @Composable
 private fun SeekBar(
     position: PlaybackPosition,
-    onSeekBy: (Long) -> Unit,
+    onNudge: (Boolean) -> Unit,
     onSeekTo: (Float) -> Unit,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
@@ -538,9 +783,7 @@ private fun SeekBar(
             .onPreviewKeyEvent { event ->
                 when (event.key) {
                     Key.DirectionLeft, Key.DirectionRight -> {
-                        if (event.type == KeyEventType.KeyDown) {
-                            onSeekBy(if (event.key == Key.DirectionRight) PlayerController.SEEK_STEP_MS else -PlayerController.SEEK_STEP_MS)
-                        }
+                        if (event.type == KeyEventType.KeyDown) onNudge(event.key == Key.DirectionRight)
                         true
                     }
                     else -> false

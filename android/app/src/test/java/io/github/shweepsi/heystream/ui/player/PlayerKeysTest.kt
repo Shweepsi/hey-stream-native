@@ -17,7 +17,6 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.player.PlaybackStatus
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,15 +36,16 @@ class PlayerKeysTest {
 
     private class Recorder : PlayerActions {
         var toggles = 0
-        val seeks = mutableListOf<Long>()
+        /** Appuis d'avance (true) et de recul (false). */
+        val seeks = mutableListOf<Boolean>()
         var nextPlayed = 0
 
         override fun togglePause() {
             toggles++
         }
 
-        override fun seekBy(deltaMs: Long) {
-            seeks += deltaMs
+        override fun nudge(forward: Boolean) {
+            seeks += forward
         }
 
         override fun seekTo(fraction: Float) = Unit
@@ -74,7 +74,7 @@ class PlayerKeysTest {
     private fun show(chrome: PlayerChrome, actions: Recorder, state: PlayerUiState = PlayerUiState(title = "Nord Express", resolving = false)) {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = PlaybackStatus(active = true, playing = true),
@@ -110,13 +110,13 @@ class PlayerKeysTest {
         show(chrome, actions)
         compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true), actions.seeks)
         assertTrue(chrome.visible)
         assertEquals(ControlFocus.Seek, chrome.focus)
         // La barre a maintenant le focus : gauche recule.
         compose.onRoot().performKeyInput { pressKey(Key.DirectionLeft) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS, -PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true, false), actions.seeks)
         assertEquals(0, actions.toggles)
     }
 
@@ -145,7 +145,7 @@ class PlayerKeysTest {
         )
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = PlaybackStatus(active = true, playing = true),
@@ -162,7 +162,7 @@ class PlayerKeysTest {
         compose.waitForIdle()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         compose.waitForIdle()
-        assertEquals(listOf(PlayerController.SEEK_STEP_MS), actions.seeks)
+        assertEquals(listOf(true), actions.seeks)
     }
 
     @Test
@@ -173,7 +173,7 @@ class PlayerKeysTest {
         val failed = PlaybackStatus(active = true, failed = true)
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = failed,
@@ -198,7 +198,7 @@ class PlayerKeysTest {
         val chrome = PlayerChrome(visible = true)
         val actions = Recorder()
         compose.setContent {
-            HeyStreamTheme(isTv = false, systemDark = true) {
+            HeyStreamTheme(isTv = false) {
                 PlayerContent(
                     state = PlayerUiState(title = "Nord Express", resolving = false),
                     status = PlaybackStatus(active = true, playing = true),

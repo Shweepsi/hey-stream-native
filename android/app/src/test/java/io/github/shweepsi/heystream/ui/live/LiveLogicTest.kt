@@ -156,4 +156,18 @@ class LiveLogicTest {
         assertTrue(phone.videoHeight <= below * 0.7f + 0.01.dp)
         assertEquals(phone.videoWidth.value * 9 / 16, phone.videoHeight.value, 0.01f)
     }
+
+    @Test
+    fun emptyFavoritesAndRecentsAreHiddenUnlessOpen() {
+        val categories = liveCategories(listOf(CategoryEntry(id = "1", name = "Infos", isAdult = false, locked = false, hidden = false)), mapOf("1" to 3L), favorites = 0, recents = 2)
+        assertEquals(
+            listOf(CategoryKey.Recents, CategoryKey.Provider("1")),
+            shownCategories(categories, CategoryKey.Provider("1")).map { it.key },
+        )
+        // Favoris ouvert (par défaut) : il reste, même vide.
+        assertEquals(
+            listOf(CategoryKey.Favorites, CategoryKey.Recents, CategoryKey.Provider("1")),
+            shownCategories(categories, CategoryKey.Favorites).map { it.key },
+        )
+    }
 }

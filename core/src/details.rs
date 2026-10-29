@@ -92,6 +92,9 @@ struct RawInfo {
     cover_big: Option<String>,
 }
 
+/// Plus grand nombre seul lu comme des minutes (10 h) ; au-delà, des secondes.
+const BARE_MINUTES_MAX: i64 = 600;
+
 impl RawInfo {
     fn plot(&self) -> Option<String> {
         self.plot.clone().or_else(|| self.description.clone())
@@ -110,16 +113,19 @@ impl RawInfo {
     }
 
     /// Durée en secondes : `duration_secs`, sinon `duration` au format
-    /// `HH:MM:SS` ou `MM:SS`.
+    /// `HH:MM:SS` ou `MM:SS`. Un nombre seul est ambigu : jusqu'à 600, ce
+    /// sont des minutes (« 109 » : un film d'1 h 49, pas 2 min) ; au-delà,
+    /// des secondes (« 6540 » : 1 h 49, pas 109 h).
     fn duration_secs(&self) -> Option<i64> {
         self.duration_secs.filter(|&d| d > 0).or_else(|| {
-            let parts: Option<Vec<i64>> = self
-                .duration
-                .as_deref()?
-                .split(':')
-                .map(|p| p.trim().parse().ok())
-                .collect();
-            let secs = parts?.iter().fold(0, |acc, p| acc * 60 + p);
+            let text = self.duration.as_deref()?.trim();
+            let parts: Option<Vec<i64>> = text.split(':').map(|p| p.trim().parse().ok()).collect();
+            let parts = parts?;
+            let secs = match parts.as_slice() {
+                [n] if *n <= BARE_MINUTES_MAX => n * 60,
+                [secs] => *secs,
+                _ => parts.iter().fold(0, |acc, p| acc * 60 + p),
+            };
             (secs > 0).then_some(secs)
         })
     }

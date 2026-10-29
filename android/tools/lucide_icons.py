@@ -16,7 +16,7 @@ ICONS = [
     "key-round", "languages", "layers", "list", "list-video", "loader-circle", "lock",
     "lock-open", "log-out", "maximize", "minimize", "minus", "monitor-play", "pause", "play",
     "plus", "refresh-cw", "rewind", "rotate-ccw", "rotate-cw", "search", "server", "settings",
-    "shield-check", "skip-back", "skip-forward", "star", "trash", "tv", "tv-minimal", "user",
+    "shield-check", "skip-back", "skip-forward", "star", "sun", "trash", "tv", "tv-minimal", "user",
     "volume-2", "wifi-off", "x",
 ]
 

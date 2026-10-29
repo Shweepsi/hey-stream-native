@@ -41,7 +41,7 @@ class DetailKeysTest {
     private fun show(content: @Composable () -> Unit) {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true, content = content)
+                HeyStreamTheme(isTv = true, content = content)
             }
         }
         compose.waitForIdle()

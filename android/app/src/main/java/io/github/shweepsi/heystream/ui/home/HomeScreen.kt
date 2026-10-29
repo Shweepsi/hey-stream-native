@@ -2,6 +2,7 @@ package io.github.shweepsi.heystream.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -160,13 +161,31 @@ private fun HomeTile(
         onClick = onClick,
         color = Hs.colors.surface,
         modifier = modifier,
-        contentPadding = PaddingValues(if (dimens.isTv) 27.dp else 28.dp),
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(icon, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(dimens.iconLarge))
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = Hs.type.display, color = LocalContentColor.current, maxLines = 1)
-                Text(subtitle, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 1)
+        // Téléphone en paysage : tuile basse, marges et icône réduites pour
+        // que le titre et le sous-titre tiennent.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val low = !dimens.isTv && maxHeight < 200.dp
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = if (dimens.isTv) 27.dp else 28.dp,
+                        vertical = if (dimens.isTv) 27.dp else if (low) 18.dp else 28.dp,
+                    ),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = LocalContentColor.current,
+                    modifier = Modifier.size(if (low) dimens.iconLarge * 0.67f else dimens.iconLarge),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(title, style = Hs.type.display, color = LocalContentColor.current, maxLines = 1)
+                    Text(subtitle, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 1)
+                }
             }
         }
     }

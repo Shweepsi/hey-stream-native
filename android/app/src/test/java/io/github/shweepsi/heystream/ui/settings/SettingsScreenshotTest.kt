@@ -75,7 +75,7 @@ class SettingsScreenshotTest {
 
     @Test fun aboutPhone() = settings("about", Device.Phone, SettingsSection.About)
 
-    @Test fun catalogTabletDark() = settings("catalog", Device.TabletDark, SettingsSection.Catalog)
+    @Test fun catalogTablet() = settings("catalog", Device.Tablet, SettingsSection.Catalog)
 
     private fun settingsFrench(name: String, device: Device, section: SettingsSection) =
         compose.captureFrench("settings_$name", device) {

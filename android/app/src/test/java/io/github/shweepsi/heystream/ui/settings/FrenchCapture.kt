@@ -32,7 +32,7 @@ fun ComposeContentTestRule.captureFrench(name: String, device: Device, content: 
     RuntimeEnvironment.setQualifiers("fr-${device.qualifiers}")
     setContent {
         val screen = @Composable {
-            HeyStreamTheme(isTv = device.isTv, systemDark = device.dark) {
+            HeyStreamTheme(isTv = device.isTv) {
                 Box(Modifier.fillMaxSize().background(Hs.colors.background)) { content() }
             }
         }

@@ -55,7 +55,7 @@ class SearchFocusTest {
     private fun show(results: SearchResults = found, focusKey: String? = null) {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     SearchContent(query = "monde", results = results, onQueryChange = {}, onOpen = {}, onBack = {}, focusKey = focusKey)
                 }
             }

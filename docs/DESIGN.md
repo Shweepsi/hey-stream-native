@@ -54,9 +54,9 @@ Piste A retenue : **triangle lecture + deux ondes**.
 
 ## Thème
 
-- Suit le réglage du système (clair / sombre) sur tablette et téléphone.
-- **Toujours sombre sur TV** (Android TV, Apple TV) : le clair éblouit dans le
-  noir.
+- **Toujours sombre** (décidé le 2026-10-29), sur TV comme au doigt : on
+  regarde des vidéos, souvent le soir, et le clair éblouit dans le noir. La
+  palette claire reste décrite ci-dessus pour une éventuelle option.
 
 ## Unités et typographie
 
@@ -93,7 +93,9 @@ Police **Inter** (licence OFL), embarquée dans l'app. Titres 600–700, texte
 - **Au doigt** (tablette, téléphone), pas de contour : l'élément choisi passe
   en **couleurs inversées** (fond Texte, texte Fond : blanc sur sombre, noir
   sur clair).
-- Zones tactiles ≥ 48 dp (Android) / 44 pt (Apple).
+- Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone
+  (densité compacte, décidée le 2026-10-29 : barre du haut de 52 dp, marges
+  réduites, texte courant à 14 sp) / 44 pt (Apple).
 
 ## Animations
 

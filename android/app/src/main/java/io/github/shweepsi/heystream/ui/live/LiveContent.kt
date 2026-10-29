@@ -69,8 +69,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
@@ -86,9 +86,11 @@ import io.github.shweepsi.heystream.ui.components.FocusScale
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
+import io.github.shweepsi.heystream.ui.components.LocalSurfaceFocused
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ProgressRail
+import io.github.shweepsi.heystream.ui.components.marqueeWhen
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -130,13 +132,15 @@ fun LiveContent(
         val end = insets.calculateEndPadding(direction)
         val top = insets.calculateTopPadding()
         val bottom = insets.calculateBottomPadding()
-        val layout = remember(maxWidth, maxHeight, start, end, top, bottom, isTv) {
+        val layout = remember(maxWidth, maxHeight, start, end, top, bottom, isTv, dimens) {
             liveLayout(
                 isTv = isTv,
                 width = maxWidth - start - end,
                 height = maxHeight - top - bottom,
                 categories = dimens.categoriesPanelWidth,
                 channels = dimens.channelsPanelWidth,
+                // Barre du haut et son séparateur.
+                topBar = dimens.topBarHeight + 1.dp,
             )
         }
         val categories = state.categories
@@ -155,21 +159,8 @@ fun LiveContent(
             runCatching { rootAction.requestFocus() }
         }
 
-        // Au doigt : la barre d'état prend la couleur de la barre du haut.
-        if (!isTv && top > 0.dp) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(top)
-                    .background(Hs.colors.surface),
-            )
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(insets),
-        ) {
+        Column(Modifier.fillMaxSize()) {
+            // Au doigt, le fond de la barre va jusqu'aux bords (barre d'état, encoche).
             if (!isTv) {
                 HsTopBar(
                     title = stringResource(R.string.live_title),
@@ -179,14 +170,15 @@ fun LiveContent(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(LiveTopBarHeight - 64.dp)
+                        .height(1.dp)
                         .background(Hs.colors.separator),
                 )
             }
             Box(
                 Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(start = start, end = end, top = if (isTv) top else 0.dp, bottom = bottom),
             ) {
                 when {
                     categories is CategoriesUi.Loading -> LoadingState()
@@ -320,7 +312,7 @@ private fun LivePanels(
         horizontalArrangement = Arrangement.spacedBy(layout.gap),
     ) {
         CategoriesPanel(
-            categories = categories,
+            categories = shownCategories(categories, state.selected),
             selected = state.selected,
             selectedFocus = selectedCategory,
             compact = layout.compact,
@@ -602,12 +594,15 @@ private fun ChannelRow(
             }
             ChannelLogo(channel.image, channel.name)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                // Nom et programme complets : chaîne focalisée sur TV, en aperçu au doigt.
+                val highlighted = if (isTv) LocalSurfaceFocused.current else inPreview
                 Text(
                     text = channel.name,
                     style = Hs.type.itemTitle,
                     color = content,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.marqueeWhen(highlighted),
                 )
                 if (nowTitle != null) {
                     Text(
@@ -616,6 +611,7 @@ private fun ChannelRow(
                         color = secondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.marqueeWhen(highlighted),
                     )
                 }
             }

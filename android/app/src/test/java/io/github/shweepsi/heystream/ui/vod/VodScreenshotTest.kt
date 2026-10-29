@@ -47,9 +47,6 @@ class VodScreenshotTest {
     fun moviesTablet() = compose.capture("vod_movies", Device.Tablet) { Paged(moviesState, movies()) }
 
     @Test
-    fun moviesTabletDark() = compose.capture("vod_movies", Device.TabletDark) { Paged(moviesState, movies()) }
-
-    @Test
     fun moviesPhone() = compose.capture("vod_movies", Device.Phone) { Paged(moviesState, movies()) }
 
     /** Ouverture sur TV : le focus est sur la catégorie ouverte. */

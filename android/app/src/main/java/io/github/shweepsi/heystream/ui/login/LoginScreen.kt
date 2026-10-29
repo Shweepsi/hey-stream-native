@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,72 +97,86 @@ fun LoginContent(
     val focus = LocalFocusManager.current
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
-    Row(
+    BoxWithConstraints(
         Modifier
             .fillMaxSize()
             .background(Hs.colors.background)
-            .imePadding()
-            .padding(horizontal = dimens.screenHorizontal * 2, vertical = dimens.screenVertical),
-        horizontalArrangement = Arrangement.spacedBy(dimens.gapLarge * 2),
-        verticalAlignment = Alignment.CenterVertically,
+            .imePadding(),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(dimens.gap)) {
-            Logo(size = if (dimens.isTv) 40.dp else 44.dp)
-            Text(stringResource(if (state.editing) R.string.login_edit_title else R.string.login_title), style = Hs.type.title)
-            Text(
-                stringResource(if (state.editing) R.string.login_edit_intro else R.string.login_intro),
-                style = Hs.type.body,
-                color = Hs.colors.textSecondary,
-            )
-            Text(stringResource(R.string.login_privacy), style = Hs.type.small, color = Hs.colors.textSecondary)
-        }
-        Column(
+        // Téléphone en paysage : formulaire resserré, pour que le bouton tienne
+        // à l'écran sans défiler.
+        val low = !dimens.isTv && maxHeight < 420.dp
+        val gap = if (low) 10.dp else dimens.gap
+        Row(
             Modifier
-                .weight(1f)
-                .widthIn(max = 460.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(dimens.gap),
+                .fillMaxSize()
+                .padding(horizontal = dimens.screenHorizontal * 2, vertical = if (low) 8.dp else dimens.screenVertical),
+            horizontalArrangement = Arrangement.spacedBy(dimens.gapLarge * 2),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            LoginField(
-                label = stringResource(R.string.login_server),
-                value = state.server,
-                onValueChange = onServerChange,
-                placeholder = stringResource(R.string.login_server_hint),
-                keyboardType = KeyboardType.Uri,
-                modifier = Modifier.focusRequester(first).testTag(LoginTags.SERVER),
-                onNext = { focus.moveFocus(FocusDirection.Down) },
-            )
-            LoginField(
-                label = stringResource(R.string.login_username),
-                value = state.username,
-                onValueChange = onUsernameChange,
-                keyboardType = KeyboardType.Text,
-                modifier = Modifier.testTag(LoginTags.USERNAME),
-                onNext = { focus.moveFocus(FocusDirection.Down) },
-            )
-            LoginField(
-                label = stringResource(R.string.login_password),
-                value = state.password,
-                onValueChange = onPasswordChange,
-                keyboardType = KeyboardType.Password,
-                password = true,
-                imeAction = ImeAction.Done,
-                modifier = Modifier.testTag(LoginTags.PASSWORD),
-                onNext = onSubmit,
-            )
-            Text(
-                text = state.error?.resolve() ?: " ",
-                style = Hs.type.body,
-                color = Hs.colors.text,
-            )
-            HsButton(
-                text = stringResource(if (state.busy) R.string.login_checking else R.string.login_submit),
-                onClick = onSubmit,
-                // Toujours activable (un second appui est ignoré pendant la
-                // vérification) : le focus reste sur le bouton.
-                style = ButtonStyle.Primary,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(dimens.gap)) {
+                Logo(size = if (dimens.isTv) 40.dp else 44.dp)
+                Text(stringResource(if (state.editing) R.string.login_edit_title else R.string.login_title), style = Hs.type.title)
+                Text(
+                    stringResource(if (state.editing) R.string.login_edit_intro else R.string.login_intro),
+                    style = Hs.type.body,
+                    color = Hs.colors.textSecondary,
+                )
+                Text(stringResource(R.string.login_privacy), style = Hs.type.small, color = Hs.colors.textSecondary)
+            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .widthIn(max = 460.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(gap),
+            ) {
+                LoginField(
+                    label = stringResource(R.string.login_server),
+                    value = state.server,
+                    onValueChange = onServerChange,
+                    placeholder = stringResource(R.string.login_server_hint),
+                    keyboardType = KeyboardType.Uri,
+                    modifier = Modifier.focusRequester(first).testTag(LoginTags.SERVER),
+                    onNext = { focus.moveFocus(FocusDirection.Down) },
+                )
+                LoginField(
+                    label = stringResource(R.string.login_username),
+                    value = state.username,
+                    onValueChange = onUsernameChange,
+                    keyboardType = KeyboardType.Text,
+                    modifier = Modifier.testTag(LoginTags.USERNAME),
+                    onNext = { focus.moveFocus(FocusDirection.Down) },
+                )
+                LoginField(
+                    label = stringResource(R.string.login_password),
+                    value = state.password,
+                    onValueChange = onPasswordChange,
+                    keyboardType = KeyboardType.Password,
+                    password = true,
+                    imeAction = ImeAction.Done,
+                    modifier = Modifier.testTag(LoginTags.PASSWORD),
+                    onNext = onSubmit,
+                )
+                // Place réservée au message (rien ne bouge quand il apparaît),
+                // sauf sur un écran bas.
+                val error = state.error?.resolve()
+                if (error != null || !low) {
+                    Text(
+                        text = error ?: " ",
+                        style = Hs.type.body,
+                        color = Hs.colors.text,
+                    )
+                }
+                HsButton(
+                    text = stringResource(if (state.busy) R.string.login_checking else R.string.login_submit),
+                    onClick = onSubmit,
+                    // Toujours activable (un second appui est ignoré pendant la
+                    // vérification) : le focus reste sur le bouton.
+                    style = ButtonStyle.Primary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

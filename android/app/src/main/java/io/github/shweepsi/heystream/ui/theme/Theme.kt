@@ -4,7 +4,6 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.LocalContentColor
@@ -17,6 +16,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 
 val LocalHsColors = staticCompositionLocalOf { DarkColors }
@@ -51,19 +51,29 @@ fun Context.isTelevision(): Boolean {
 }
 
 /**
- * Thème de l'app : toujours sombre sur TV, sinon celui du système. Les
- * tailles suivent l'appareil (TV : écran de 960 × 540 dp ; tablette et
- * téléphone : valeurs tactiles).
+ * Thème de l'app : toujours sombre (décidé le 2026-10-29 : on regarde des
+ * vidéos, souvent le soir ; un seul rendu à soigner). Les
+ * tailles suivent l'appareil (TV : écran de 960 × 540 dp ; tablette :
+ * valeurs tactiles ; téléphone : plus dense).
  */
 @Composable
 fun HeyStreamTheme(
     isTv: Boolean = LocalContext.current.let { context -> remember(context) { context.isTelevision() } },
-    systemDark: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    val colors = if (isTv || systemDark) DarkColors else LightColors
-    val type = if (isTv) TvType else TouchType
-    val dimens = if (isTv) TvDimens else TouchDimens
+    val colors = DarkColors
+    // Téléphone : plus petit côté sous 600 dp (une tablette en a plus).
+    val phone = !isTv && LocalConfiguration.current.smallestScreenWidthDp < 600
+    val type = when {
+        isTv -> TvType
+        phone -> PhoneType
+        else -> TouchType
+    }
+    val dimens = when {
+        isTv -> TvDimens
+        phone -> PhoneDimens
+        else -> TouchDimens
+    }
     val scheme = if (colors.isDark) {
         darkColorScheme(
             primary = colors.text,

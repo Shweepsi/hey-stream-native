@@ -228,8 +228,8 @@ class PlayerController(private val context: Context) {
             )
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setSeekBackIncrementMs(SEEK_STEP_MS)
-            .setSeekForwardIncrementMs(SEEK_STEP_MS)
+            .setSeekBackIncrementMs(SEEK_BACK_MS)
+            .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
             .build()
             .also { it.addListener(listener) }
     }
@@ -289,8 +289,9 @@ class PlayerController(private val context: Context) {
     }
 
     companion object {
-        /** Avance / recul rapides (spec : ±10 s). */
-        const val SEEK_STEP_MS = 10_000L
+        /** Avance et recul rapides (spec : +30 s, −10 s, appuis cumulés). */
+        const val SEEK_FORWARD_MS = 30_000L
+        const val SEEK_BACK_MS = 10_000L
         private const val MAX_ATTEMPTS = 6
     }
 }

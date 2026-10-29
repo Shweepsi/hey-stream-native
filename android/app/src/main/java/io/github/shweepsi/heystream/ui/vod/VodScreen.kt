@@ -3,8 +3,8 @@ package io.github.shweepsi.heystream.ui.vod
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -63,6 +64,7 @@ import androidx.paging.compose.itemContentType
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.appGraph
+import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.CategoryRow
 import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
@@ -175,7 +177,7 @@ fun VodContent(
     }
     val categories = @Composable { modifier: Modifier, padding: PaddingValues ->
         CategoriesPanel(
-            categories = state.categories,
+            categories = shownCategories(state.categories, state.selected),
             selected = state.selected,
             onClick = onCategoryClick,
             requester = categoryRequester,
@@ -222,7 +224,8 @@ fun VodContent(
             Row(
                 Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .windowInsetsPadding(BelowTopBar),
             ) {
                 categories(
                     Modifier
@@ -506,7 +509,7 @@ private fun PosterGrid(
         }
     }
     LazyVerticalGrid(
-        columns = if (dimens.isTv) GridCells.Fixed(dimens.posterColumns) else GridCells.Adaptive(dimens.posterMinWidth),
+        columns = if (dimens.posterColumns > 0) GridCells.Fixed(dimens.posterColumns) else GridCells.Adaptive(dimens.posterMinWidth),
         state = gridState,
         contentPadding = contentPadding,
         horizontalArrangement = Arrangement.spacedBy(dimens.posterGapHorizontal),

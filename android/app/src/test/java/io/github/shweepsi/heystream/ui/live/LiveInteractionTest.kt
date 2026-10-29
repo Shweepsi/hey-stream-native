@@ -100,7 +100,7 @@ class LiveInteractionTest {
         compose.setContent {
             val flow = remember { flowOf(PagingData.from(channels, sourceLoadStates = Loaded)) }
             val content = @Composable {
-                HeyStreamTheme(isTv = device.isTv, systemDark = true) {
+                HeyStreamTheme(isTv = device.isTv) {
                     LiveContent(
                         state = state,
                         channels = flow.collectAsLazyPagingItems(),

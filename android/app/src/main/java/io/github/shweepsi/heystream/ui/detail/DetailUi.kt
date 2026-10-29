@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -81,15 +80,7 @@ internal fun DetailFrame(sectionTitle: String, onBack: () -> Unit, content: @Com
             .fillMaxSize()
             .background(Hs.colors.background),
     ) {
-        if (!Hs.isTv) {
-            Box(
-                Modifier
-                    .background(Hs.colors.surface)
-                    .statusBarsPadding(),
-            ) {
-                HsTopBar(title = sectionTitle, onBack = onBack)
-            }
-        }
+        if (!Hs.isTv) HsTopBar(title = sectionTitle, onBack = onBack)
         Box(
             Modifier
                 .weight(1f)

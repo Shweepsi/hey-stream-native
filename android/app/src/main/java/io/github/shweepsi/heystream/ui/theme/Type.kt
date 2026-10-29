@@ -88,6 +88,20 @@ val TouchType = HsType(
     badge = style(13.sp, FontWeight.Bold, 0.06.em, 1.1f),
 )
 
+/** Téléphone : texte courant à 14 sp, titres resserrés ; petits textes à 13 sp au moins. */
+val PhoneType = HsType(
+    display = style(24.sp, FontWeight.Bold, (-0.02).em, 1.15f),
+    headline = style(24.sp, FontWeight.Bold, (-0.03).em, 1.1f),
+    title = style(19.sp, FontWeight.SemiBold, (-0.01).em, 1.2f),
+    itemTitle = style(15.sp, FontWeight.SemiBold),
+    body = style(14.sp, FontWeight.Normal),
+    bodyLarge = style(15.sp, FontWeight.Normal, lineHeight = 1.5f),
+    label = style(14.sp, FontWeight.Medium),
+    small = style(13.sp, FontWeight.Normal),
+    overline = style(13.sp, FontWeight.SemiBold, 0.06.em),
+    badge = style(13.sp, FontWeight.Bold, 0.06.em, 1.1f),
+)
+
 /** Pour les composants Material (champs, dialogues). */
 fun HsType.toMaterial(): Typography = Typography(
     displayLarge = display,
