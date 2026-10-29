@@ -34,6 +34,15 @@ fun subscriptionOf(info: AccountInfo?, nowSecs: Long): Subscription? {
     return if (expires <= nowSecs) Subscription.Expired(expires) else Subscription.ValidUntil(expires)
 }
 
+/** Expiré, ou expire dans moins de [ALERT_DAYS] jours : affiché en rouge. */
+fun Subscription.needsAttention(nowSecs: Long = System.currentTimeMillis() / 1000): Boolean = when (this) {
+    Subscription.Unlimited -> false
+    is Subscription.Expired -> true
+    is Subscription.ValidUntil -> epochSecs - nowSecs < ALERT_DAYS * 86_400
+}
+
+private const val ALERT_DAYS = 7L
+
 @Composable
 fun Subscription.text(): String {
     val locale = currentLocale()

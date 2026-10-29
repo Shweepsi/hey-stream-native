@@ -87,6 +87,8 @@ fun HsIconButton(
     selected: Boolean = false,
     /** Petit texte au centre d'une icône plus grande (« 10 » dans la flèche du recul). */
     caption: String? = null,
+    /** Couleur de l'icône, si elle n'est pas celle du texte (cœur rouge d'un favori). */
+    tint: Color? = null,
 ) {
     val colors = Hs.colors
     val dimens = Hs.dimens
@@ -107,7 +109,7 @@ fun HsIconButton(
         contentAlignment = Alignment.Center,
     ) {
         if (caption == null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = LocalContentColor.current)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = tint ?: LocalContentColor.current)
         } else {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon * 1.6f), tint = LocalContentColor.current)

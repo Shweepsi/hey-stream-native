@@ -4,8 +4,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Couleurs du thème (docs/DESIGN.md). Le bleu et le rouge sont réservés au
- * logo.
+ * Couleurs du thème (docs/DESIGN.md). Le bleu électrique et le rouge vif du
+ * logo servent aussi d'accents, et seulement là : bleu pour le focus et le
+ * champ actif, rouge pour les alertes et les favoris.
  */
 @Immutable
 data class HsColors(
@@ -23,8 +24,14 @@ data class HsColors(
         val Blue = Color(0xFF1F6BFF)
         val Red = Color(0xFFFF2E3B)
 
-        /** Contour de focus de la télécommande (blanc, sur un fond toujours sombre). */
-        val Focus = Color(0xFFFFFFFF)
+        /** Contour de focus de la télécommande et du champ actif. */
+        val Focus = Blue
+
+        /** Erreur, abonnement expiré ou bientôt expiré. */
+        val Alert = Red
+
+        /** Cœur des favoris. */
+        val Favorite = Red
 
         /**
          * Sur une image ou une vidéo, hors thème : badge « EN DIRECT », barre

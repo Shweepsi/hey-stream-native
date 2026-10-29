@@ -10,7 +10,10 @@ Polissage de l'interface, même style sur TV, tablette et téléphone.
 
 - Élément sélectionné sur fond gris doux partout (plus de pilule blanche
   au doigt).
-- Focus à la télécommande : contour blanc, ombre douce, agrandissement de 5 %.
+- Focus à la télécommande : contour bleu électrique autour de l'élément,
+  ombre douce, agrandissement de 5 %. Champ de saisie actif bordé de bleu.
+- Rouge vif pour les alertes (icônes d'erreur, abonnement expiré ou
+  expirant sous 7 jours) et le cœur des favoris (trait rouge).
 - Barre du haut fondue dans le fond, plus basse (48 dp).
 - Marges et espacements sur une grille commune ; coins de 12 dp partout ;
   lignes de chaînes plus compactes au doigt.

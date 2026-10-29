@@ -32,12 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -56,6 +51,7 @@ import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.components.RemoteImage
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 
@@ -234,11 +230,12 @@ internal fun ProgressBlock(progress: WatchProgress, modifier: Modifier = Modifie
     }
 }
 
-/** Favori : cœur plein quand le titre est dans les favoris. */
+/** Favori : cœur au trait rouge quand le titre est dans les favoris. */
 @Composable
 internal fun FavoriteButton(favorite: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     HsIconButton(
-        icon = if (favorite) HeartFilled else Lucide.Heart,
+        icon = Lucide.Heart,
+        tint = if (favorite) HsColors.Favorite else null,
         label = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add),
         onClick = onClick,
         modifier = modifier,
@@ -282,7 +279,7 @@ internal fun DetailError(message: String, onRetry: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.widthIn(max = 420.dp),
         ) {
-            Icon(Lucide.CircleAlert, contentDescription = null, tint = Hs.colors.textSecondary, modifier = Modifier.size(32.dp))
+            Icon(Lucide.CircleAlert, contentDescription = null, tint = HsColors.Alert, modifier = Modifier.size(32.dp))
             Text(stringResource(R.string.detail_unavailable), style = Hs.type.itemTitle, textAlign = TextAlign.Center)
             Text(message, style = Hs.type.body, color = Hs.colors.textSecondary, textAlign = TextAlign.Center)
             HsButton(
@@ -293,27 +290,4 @@ internal fun DetailError(message: String, onRetry: () -> Unit) {
             )
         }
     }
-}
-
-/** Le cœur de Lucide, plein (favori). */
-private val HeartFilled: ImageVector by lazy {
-    ImageVector.Builder(
-        name = "heart-filled",
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f,
-    ).apply {
-        addPath(
-            pathData = addPathNodes(
-                "M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5" +
-                    "l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5",
-            ),
-            fill = SolidColor(Color.Black),
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 1.75f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-        )
-    }.build()
 }

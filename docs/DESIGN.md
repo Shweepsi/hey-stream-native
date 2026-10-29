@@ -43,7 +43,11 @@ Piste A retenue : **triangle lecture + deux ondes**.
 | Bleu électrique | `#1F6BFF` | `#1F6BFF` |
 | Rouge vif | `#FF2E3B` | `#FF2E3B` |
 
-- **Bleu et rouge sont réservés au logo** (et à la sélection de texte).
+- **Bleu et rouge viennent du logo** et ne servent d'accents qu'ici
+  (décidé le 2026-10-29) : **bleu** pour le contour de focus, le champ actif
+  et la sélection de texte ; **rouge** pour les alertes (icône d'erreur,
+  abonnement expiré ou expirant sous 7 jours) et le cœur des favoris (trait
+  rouge, jamais plein). Nulle part ailleurs.
 - Contraste du texte ≥ 4,5:1 sur son fond ; tout indicateur d'état (focus,
   sélection) ≥ 3:1 avec ce qui l'entoure.
 - **Sur une image ou une vidéo** (badge « EN DIRECT », barre de progression
@@ -87,7 +91,7 @@ Police **Inter** (licence OFL), embarquée dans l'app. Titres 600–700, texte
 
 Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
 
-- **Télécommande** : contour **blanc** de 2 dp tracé 2 dp autour de
+- **Télécommande** : contour **bleu `#1F6BFF`** de 2 dp tracé 2 dp autour de
   l'élément (lisible aussi sur un bouton blanc), ombre douce et
   agrandissement **×1,05** ; les lignes pleine largeur ne grossissent pas.
   Rien ne bouge autour.

@@ -93,6 +93,7 @@ import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.components.marqueeWhen
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 import io.github.shweepsi.heystream.ui.toUiText
@@ -601,7 +602,7 @@ private fun ChannelRow(
                 Icon(
                     Lucide.Heart,
                     contentDescription = stringResource(R.string.favorites),
-                    tint = secondary,
+                    tint = HsColors.Favorite,
                     modifier = Modifier.size(dimens.icon * 0.9f),
                 )
             }

@@ -39,6 +39,7 @@ import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 import kotlinx.coroutines.delay
@@ -160,7 +161,8 @@ fun MessageState(
             modifier = Modifier.widthIn(max = 420.dp),
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = Hs.colors.textSecondary, modifier = Modifier.size(32.dp))
+                val tint = if (icon == Lucide.CircleAlert) HsColors.Alert else Hs.colors.textSecondary
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
             }
             Text(title, style = Hs.type.itemTitle, textAlign = TextAlign.Center)
             if (message != null) {
