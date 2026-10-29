@@ -243,10 +243,10 @@ dependencies {
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
 
-    // Test de bout en bout sur émulateur (CI) : faux panneau local.
+    // Test de bout en bout sur émulateur (CI) : faux panneau local, app pilotée
+    // comme par un utilisateur (UiAutomator), sans toucher à son exécution.
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.junit)
-    androidTestImplementation(platform(libs.compose.bom))
-    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.uiautomator)
     androidTestImplementation(libs.mockwebserver)
 }

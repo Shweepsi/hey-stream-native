@@ -1,16 +1,13 @@
 package io.github.shweepsi.heystream
 
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.printToString
+import android.content.Intent
+import android.os.SystemClock
+import android.widget.EditText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -19,7 +16,6 @@ import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.FixMethodOrder
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
@@ -27,19 +23,19 @@ import org.junit.runners.MethodSorters
 /**
  * De bout en bout sur un vrai Android (émulateur de la CI) : la bibliothèque
  * du cœur se charge, la connexion à un faux panneau local réussit, le
- * catalogue se télécharge et le Direct l'affiche. Aucun vrai fournisseur
- * n'est contacté.
+ * catalogue se télécharge et le Direct l'affiche. L'app est pilotée comme par
+ * un utilisateur (UiAutomator) : elle tourne exactement comme en production.
+ * Aucun vrai fournisseur n'est contacté.
  */
 // Ordre alphabétique : le parcours complet passe en premier, dans un
 // processus où rien n'a encore chargé le cœur (comme pour un utilisateur).
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class SmokeTest {
-    @get:Rule
-    val compose = createAndroidComposeRule<MainActivity>()
-
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val context = instrumentation.targetContext
+    private val device = UiDevice.getInstance(instrumentation)
     private val server = MockWebServer()
-    private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before
     fun startPanel() {
@@ -52,6 +48,26 @@ class SmokeTest {
         server.shutdown()
     }
 
+    @Test
+    fun appSignsInDownloadsTheCatalogAndOpensLive() {
+        context.startActivity(
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        )
+        val fields = step("formulaire de connexion") {
+            device.findObjects(By.clazz(EditText::class.java)).takeIf { it.size >= 3 }
+        }
+        fields[0].text = server.url("/").toString().trimEnd('/')
+        fields[1].text = "utilisateur"
+        fields[2].text = "motdepasse"
+        hideKeyboard()
+        step("bouton de connexion") { device.findObject(By.text(context.getString(R.string.login_submit))) }.click()
+
+        step("accueil après connexion") { device.findObject(By.textContains(context.getString(R.string.home_live))) }.click()
+
+        step("chaîne du catalogue dans le Direct") { device.findObject(By.textContains(CHANNEL)) }
+    }
+
     /** La bibliothèque du cœur se charge et répond par JNA, comme dans l'app. */
     @Test
     fun coreLibraryLoads() {
@@ -59,37 +75,29 @@ class SmokeTest {
         assertTrue(io.github.shweepsi.heystream.core.coreVersion().isNotBlank())
     }
 
-    @Test
-    fun appSignsInDownloadsTheCatalogAndOpensLive() {
-        step("formulaire de connexion") { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size >= 3 }
-        val fields = compose.onAllNodes(hasSetTextAction())
-        fields[0].performTextInput(server.url("/").toString().trimEnd('/'))
-        fields[1].performTextInput("utilisateur")
-        fields[2].performTextInput("motdepasse")
-        // Le clavier peut cacher le bouton : la colonne du formulaire défile jusqu'à lui.
-        compose.onNodeWithText(context.getString(R.string.login_submit)).performScrollTo().performClick()
-
-        val live = context.getString(R.string.home_live)
-        step("accueil après connexion") { compose.onAllNodes(hasText(live)).fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText(live).performClick()
-
-        step("chaîne du catalogue dans le Direct") { compose.onAllNodes(hasText(CHANNEL)).fetchSemanticsNodes().isNotEmpty() }
+    /** Le clavier virtuel peut cacher le bouton : Retour le ferme, sans quitter l'écran. */
+    private fun hideKeyboard() {
+        if (device.executeShellCommand("dumpsys input_method").contains("mInputShown=true")) {
+            device.pressBack()
+            device.waitForIdle()
+        }
     }
 
-    /** Attend [condition] ; un échec nomme l'étape qui n'a pas abouti. */
-    private fun step(name: String, condition: () -> Boolean) {
-        try {
-            compose.waitUntil(TIMEOUT, condition)
-        } catch (timeout: Throwable) {
-            // Seulement les textes à l'écran (dont un éventuel message d'erreur).
-            val screen = runCatching { compose.onRoot().printToString(maxDepth = 40) }.getOrElse { "?" }
-                .lines().filter { "Text =" in it }.joinToString("\n") { it.trim() }
-            throw AssertionError(
-                "Étape non atteinte en ${TIMEOUT / 1000} s : $name\n" +
-                    "Requêtes reçues par le faux panneau : ${server.requestCount}\nÉcran :\n$screen",
-                timeout,
-            )
+    /** Attend un élément ; un échec nomme l'étape et montre les textes à l'écran. */
+    private fun <T : Any> step(name: String, find: () -> T?): T {
+        val deadline = SystemClock.uptimeMillis() + TIMEOUT
+        while (SystemClock.uptimeMillis() < deadline) {
+            runCatching(find).getOrNull()?.let { return it }
+            SystemClock.sleep(250)
         }
+        val texts = runCatching {
+            device.findObjects(By.pkg(context.packageName)).mapNotNull(UiObject2::getText).distinct()
+        }.getOrDefault(emptyList())
+        throw AssertionError(
+            "Étape non atteinte en ${TIMEOUT / 1000} s : $name\n" +
+                "Requêtes reçues par le faux panneau : ${server.requestCount}\n" +
+                "Textes à l'écran : ${texts.joinToString(" | ")}",
+        )
     }
 
     private object FakePanel : Dispatcher() {
