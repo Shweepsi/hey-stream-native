@@ -156,7 +156,7 @@ private fun SeriesBody(
     // Épisode en cours de la série (celui du premier bouton) : comme un film commencé.
     val resumed = state.playTarget?.takeIf { it.resume }
     val resumedProgress = resumed?.progress
-    PosterLayout(header.image) { modifier, padding, compact ->
+    PosterLayout(header.image, Lucide.MonitorPlay) { modifier, padding, compact ->
         LazyColumn(
             modifier = modifier,
             state = listState,

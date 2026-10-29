@@ -62,7 +62,7 @@ class DetailLogicTest {
     @Test
     fun metaLineShowsOnlyProvidedFields() {
         assertEquals(
-            listOf(MetaPart.Year("2025"), MetaPart.Duration(1, 52), MetaPart.Rating("7.4")),
+            listOf(MetaPart.Year("2025"), MetaPart.Duration(1, 52), MetaPart.Rating("7,4")),
             metaParts(DetailHeader("A", year = "2025", durationSecs = 6_720, rating = "7.4")),
         )
         assertEquals(listOf(MetaPart.Duration(0, 45)), metaParts(DetailHeader("A", year = " ", durationSecs = 2_690, rating = "0")))

@@ -82,7 +82,7 @@ private fun MovieBody(
     val first = remember { FocusRequester() }
     // Le premier bouton a le focus à l'ouverture (et au retour du lecteur).
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
-    PosterLayout(movie.header.image) { modifier, padding, compact ->
+    PosterLayout(movie.header.image, Lucide.Film) { modifier, padding, compact ->
         Column(
             modifier
                 .verticalScroll(rememberScrollState())
