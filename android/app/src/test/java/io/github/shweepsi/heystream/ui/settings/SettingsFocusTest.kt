@@ -217,10 +217,13 @@ class SettingsFocusTest {
                 }
             }
         }
-        compose.waitForIdle()
-        compose.onNode(hasText("SIL Open Font License, Version 1.1", substring = true)).assertExists()
+        // Le texte est lu dans les assets hors du fil principal : on l'attend.
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText("SIL Open Font License, Version 1.1", substring = true))
+                .fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodes(isFocused()).fetchSemanticsNodes().isNotEmpty()
+        }
         // Le texte a le focus (Bas le fait défiler), pas « Fermer ».
-        compose.onNode(isFocused()).assertExists()
         clickable("Close").assertIsNotFocused()
         pressInDialog(Key.DirectionDown)
         clickable("Close").assertIsNotFocused()
