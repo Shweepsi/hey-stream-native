@@ -136,4 +136,15 @@ class VodLogicTest {
         assertEquals(PlaybackKind.MOVIE, playbackKindOf(Section.MOVIES))
         assertEquals(PlaybackKind.EPISODE, playbackKindOf(Section.SERIES))
     }
+
+    @Test
+    fun aTitleReadTwiceGetsAPositionKey() {
+        // Pages chargées à partir de la position 60 ; le titre 7 revient en 63.
+        val repeated = repeatedPositions(60, listOf(5L, 6L, 7L, 7L, 8L))
+        assertEquals(setOf(63), repeated)
+        assertEquals(7L, posterKey(62, 7L, repeated))
+        assertEquals("repeated:63", posterKey(63, 7L, repeated))
+        assertEquals("placeholder:10", posterKey(10, null, repeated))
+        assertTrue(repeatedPositions(0, listOf(1L, 2L, 3L)).isEmpty())
+    }
 }

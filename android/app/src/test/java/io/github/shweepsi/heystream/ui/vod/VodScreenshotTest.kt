@@ -94,6 +94,19 @@ class VodScreenshotTest {
         )
     }
 
+    /** Catalogue pas encore téléchargé (téléchargement en échec) : « Réessayer » a le focus. */
+    @Test
+    fun catalogEmptyTv() = compose.capture("vod_catalog_empty", Device.Tv) {
+        VodContent(
+            VodUiState(
+                section = Section.SERIES,
+                loading = false,
+                categories = seriesState.categories.take(2).map { it.copy(count = 0) },
+            ),
+            null, {}, {}, {}, {}, {},
+        )
+    }
+
     @Test
     fun errorPhone() = compose.capture("vod_error", Device.Phone) {
         VodContent(

@@ -77,9 +77,6 @@ data class VodUiState(
     val downloading: Boolean = false,
 ) {
     val selectedCategory: VodCategory? get() = categories.firstOrNull { it.key == selected }
-
-    /** Aucune catégorie du fournisseur : catalogue pas encore téléchargé. */
-    val catalogEmpty: Boolean get() = categories.none { it.key is CategoryKey.Provider }
 }
 
 /** Code PIN demandé avant d'ouvrir une catégorie verrouillée. */
@@ -138,3 +135,25 @@ fun categoriesOf(data: VodData): List<VodCategory> =
         VodCategory(CategoryKey.Continue, name = null, count = data.continueItems.size.toLong()),
         VodCategory(CategoryKey.Favorites, name = null, count = data.favoritesCount),
     ) + data.categories
+
+/**
+ * Positions (dans la liste complète) des titres déjà présents plus haut
+ * parmi les entrées chargées [ids], qui commencent à [offset].
+ */
+fun repeatedPositions(offset: Int, ids: List<Long>): Set<Int> {
+    val seen = HashSet<Long>(ids.size * 2)
+    val repeated = HashSet<Int>()
+    ids.forEachIndexed { index, id -> if (!seen.add(id)) repeated += offset + index }
+    return repeated
+}
+
+/**
+ * Clé d'une case de la grille paginée : l'identifiant du titre (stable, pour
+ * le focus et la position), sauf pour une place pas encore lue ou un titre
+ * répété, qui prennent une clé de position.
+ */
+fun posterKey(index: Int, id: Long?, repeated: Set<Int>): Any = when {
+    id == null -> "placeholder:$index"
+    index in repeated -> "repeated:$index"
+    else -> id
+}

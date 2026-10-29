@@ -41,7 +41,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
@@ -49,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +60,6 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
-import androidx.paging.compose.itemKey
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.appGraph
@@ -150,6 +149,14 @@ fun VodContent(
         snapshotFlow { restore.settled }.first { it }
         if (restore.restored) return@LaunchedEffect
         snapshotFlow { latestState.categories.isNotEmpty() }.first { it }
+        val opening = latestState
+        // Catalogue vide (pas en téléchargement) : « Réessayer » prend le focus.
+        if (opening.selected == null && !opening.downloading) return@LaunchedEffect
+        // La catégorie ouverte peut être hors de la liste affichée (liste défilée) :
+        // elle n'est pas composée, et ne pourrait pas prendre le focus.
+        val layout = snapshotFlow { categoriesState.layoutInfo }.first { it.totalItemsCount > 0 }
+        val index = opening.categories.indexOfFirst { it.key == opening.selected }.coerceAtLeast(0)
+        if (layout.visibleItemsInfo.none { it.index == index }) categoriesState.scrollToItem(index)
         categoryRequester.requestWhenAttached()
     }
 
@@ -368,20 +375,7 @@ private fun GridPane(
             state.error != null -> {
                 restore.GiveUp()
                 // Aucune catégorie à focaliser : « Réessayer » prend le focus.
-                val retry = remember { FocusRequester() }
-                if (Hs.isTv) LaunchedEffect(Unit) { retry.requestWhenAttached() }
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .focusRequester(retry),
-                ) {
-                    MessageState(
-                        title = state.error.resolve(),
-                        icon = Lucide.CircleAlert,
-                        action = stringResource(R.string.retry),
-                        onAction = onRetry,
-                    )
-                }
+                RetryMessage(title = state.error.resolve(), message = null, icon = Lucide.CircleAlert, onRetry = onRetry)
             }
             selected == null -> {
                 restore.GiveUp()
@@ -442,14 +436,17 @@ private fun PagedBody(
     val refresh = items?.loadState?.refresh
     when {
         items == null -> LoadingState(modifier)
-        items.itemCount > 0 -> PosterGrid(gridState, gridPadding, restore, modifier) {
-            items(
-                count = items.itemCount,
-                key = items.itemKey { it.id },
-                contentType = items.itemContentType { POSTER },
-            ) { index ->
-                val item = items[index]
-                if (item == null) PosterPlaceholder() else poster(item, index)
+        items.itemCount > 0 -> {
+            val keys = rememberPosterKeys(items)
+            PosterGrid(gridState, gridPadding, restore, modifier) {
+                items(
+                    count = items.itemCount,
+                    key = keys,
+                    contentType = items.itemContentType { POSTER },
+                ) { index ->
+                    val item = items[index]
+                    if (item == null) PosterPlaceholder() else poster(item, index)
+                }
             }
         }
         refresh is LoadState.Error -> {
@@ -472,6 +469,23 @@ private fun PagedBody(
             }
         }
         else -> LoadingState(modifier)
+    }
+}
+
+/**
+ * Clés de la grille paginée, lues dans le même instantané que les titres
+ * en double. Un rafraîchissement du catalogue pendant le défilement peut
+ * décaler les pages déjà lues : un titre apparaît alors deux fois jusqu'à
+ * la relecture (catalogVersion), et deux clés égales feraient planter la
+ * grille.
+ */
+@Composable
+private fun rememberPosterKeys(items: LazyPagingItems<PosterUi>): (Int) -> Any {
+    val snapshot = items.itemSnapshotList
+    return remember(snapshot) {
+        val repeated = repeatedPositions(snapshot.placeholdersBefore, snapshot.items.map(PosterUi::id))
+        val keys: (Int) -> Any = { index -> posterKey(index, snapshot[index]?.id, repeated) }
+        keys
     }
 }
 
@@ -608,18 +622,40 @@ private fun EmptyMessage(key: CategoryKey, section: Section, modifier: Modifier)
     }
 }
 
-/** Aucune catégorie : catalogue en cours de téléchargement, ou pas encore téléchargé. */
+/**
+ * Aucune catégorie : catalogue en cours de téléchargement, ou pas encore
+ * téléchargé (« Réessayer » prend alors le focus).
+ */
 @Composable
 private fun CatalogEmpty(downloading: Boolean, onRefreshCatalog: () -> Unit) {
     if (downloading) {
         LoadingState(text = stringResource(R.string.catalog_downloading))
     } else {
-        MessageState(
+        RetryMessage(
             title = stringResource(R.string.catalog_empty),
             message = stringResource(R.string.catalog_empty_message),
             icon = Lucide.WifiOff,
+            onRetry = onRefreshCatalog,
+        )
+    }
+}
+
+/** Message avec « Réessayer », qui prend le focus à la télécommande. */
+@Composable
+private fun RetryMessage(title: String, message: String?, icon: ImageVector, onRetry: () -> Unit) {
+    val retry = remember { FocusRequester() }
+    if (Hs.isTv) LaunchedEffect(Unit) { retry.requestWhenAttached() }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .focusRequester(retry),
+    ) {
+        MessageState(
+            title = title,
+            message = message,
+            icon = icon,
             action = stringResource(R.string.retry),
-            onAction = onRefreshCatalog,
+            onAction = onRetry,
         )
     }
 }
