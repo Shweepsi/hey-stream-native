@@ -17,8 +17,11 @@ Polissage de l'interface, même style sur TV, tablette et téléphone.
 - Barre du haut fondue dans le fond, plus basse (48 dp).
 - Marges et espacements sur une grille commune ; coins de 12 dp partout ;
   lignes de chaînes plus compactes au doigt.
-- Noms sans « FR - » ni « |FR| » (films, séries, chaînes) ; les catégories
-  gardent le leur.
+- Noms sans préfixe de langue (« FR - », « |FR| », « FR -4K ») ni langue
+  en fin de titre (« FR », « _fr ») pour les films, séries et chaînes ; les
+  catégories gardent le leur.
+- Au doigt, le nom de la catégorie monte dans la barre du haut, au-dessus de
+  la grille : une rangée d'affiches de plus.
 - Fiche série : onglets de saisons sur tous les appareils ; épisodes sur
   toute la largeur.
 

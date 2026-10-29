@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
@@ -108,6 +109,8 @@ fun HsTopBar(
     title: String,
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Largeur fixe du titre : [actions] commencent alors juste après (au lieu d'être à droite). */
+    titleWidth: Dp? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -123,7 +126,12 @@ fun HsTopBar(
         if (onBack != null) {
             HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
         }
-        Text(title, style = Hs.type.title, maxLines = 1, modifier = Modifier.weight(1f))
+        Text(
+            title,
+            style = Hs.type.title,
+            maxLines = 1,
+            modifier = if (titleWidth != null) Modifier.width(titleWidth) else Modifier.weight(1f),
+        )
         actions()
     }
 }

@@ -222,7 +222,24 @@ fun VodContent(
                 .fillMaxSize()
                 .background(Hs.colors.background),
         ) {
-            HsTopBar(title = title, onBack = onBack)
+            // Nom de la catégorie dans la barre du haut, au-dessus de la grille :
+            // une rangée d'affiches de plus à l'écran. Le titre occupe la
+            // largeur du panneau des catégories, moins le bouton retour.
+            HsTopBar(
+                title = title,
+                onBack = onBack,
+                titleWidth = dimens.categoriesPanelWidth + 1.dp + 8.dp - TOP_BAR_BACK - 12.dp * 2,
+            ) {
+                val selected = state.selectedCategory
+                if (!state.loading && state.error == null && selected != null) {
+                    GridHeader(
+                        title = selected.label(),
+                        count = categoryCount(state, selected),
+                        section = state.section,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
             Row(
                 Modifier
                     .weight(1f)
@@ -352,6 +369,13 @@ private fun CategoriesPanel(
     }
 }
 
+/** Nombre de titres de la catégorie ouverte (« Continuer » : ceux de la liste). */
+private fun categoryCount(state: VodUiState, selected: VodCategory): Long? =
+    if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
+
+/** Bouton retour de la barre du haut (48 dp). */
+private val TOP_BAR_BACK = 48.dp
+
 @Composable
 private fun VodCategory.label(): String = when (key) {
     CategoryKey.Continue -> stringResource(R.string.continue_watching)
@@ -387,13 +411,15 @@ private fun GridPane(
                 CatalogEmpty(state.downloading, onRefreshCatalog)
             }
             else -> {
-                val count = if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
-                GridHeader(
-                    title = selected.label(),
-                    count = count,
-                    section = state.section,
-                    modifier = Modifier.padding(horizontal = edge),
-                )
+                // Au doigt, le nom de la catégorie est dans la barre du haut.
+                if (Hs.isTv) {
+                    GridHeader(
+                        title = selected.label(),
+                        count = categoryCount(state, selected),
+                        section = state.section,
+                        modifier = Modifier.padding(horizontal = edge),
+                    )
+                }
                 // Une grille par catégorie : position et focus propres à chacune.
                 key(selected.key.listKey) {
                     val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
@@ -573,7 +599,7 @@ private fun GridHeader(title: String, count: Long?, section: Section, modifier: 
     Row(
         modifier
             .fillMaxWidth()
-            .padding(bottom = if (dimens.isTv) 15.dp - GRID_EDGE else dimens.gap),
+            .padding(bottom = if (dimens.isTv) 15.dp - GRID_EDGE else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 9.dp else 12.dp),
     ) {
         Text(
