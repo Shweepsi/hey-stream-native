@@ -1014,3 +1014,50 @@ impl From<StreamKind> for xc::StreamKind {
 pub fn core_version() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
+
+// --- Paniques ----------------------------------------------------------------
+
+/// Reçoit chaque panique du cœur, rattrapée ou non, pour les rapports de
+/// plantage de l'app. Le message vient du code du cœur ; l'app en retire
+/// tout de même les URL avant de l'envoyer.
+#[uniffi::export(with_foreign)]
+pub trait PanicObserver: Send + Sync {
+    /// `location` : fichier source et ligne (`core/src/catalog.rs:42`), seule
+    /// trace lisible, la bibliothèque étant livrée sans symboles.
+    fn on_panic(&self, message: String, location: String);
+}
+
+/// Observateur des paniques ; le crochet de panique est installé une fois.
+static PANIC_OBSERVER: Mutex<Option<std::sync::Arc<dyn PanicObserver>>> = Mutex::new(None);
+
+/// Transmet les paniques suivantes à `observer`, en plus du message habituel
+/// sur la sortie d'erreur. Un nouvel appel remplace l'observateur précédent.
+/// `on_panic` ne doit jamais lever d'exception : une panique dans le crochet
+/// arrêterait l'app.
+#[uniffi::export]
+pub fn observe_panics(observer: std::sync::Arc<dyn PanicObserver>) {
+    static INSTALL: std::sync::Once = std::sync::Once::new();
+    *PANIC_OBSERVER
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(observer);
+    INSTALL.call_once(|| {
+        let default = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            default(info);
+            let Some(observer) = PANIC_OBSERVER.try_lock().ok().and_then(|o| o.clone()) else {
+                return;
+            };
+            let payload = info.payload();
+            let message = payload
+                .downcast_ref::<&str>()
+                .map(|s| (*s).to_owned())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_default();
+            let location = info
+                .location()
+                .map(|l| format!("{}:{}", l.file(), l.line()))
+                .unwrap_or_default();
+            observer.on_panic(message, location);
+        }));
+    });
+}

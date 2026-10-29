@@ -116,6 +116,8 @@ interface SettingsActions {
 
     fun showLicense(license: License) {}
 
+    fun crashReports(enabled: Boolean) {}
+
     fun back() {}
 }
 
@@ -154,7 +156,13 @@ private val Section.tab: Int
  * l'ouvre ; OK ou droite entre dans son contenu, Retour en ressort.
  */
 @Composable
-fun SettingsContent(state: SettingsState, language: LanguageChoice, appVersion: String, actions: SettingsActions) {
+fun SettingsContent(
+    state: SettingsState,
+    language: LanguageChoice,
+    appVersion: String,
+    actions: SettingsActions,
+    crashReports: Boolean = true,
+) {
     val dimens = Hs.dimens
     val isTv = dimens.isTv
     val sectionFocus = remember { SettingsSection.entries.associateWith { FocusRequester() } }
@@ -195,7 +203,7 @@ fun SettingsContent(state: SettingsState, language: LanguageChoice, appVersion: 
                     SettingsSection.Language -> LanguagePane(language, actions)
                     SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
-                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, actions)
+                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, actions)
                 }
             }
         }
@@ -426,6 +434,35 @@ private fun CategoryToggleRow(category: CategoryToggle, onToggle: () -> Unit, mo
                 )
             }
             SwitchMark(checked = !category.hidden)
+        }
+    }
+}
+
+/** Réglage tout ou rien : libellé et interrupteur. */
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onToggle: () -> Unit) {
+    val dimens = Hs.dimens
+    val state = stringResource(if (checked) R.string.settings_switch_on else R.string.settings_switch_off)
+    HsSurface(
+        onClick = onToggle,
+        focusScale = FocusScale.NONE,
+        role = Role.Switch,
+        contentPadding = PaddingValues(horizontal = if (dimens.isTv) 12.dp else 14.dp),
+        contentAlignment = Alignment.CenterStart,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = dimens.categoryRowHeight)
+            .semantics {
+                stateDescription = state
+                toggleableState = ToggleableState(checked)
+            },
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 10.dp else 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = label, style = Hs.type.body, modifier = Modifier.weight(1f))
+            SwitchMark(checked = checked)
         }
     }
 }
@@ -712,7 +749,7 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
 // À propos ----------------------------------------------------------------------
 
 @Composable
-private fun AboutPane(appVersion: String, coreVersion: String?, actions: SettingsActions) {
+private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Boolean, actions: SettingsActions) {
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_about)) {
         Logo(size = if (dimens.isTv) 26.dp else 30.dp)
@@ -727,6 +764,12 @@ private fun AboutPane(appVersion: String, coreVersion: String?, actions: Setting
         )
         Paragraph(stringResource(R.string.settings_about_license), secondary = false)
         Paragraph(stringResource(R.string.settings_about_no_content), secondary = false)
+        SwitchRow(
+            label = stringResource(R.string.settings_crash_reports),
+            checked = crashReports,
+            onToggle = { actions.crashReports(!crashReports) },
+        )
+        Paragraph(stringResource(R.string.settings_crash_reports_detail))
         Text(
             text = stringResource(R.string.settings_about_credits),
             style = Hs.type.itemTitle,
@@ -747,6 +790,7 @@ private fun AboutPane(appVersion: String, coreVersion: String?, actions: Setting
             }
             CreditRow(stringResource(R.string.settings_credit_androidx), stringResource(R.string.settings_credit_androidx_license))
             CreditRow(stringResource(R.string.settings_credit_ffmpeg), stringResource(R.string.settings_credit_ffmpeg_license))
+            CreditRow(stringResource(R.string.settings_credit_sentry), stringResource(R.string.settings_credit_sentry_license))
         }
     }
 }

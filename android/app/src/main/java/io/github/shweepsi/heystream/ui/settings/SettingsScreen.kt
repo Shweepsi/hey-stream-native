@@ -9,11 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.shweepsi.heystream.BuildConfig
 import io.github.shweepsi.heystream.core.Section
+import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -28,6 +30,8 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
     val viewModel = viewModel { SettingsViewModel(graph.session, graph.player) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var language by remember { mutableStateOf(LanguageChoice.of(AppCompatDelegate.getApplicationLocales().toLanguageTags())) }
+    val context = LocalContext.current
+    var crashReports by remember { mutableStateOf(CrashReports.isEnabled(context)) }
     var pinPurpose by remember { mutableStateOf<PinPurpose?>(null) }
     var shownLicense by remember { mutableStateOf<License?>(null) }
     var confirmSignOut by remember { mutableStateOf(false) }
@@ -74,11 +78,22 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
                 shownLicense = license
             }
 
+            override fun crashReports(enabled: Boolean) {
+                crashReports = enabled
+                CrashReports.setEnabled(context, enabled)
+            }
+
             override fun back() = currentOnBack()
         }
     }
 
-    SettingsContent(state = state, language = language, appVersion = BuildConfig.VERSION_NAME, actions = actions)
+    SettingsContent(
+        state = state,
+        language = language,
+        appVersion = BuildConfig.VERSION_NAME,
+        actions = actions,
+        crashReports = crashReports,
+    )
 
     pinPurpose?.let { purpose ->
         // Créer ou changer le code depuis les réglages ne déverrouille rien.

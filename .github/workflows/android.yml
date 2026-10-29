@@ -64,6 +64,9 @@ jobs:
         run: ./gradlew --console=plain :app:testDebugUnitTest :app:lintDebug
       - name: APK (release, clé de test)
         working-directory: android
+        # Clé des rapports de plantage (vide pour une PR venue d'un fork).
+        env:
+          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
         run: ./gradlew --console=plain :app:assembleRelease
       - name: Taille de l'APK
         run: ls -l android/app/build/outputs/apk/release/app-release.apk

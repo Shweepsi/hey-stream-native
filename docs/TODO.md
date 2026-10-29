@@ -8,22 +8,11 @@ ligne quand sa PR est fusionnée.
 1. **Essai sur la Mi Box S 2** (propriétaire) : installer l'APK et vérifier
    les objectifs de `docs/MATERIEL.md` (démarrage < 2 s, liste < 500 ms,
    changement de chaîne < 1,5 s, < 300 Mo en lecture, 0 plantage sur 4 h).
-2. **Rapports de plantage anonymes** (GlitchTip, voir `docs/DECISIONS.md`) :
-   ni identifiants ni URL de flux. Décidé le 2026-10-29 :
-   - hébergement : offre gratuite de glitchtip.com ;
-   - envoi activé par défaut, interrupteur dans Réglages ;
-   - capturer : plantages Kotlin, paniques du cœur Rust, gels (ANR),
-     erreurs de lecture après la dernière reconnexion (URL retirées) ;
-   - builds release seulement ;
-   - la clé (DSN) vient d'un secret de la CI, jamais du dépôt ; sans clé,
-     rien n'est envoyé.
-   - En attente : le propriétaire crée le compte et ajoute le secret
-     `GLITCHTIP_DSN` au dépôt.
-3. **Politique de confidentialité** sur GitHub Pages, mentionnant les
+2. **Politique de confidentialité** sur GitHub Pages, mentionnant les
    rapports de plantage.
-4. **Identité** : logo et palette définitifs (maquette d'abord) ; réévaluer
+3. **Identité** : logo et palette définitifs (maquette d'abord) ; réévaluer
    le nom « Hey Stream » avant publication.
-5. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
+4. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
 
 ## Cœur (acceptables pour l'instant)
 
