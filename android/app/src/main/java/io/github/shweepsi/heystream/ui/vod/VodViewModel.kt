@@ -15,6 +15,7 @@ import io.github.shweepsi.heystream.data.CatalogPaging
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
+import io.github.shweepsi.heystream.data.countFavorites
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.toUiText
 import kotlinx.coroutines.CoroutineScope
@@ -197,24 +198,4 @@ internal fun readData(core: HeyStreamCore, section: Section): VodData {
         id?.let { core.item(section, it) }?.let { posterOf(it, Progress(resume.positionMs, resume.durationMs)) }
     }.distinctBy { it.id }
     return VodData(categories, continueItems, countFavorites(core, section))
-}
-
-/** Taille des lots lus pour compter les favoris. */
-private const val FAVORITES_CHUNK = 500
-
-/** Au-delà, les favoris ne sont plus comptés (lecture bornée). */
-private const val FAVORITES_MAX = 10_000
-
-/**
- * Nombre de favoris visibles d'une section. Le cœur n'expose pas de
- * compteur : ils sont lus par lots (souvent un seul).
- */
-internal fun countFavorites(core: HeyStreamCore, section: Section): Long {
-    var total = 0L
-    while (total < FAVORITES_MAX) {
-        val page = core.favorites(section, total.toUInt(), FAVORITES_CHUNK.toUInt()).size
-        total += page
-        if (page < FAVORITES_CHUNK) break
-    }
-    return total
 }
