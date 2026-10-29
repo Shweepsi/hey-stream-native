@@ -79,13 +79,15 @@ class SmokeTest {
 
     /**
      * Remplit un champ désigné par son repère, en faisant défiler le formulaire
-     * s'il le faut, puis attend de relire la valeur : l'arbre d'accessibilité
+     * s'il le faut (nouvelle tentative si le champ change entre-temps), puis
+     * attend de relire la valeur : l'arbre d'accessibilité
      * de Compose se met à jour avec un léger retard. Un mot de passe, masqué,
      * n'est pas relu.
      */
     private fun fill(tag: String, value: String, secret: Boolean = false) {
-        val field = step("champ $tag") { device.findObject(By.res(tag)) ?: scrollDown() }
-        field.text = value
+        // Recherche et saisie dans la même étape : le nœud trouvé peut être remplacé
+        // avant la saisie (Compose recompose le champ), la saisie est alors retentée.
+        step("champ $tag") { (device.findObject(By.res(tag)) ?: scrollDown())?.also { it.text = value } }
         if (secret) return
         step("valeur du champ $tag") { device.findObject(By.res(tag))?.takeIf { it.text == value } }
     }
