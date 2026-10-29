@@ -8,11 +8,9 @@ ligne quand sa PR est fusionnée.
 1. **Essai sur la Mi Box S 2** (propriétaire) : installer l'APK et vérifier
    les objectifs de `docs/MATERIEL.md` (démarrage < 2 s, liste < 500 ms,
    changement de chaîne < 1,5 s, < 300 Mo en lecture, 0 plantage sur 4 h).
-2. **Politique de confidentialité** sur GitHub Pages, mentionnant les
-   rapports de plantage.
-3. **Identité** : logo et palette définitifs (maquette d'abord) ; réévaluer
-   le nom « Hey Stream » avant publication.
-4. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
+2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo C
+   appliqué (site et app, 0.5.0) ; reste la fiche Play Store.
+3. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
 
 ## Cœur (acceptables pour l'instant)
 
