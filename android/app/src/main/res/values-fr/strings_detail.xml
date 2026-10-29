@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_movies">Films</string>
+    <string name="detail_series">Séries</string>
+    <string name="detail_unavailable">Ce titre n’est pas disponible</string>
+    <string name="detail_rating">Note %1$s</string>
+    <string name="detail_resume_episode">Reprendre S%1$d · E%2$d</string>
+    <string name="detail_season">Saison %1$d</string>
+    <string name="detail_specials">Épisodes spéciaux</string>
+    <string name="detail_episodes">Épisodes</string>
+    <string name="detail_episode_untitled">Épisode %1$d</string>
+    <string name="detail_episodes_loading">Chargement des épisodes…</string>
+    <string name="detail_episodes_empty">Aucun épisode pour l’instant</string>
+    <string name="detail_episode_hint_tv">Appui long sur OK ou MENU&#160;: marquer comme vu ou non vu</string>
+    <string name="detail_episode_hint_touch">Appui long sur un épisode pour le marquer comme vu ou non vu</string>
+</resources>

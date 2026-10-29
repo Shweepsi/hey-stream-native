@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_hidden">Hidden categories</string>
+    <string name="settings_section_parental">Parental control</string>
+    <string name="settings_section_language">Language</string>
+    <string name="settings_section_catalog">Catalog</string>
+    <string name="settings_section_subscription">Subscription</string>
+    <string name="settings_section_about">About</string>
+
+    <string name="settings_tab_live">Live</string>
+    <string name="settings_tab_movies">Movies</string>
+    <string name="settings_tab_series">Series</string>
+
+    <string name="settings_hidden_intro">Turn a category off to hide it from browsing and search. Its favorites and recent items stay visible.</string>
+    <string name="settings_category_shown">Shown</string>
+    <string name="settings_category_hidden">Hidden</string>
+    <string name="settings_categories_empty">No categories in this section</string>
+
+    <string name="settings_parental_intro">Adult categories are detected automatically (provider flag, or a name containing “XXX”, “Adult”, “+18”…) and locked by default. While locked, they stay listed but their content appears nowhere: lists, search, favorites, recent items, Continue.</string>
+    <string name="settings_parental_no_pin">No parental code yet</string>
+    <string name="settings_parental_locked">Adult categories are locked</string>
+    <string name="settings_parental_unlocked">Adult categories are unlocked while the app stays on screen</string>
+    <string name="settings_parental_create">Create a code</string>
+    <string name="settings_parental_change">Change the code</string>
+    <string name="settings_parental_lock_now">Lock now</string>
+    <string name="settings_parental_note">Unlocking with the code ends as soon as the app goes to the background or the screen turns off. After 5 wrong codes, entry is blocked for 30 seconds.</string>
+
+    <string name="settings_language_intro">Language of the app’s texts.</string>
+    <string name="settings_language_system">System language</string>
+    <string name="settings_language_french" translatable="false">Français</string>
+    <string name="settings_language_english" translatable="false">English</string>
+
+    <string name="settings_catalog_intro">The catalog is stored on this device and updated automatically once a day. You can also update it now.</string>
+    <string name="settings_catalog_update">Update now</string>
+    <string name="settings_catalog_updating">Updating…</string>
+    <string name="settings_catalog_running">Downloading the catalog. You can keep using the app.</string>
+    <string name="settings_catalog_kept">The provider sent an empty list: the previous catalog was kept</string>
+    <string name="settings_catalog_failed">Download failed: the previous catalog was kept</string>
+    <string name="settings_catalog_up_to_date">Already tried less than a minute ago, not retried</string>
+    <plurals name="settings_catalog_updated_live">
+        <item quantity="one">Updated: %1$s channel</item>
+        <item quantity="other">Updated: %1$s channels</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_movies">
+        <item quantity="one">Updated: %1$s movie</item>
+        <item quantity="other">Updated: %1$s movies</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_series">
+        <item quantity="one">Updated: %1$s series</item>
+        <item quantity="other">Updated: %1$s series</item>
+    </plurals>
+
+    <string name="settings_subscription_unknown">Not checked on this device yet</string>
+    <string name="settings_subscription_connections">Simultaneous connections allowed: %1$d</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_signing_out">Signing out…</string>
+    <string name="settings_sign_out_warning">Signing out deletes from this device the catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code.</string>
+    <string name="settings_sign_out_title">Sign out?</string>
+    <string name="settings_sign_out_message">The catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code will be deleted from this device. You will need your credentials to sign in again.</string>
+
+    <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_about_versions">Version %1$s · core %2$s</string>
+    <string name="settings_about_license">Free software under the GNU GPL 3.0 license.</string>
+    <string name="settings_about_no_content">Hey Stream provides no content: it only plays the IPTV subscription you add.</string>
+    <string name="settings_about_credits">Credits</string>
+    <string name="settings_about_show_license">View the license</string>
+    <string name="settings_credit_inter">Inter (typeface)</string>
+    <string name="settings_credit_inter_license" translatable="false">SIL Open Font License 1.1</string>
+    <string name="settings_credit_lucide">Lucide (icons)</string>
+    <string name="settings_credit_lucide_license">ISC License</string>
+    <string name="settings_credit_androidx" translatable="false">AndroidX, Media3</string>
+    <string name="settings_credit_androidx_license">Apache License 2.0</string>
+    <string name="settings_credit_ffmpeg">FFmpeg decoder (Jellyfin)</string>
+    <string name="settings_credit_ffmpeg_license" translatable="false">GNU GPL</string>
+    <string name="settings_license_unavailable">The license text could not be read.</string>
+    <string name="settings_change_server">Change server address</string>
+</resources>

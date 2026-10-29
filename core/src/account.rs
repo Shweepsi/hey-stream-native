@@ -8,6 +8,7 @@
 //! favoris, reprise, code PIN et catégories masquées : seul le catalogue est
 //! rechargé.
 
+use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -89,19 +90,41 @@ fn digest(text: &str) -> String {
     hex(&Sha256::digest(text.as_bytes()))
 }
 
+/// Compare le cache à un abonnement, sur une connexion ou dans une
+/// transaction en cours.
+pub(crate) fn account_match(conn: &Connection, key: &AccountKey) -> Result<AccountMatch> {
+    let setting = |name: &str| -> Result<Option<String>> {
+        Ok(conn
+            .query_row("SELECT value FROM setting WHERE key = ?1", [name], |r| {
+                r.get(0)
+            })
+            .optional()?)
+    };
+    let Some(user) = setting(USER_KEY)? else {
+        return Ok(AccountMatch::Unbound);
+    };
+    Ok(if user != key.user {
+        AccountMatch::OtherUser
+    } else if setting(SERVER_KEY)?.as_deref() == Some(key.server.as_str()) {
+        AccountMatch::Same
+    } else {
+        AccountMatch::OtherServer
+    })
+}
+
 impl Catalog {
     /// Compare le cache à un abonnement, sans rien modifier.
     pub fn account_match(&self, key: &AccountKey) -> Result<AccountMatch> {
-        let Some(user) = self.setting(USER_KEY)? else {
-            return Ok(AccountMatch::Unbound);
-        };
-        Ok(if user != key.user {
-            AccountMatch::OtherUser
-        } else if self.setting(SERVER_KEY)?.as_deref() == Some(key.server.as_str()) {
-            AccountMatch::Same
-        } else {
-            AccountMatch::OtherServer
-        })
+        account_match(&self.conn, key)
+    }
+
+    /// Réserve l'enregistrement des sections de cette connexion à un
+    /// abonnement : si le cache n'est plus lié à lui (une nouvelle connexion
+    /// a remplacé l'objet qui l'utilise, ou s'est déconnectée), il est refusé
+    /// ([`Error::AccountChanged`]) au lieu d'écrire l'ancien catalogue sous
+    /// un autre compte.
+    pub fn restrict_sections_to(&mut self, key: &AccountKey) {
+        self.sections_owner = Some(key.clone());
     }
 
     /// Associe le cache à un abonnement et renvoie ce qu'il était avant :

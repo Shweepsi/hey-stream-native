@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Full-screen player for movies and episodes. -->
+    <string name="player_pause">Pause</string>
+    <string name="player_rewind">Back 10 s</string>
+    <string name="player_forward">Forward 10 s</string>
+    <string name="player_position">Playback position</string>
+    <string name="player_audio">Audio</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_subtitles_off">Off</string>
+    <string name="player_track">Track %1$d</string>
+    <string name="player_episode">S%1$d · E%2$d</string>
+    <string name="player_episode_title">S%1$d · E%2$d · %3$s</string>
+    <string name="player_next_in">Next episode in %1$d s</string>
+    <string name="player_play_now">Play now</string>
+    <string name="player_error_title">This video cannot be opened</string>
+</resources>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">Search</string>
+    <string name="search_hint">Channels, movies, series</string>
+    <string name="search_field_label">Search by name</string>
+    <string name="search_idle_title">Search by name</string>
+    <string name="search_idle_message">Type at least 2 characters to search live channels, movies and series.</string>
+    <string name="search_no_results">No results</string>
+    <string name="search_no_results_message">Nothing matches “%1$s”. Check the spelling or try another word.</string>
+    <string name="search_section_live">Channels</string>
+    <string name="search_section_movies">Movies</string>
+    <string name="search_section_series">Series</string>
+    <string name="search_results_first">First %1$d results</string>
+    <plurals name="search_results_count">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
+</resources>

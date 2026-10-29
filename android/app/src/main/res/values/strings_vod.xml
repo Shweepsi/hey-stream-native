@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vod_title_movies">Movies</string>
+    <string name="vod_title_series">Series</string>
+    <plurals name="vod_count_movies">
+        <item quantity="one">%1$s movie</item>
+        <item quantity="other">%1$s movies</item>
+    </plurals>
+    <plurals name="vod_count_series">
+        <item quantity="one">%1$s series</item>
+        <item quantity="other">%1$s series</item>
+    </plurals>
+    <string name="vod_continue_empty_movies_title">No movie in progress</string>
+    <string name="vod_continue_empty_movies">Movies you start watching appear here, so you can pick up where you left off.</string>
+    <string name="vod_continue_empty_series_title">No series in progress</string>
+    <string name="vod_continue_empty_series">Series you start watching appear here, with their last episode.</string>
+    <string name="vod_favorites_empty_title">No favorites yet</string>
+    <string name="vod_favorites_empty_movies">Add a movie to your favorites from its page.</string>
+    <string name="vod_favorites_empty_series">Add a series to your favorites from its page.</string>
+</resources>

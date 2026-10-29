@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Réglages</string>
+    <string name="settings_section_hidden">Catégories masquées</string>
+    <string name="settings_section_parental">Contrôle parental</string>
+    <string name="settings_section_language">Langue</string>
+    <string name="settings_section_catalog">Catalogue</string>
+    <string name="settings_section_subscription">Abonnement</string>
+    <string name="settings_section_about">À propos</string>
+
+    <string name="settings_tab_live">Direct</string>
+    <string name="settings_tab_movies">Films</string>
+    <string name="settings_tab_series">Séries</string>
+
+    <string name="settings_hidden_intro">Désactivez une catégorie pour la masquer de la navigation et de la recherche. Ses favoris et ses récents restent visibles.</string>
+    <string name="settings_category_shown">Affichée</string>
+    <string name="settings_category_hidden">Masquée</string>
+    <string name="settings_categories_empty">Aucune catégorie dans cette section</string>
+
+    <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement (marquage du fournisseur, ou nom contenant « XXX », « Adult », « +18 »…) et verrouillées par défaut. Verrouillées, elles restent listées mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
+    <string name="settings_parental_no_pin">Aucun code parental pour l’instant</string>
+    <string name="settings_parental_locked">Catégories adultes verrouillées</string>
+    <string name="settings_parental_unlocked">Catégories adultes déverrouillées tant que l’app reste à l’écran</string>
+    <string name="settings_parental_create">Créer un code</string>
+    <string name="settings_parental_change">Changer le code</string>
+    <string name="settings_parental_lock_now">Verrouiller maintenant</string>
+    <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
+
+    <string name="settings_language_intro">Langue des textes de l’app.</string>
+    <string name="settings_language_system">Langue du système</string>
+
+    <string name="settings_catalog_intro">Le catalogue est enregistré sur cet appareil et mis à jour automatiquement une fois par jour. Vous pouvez aussi le mettre à jour maintenant.</string>
+    <string name="settings_catalog_update">Mettre à jour maintenant</string>
+    <string name="settings_catalog_updating">Mise à jour…</string>
+    <string name="settings_catalog_running">Téléchargement du catalogue. Vous pouvez continuer à utiliser l’app.</string>
+    <string name="settings_catalog_kept">Liste vide reçue du fournisseur : catalogue précédent conservé</string>
+    <string name="settings_catalog_failed">Échec du téléchargement : catalogue précédent conservé</string>
+    <string name="settings_catalog_up_to_date">Déjà tenté il y a moins d’une minute, pas de nouvel essai</string>
+    <plurals name="settings_catalog_updated_live">
+        <item quantity="one">Mis à jour : %1$s chaîne</item>
+        <item quantity="many">Mis à jour : %1$s chaînes</item>
+        <item quantity="other">Mis à jour : %1$s chaînes</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_movies">
+        <item quantity="one">Mis à jour : %1$s film</item>
+        <item quantity="many">Mis à jour : %1$s films</item>
+        <item quantity="other">Mis à jour : %1$s films</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_series">
+        <item quantity="one">Mis à jour : %1$s série</item>
+        <item quantity="many">Mis à jour : %1$s séries</item>
+        <item quantity="other">Mis à jour : %1$s séries</item>
+    </plurals>
+
+    <string name="settings_subscription_unknown">Pas encore vérifié sur cet appareil</string>
+    <string name="settings_subscription_connections">Connexions simultanées autorisées : %1$d</string>
+    <string name="settings_sign_out">Se déconnecter</string>
+    <string name="settings_signing_out">Déconnexion…</string>
+    <string name="settings_sign_out_warning">La déconnexion efface de cet appareil le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental.</string>
+    <string name="settings_sign_out_title">Se déconnecter ?</string>
+    <string name="settings_sign_out_message">Le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental seront effacés de cet appareil. Il vous faudra vos identifiants pour vous reconnecter.</string>
+
+    <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_about_versions">Version %1$s · cœur %2$s</string>
+    <string name="settings_about_license">Logiciel libre sous licence GNU GPL 3.0.</string>
+    <string name="settings_about_no_content">Hey Stream ne fournit aucun contenu : l’app lit seulement l’abonnement IPTV que vous ajoutez.</string>
+    <string name="settings_about_credits">Crédits</string>
+    <string name="settings_about_show_license">Voir la licence</string>
+    <string name="settings_credit_inter">Inter (police de caractères)</string>
+    <string name="settings_credit_lucide">Lucide (icônes)</string>
+    <string name="settings_credit_lucide_license">Licence ISC</string>
+    <string name="settings_credit_androidx_license">Licence Apache 2.0</string>
+    <string name="settings_credit_ffmpeg">Décodeur FFmpeg (Jellyfin)</string>
+    <string name="settings_license_unavailable">Le texte de la licence est illisible.</string>
+    <string name="settings_change_server">Modifier l’adresse du serveur</string>
+</resources>

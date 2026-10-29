@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Hey Stream</string>
+    <string name="wordmark" translatable="false">hey stream</string>
+    <string name="back">Back</string>
+    <string name="loading">Loading…</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Try again</string>
+    <string name="close">Close</string>
+    <string name="watched">Watched</string>
+    <string name="live_badge">LIVE</string>
+    <string name="category_locked">Locked by parental control</string>
+    <string name="favorites">Favorites</string>
+    <string name="recents">Recent</string>
+    <string name="continue_watching">Continue</string>
+    <string name="play">Play</string>
+    <string name="resume">Resume</string>
+    <string name="from_start">From the beginning</string>
+    <string name="mark_watched">Mark as watched</string>
+    <string name="mark_unwatched">Mark as unwatched</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_remove">Remove from favorites</string>
+    <string name="duration_hm">%1$dh %2$02d</string>
+    <string name="duration_m">%1$d min</string>
+    <string name="watched_until">Watched until %1$s</string>
+    <string name="catalog_downloading">Downloading the catalog…</string>
+    <string name="catalog_empty">Nothing here yet</string>
+    <string name="catalog_empty_message">The catalog has not been downloaded yet. Check the connection, then try again.</string>
+    <string name="category_empty">This category is empty</string>
+    <string name="playback_reconnecting">Reconnecting…</string>
+    <string name="playback_failed">The stream could not be played</string>
+    <string name="pin_title_unlock">Enter the parental code</string>
+    <string name="pin_title_current">Enter the current code</string>
+    <string name="pin_title_create">Create a parental code</string>
+    <string name="pin_title_new">Choose a new code</string>
+    <string name="pin_title_confirm">Confirm the code</string>
+    <string name="pin_create_message">Adult categories are locked. Choose a 4-digit code to open them.</string>
+    <string name="pin_mismatch">The codes do not match. Try again.</string>
+    <string name="pin_delete">Delete</string>
+    <string name="error_invalid_server_url">The server address is not valid.</string>
+    <string name="error_missing_server">Enter the server address.</string>
+    <string name="error_missing_credentials">Enter the username and the password.</string>
+    <string name="error_unauthorized">Wrong username or password.</string>
+    <string name="error_account_inactive">This subscription is not active.</string>
+    <string name="error_not_found">The provider could not find this content.</string>
+    <string name="error_server">The provider\'s server returned an error (%1$d).</string>
+    <string name="error_unexpected_status">Unexpected answer from the provider (%1$d).</string>
+    <string name="error_invalid_response">The provider\'s answer could not be read.</string>
+    <string name="error_network">Cannot connect. Check the network and the server address.</string>
+    <string name="error_storage">Storage error on this device.</string>
+    <string name="error_parental_lock">This content is locked by parental control.</string>
+    <string name="error_invalid_pin">The code must have 4 digits.</string>
+    <string name="error_wrong_pin">Wrong code.</string>
+    <string name="error_too_many_attempts">Too many attempts. Try again in %1$d s.</string>
+    <string name="error_signed_out">You are signed out.</string>
+    <string name="error_unknown">Something went wrong.</string>
+    <string name="login_title">Sign in to your subscription</string>
+    <string name="login_intro">Enter the details given by your IPTV provider (Xtream Codes).</string>
+    <string name="login_privacy">Your credentials stay on this device.</string>
+    <string name="login_server">Server address</string>
+    <string name="login_server_hint">http://example.com:8080</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_submit">Sign in</string>
+    <string name="login_checking">Checking…</string>
+    <string name="home_live">Live</string>
+    <string name="home_live_subtitle">Channels and schedule</string>
+    <string name="home_movies">Movies</string>
+    <string name="home_movies_subtitle">On demand</string>
+    <string name="home_series">Series</string>
+    <string name="home_series_subtitle">Seasons and episodes</string>
+    <string name="home_search">Search</string>
+    <string name="home_settings">Settings</string>
+    <string name="subscription_unlimited">Subscription with no end date</string>
+    <string name="subscription_valid_until">Subscription valid until %1$s</string>
+    <string name="subscription_expired">Subscription expired on %1$s</string>
+    <plurals name="remaining_minutes">
+        <item quantity="one">%1$d min left</item>
+        <item quantity="other">%1$d min left</item>
+    </plurals>
+    <plurals name="pin_entered">
+        <item quantity="one">%1$d of %2$d digits entered</item>
+        <item quantity="other">%1$d of %2$d digits entered</item>
+    </plurals>
+    <string name="login_edit_title">Change the server address</string>
+    <string name="login_edit_intro">With the same username, your favorites, progress, watched marks and parental code are kept; only the catalog is downloaded again. Nothing changes if the check fails.</string>
+</resources>

@@ -11,3 +11,4 @@ xcuserdata/
 ffi/smoke/kotlin/.gradle/
 ffi/smoke/kotlin/build/
 ffi/smoke/kotlin/.kotlin/
+.kotlin/

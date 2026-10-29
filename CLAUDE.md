@@ -29,3 +29,9 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+App Android (voir `android/README.md`), depuis `android/` :
+
+```sh
+./gradlew :app:testDebugUnitTest :app:assembleRelease
+```

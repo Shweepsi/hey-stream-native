@@ -6,8 +6,9 @@
 
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
+use crate::account::{AccountKey, AccountMatch, account_match};
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::model::{Category, LiveStream, Movie, Series};
@@ -37,6 +38,8 @@ impl Section {
 pub struct CachedCategory {
     pub id: String,
     pub name: String,
+    /// Adulte par son nom, ou parce que le fournisseur marque adultes toutes
+    /// ses entrées.
     pub is_adult: bool,
     /// Adulte et code PIN pas saisi : l'ouvrir demande le code.
     pub locked: bool,
@@ -131,6 +134,8 @@ pub struct Catalog {
     /// Catégories adultes déverrouillées par le code PIN, pour cette session
     /// seulement : chaque ouverture repart verrouillée.
     pub(crate) parental_unlocked: bool,
+    /// Voir [`Catalog::restrict_sections_to`].
+    pub(crate) sections_owner: Option<AccountKey>,
 }
 
 impl Catalog {
@@ -159,6 +164,7 @@ impl Catalog {
         Ok(Self {
             conn,
             parental_unlocked: false,
+            sections_owner: None,
         })
     }
 
@@ -438,7 +444,16 @@ impl Catalog {
             return Ok(RefreshOutcome::KeptCache);
         }
         let key = section.key();
-        let tx = self.conn.transaction()?;
+        // Verrou d'écriture pris dès le début : le compte lié, relu ici, ne
+        // change plus avant la fin de l'enregistrement.
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(owner) = &self.sections_owner
+            && account_match(&tx, owner)? != AccountMatch::Same
+        {
+            return Err(Error::AccountChanged);
+        }
         tx.execute("DELETE FROM category WHERE section = ?1", [key])?;
         tx.execute("DELETE FROM item WHERE section = ?1", [key])?;
         {
@@ -458,6 +473,11 @@ impl Catalog {
             }
         }
         insert_items(&tx)?;
+        // Catégorie dont le fournisseur marque toutes les entrées adultes :
+        // adulte elle aussi (listée verrouillée, code demandé à l'ouverture),
+        // comme une catégorie détectée par son nom. Recalculé à chaque
+        // enregistrement, puisque les catégories viennent d'être réécrites.
+        tx.execute(ADULT_BY_PROVIDER_FLAG, [key])?;
         // Entrées sans catégories, ou catégories sans entrées : réponse
         // probablement incomplète. On la garde, mais la section reste à
         // rafraîchir au prochain lancement. Les deux vides : section vide.
@@ -581,6 +601,22 @@ pub(crate) const PROGRESS_JOIN: &str = concat!(
                             ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
     END"
 );
+
+/// Marque adultes les catégories non vides dont toutes les entrées sont
+/// marquées `is_adult` par le fournisseur. Une catégorie mixte garde le
+/// filtrage entrée par entrée ([`Catalog::visibility`]). Si un rafraîchissement
+/// y ajoute une entrée non marquée, elle devient mixte : elle s'ouvre sans
+/// code, et ses entrées marquées restent cachées tant que le verrou est
+/// fermé. Les deux sous-requêtes lisent l'index `item_by_category` et
+/// s'arrêtent à la première entrée trouvée : une catégorie ordinaire coûte une
+/// ou deux lectures, pas un parcours de ses entrées.
+const ADULT_BY_PROVIDER_FLAG: &str = "UPDATE category SET is_adult = 1
+    WHERE section = ?1 AND is_adult = 0
+      AND EXISTS (SELECT 1 FROM item i
+                  WHERE i.section = category.section AND i.category_id = category.id)
+      AND NOT EXISTS (SELECT 1 FROM item i
+                      WHERE i.section = category.section AND i.category_id = category.id
+                        AND i.is_adult = 0)";
 
 const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
     (section, id, name, sort_key, search_key, sort_num, image, category_id, extension,
@@ -725,6 +761,30 @@ mod tests {
             assert!(plan.contains("INDEX item_by_"), "{plan}");
             assert!(!plan.contains("TEMP B-TREE"), "{plan}");
         }
+    }
+
+    /// Le marquage des catégories entièrement adultes, à chaque
+    /// enregistrement, lit l'index par catégorie : pas de parcours de toute
+    /// la section.
+    #[test]
+    fn adult_by_provider_flag_uses_the_category_index() {
+        let catalog = Catalog::open_in_memory().unwrap();
+        let plan: Vec<String> = catalog
+            .conn
+            .prepare(&format!("EXPLAIN QUERY PLAN {ADULT_BY_PROVIDER_FLAG}"))
+            .unwrap()
+            .query_map(["movies"], |r| r.get::<_, String>(3))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        let on_items: Vec<&String> = plan.iter().filter(|step| step.contains(" i ")).collect();
+        assert_eq!(on_items.len(), 2, "{plan:?}");
+        assert!(
+            on_items
+                .iter()
+                .all(|step| step.contains("INDEX item_by_category")),
+            "{plan:?}"
+        );
     }
 
     #[test]
