@@ -21,13 +21,13 @@ décide du contenu des écrans, ce document de leur apparence.
 
 ## Logo
 
-Piste A retenue : **triangle lecture + deux ondes**.
+**Piste C** (2026-10-29, affinage de la piste A) : **triangle lecture + deux
+ondes**. Dessins de l'app générés par `scripts/brand_assets.py`.
 
-- Triangle : dégradé linéaire bleu électrique → rouge vif (haut gauche → bas
-  droite).
-- Onde intérieure bleu électrique, onde extérieure rouge vif, traits arrondis.
-- Mot « hey stream » en Inter Bold, minuscules, approche −0,02 em, à droite
-  du symbole.
+- Triangle blanc `#F4F4F5`, coins arrondis, sans dégradé.
+- Onde intérieure bleu électrique, onde extérieure rouge vif, traits épais
+  et arrondis.
+- Mot « Hey Stream » en Inter Bold, approche −0,02 em, à droite du symbole.
 - Le symbole seul sert d'icône d'app (fond `#121214`).
 
 ## Couleurs

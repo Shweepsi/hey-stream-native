@@ -44,7 +44,7 @@ import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 import kotlinx.coroutines.delay
 
-/** Logo A : symbole, suivi du mot « hey stream » si [wordmark]. */
+/** Logo C : symbole, suivi du mot « Hey Stream » si [wordmark]. */
 @Composable
 fun Logo(modifier: Modifier = Modifier, size: Dp = 30.dp, wordmark: Boolean = true) {
     Row(
@@ -55,7 +55,7 @@ fun Logo(modifier: Modifier = Modifier, size: Dp = 30.dp, wordmark: Boolean = tr
         Image(
             painter = painterResource(R.drawable.ic_logo),
             contentDescription = if (wordmark) null else stringResource(R.string.app_name),
-            modifier = Modifier.size(size * 1.12f, size),
+            modifier = Modifier.size(size * 1.18f, size),
         )
         if (wordmark) {
             Text(
