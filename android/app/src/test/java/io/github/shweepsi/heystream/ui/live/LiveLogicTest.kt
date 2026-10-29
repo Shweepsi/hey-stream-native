@@ -145,7 +145,7 @@ class LiveLogicTest {
         assertEquals(220.dp, tablet.categoriesWidth)
         assertEquals(360.dp, tablet.channelsWidth)
         assertEquals(604.dp, tablet.videoX)
-        assertEquals(LiveTopBarHeight + 24.dp, tablet.videoY)
+        assertEquals(24.dp, tablet.videoY)
         assertEquals(652.dp, tablet.videoWidth)
         assertFalse(tablet.compact)
 

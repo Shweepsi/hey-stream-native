@@ -66,6 +66,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -88,9 +89,11 @@ import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.components.LocalSurfaceFocused
 import io.github.shweepsi.heystream.ui.components.MessageState
+import io.github.shweepsi.heystream.ui.components.PanelBackHeader
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.components.marqueeWhen
+import io.github.shweepsi.heystream.ui.components.rememberNow
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -140,8 +143,6 @@ fun LiveContent(
                 height = maxHeight - top - bottom,
                 categories = dimens.categoriesPanelWidth,
                 channels = dimens.channelsPanelWidth,
-                // Barre du haut et son séparateur.
-                topBar = dimens.topBarHeight + 1.dp,
             )
         }
         val categories = state.categories
@@ -161,8 +162,9 @@ fun LiveContent(
         }
 
         Column(Modifier.fillMaxSize()) {
-            // Au doigt, le fond de la barre va jusqu'aux bords (barre d'état, encoche).
-            if (!isTv) {
+            // Au doigt, pas de barre du haut : retour en tête des catégories. Sans
+            // panneaux (erreur, catalogue vide), la barre revient pour le retour.
+            if (!isTv && !showPanels) {
                 HsTopBar(
                     title = stringResource(R.string.live_title),
                     onBack = onBack,
@@ -173,7 +175,7 @@ fun LiveContent(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(start = start, end = end, top = if (isTv) top else 0.dp, bottom = bottom),
+                    .padding(start = start, end = end, top = if (isTv || showPanels) top else 0.dp, bottom = bottom),
             ) {
                 when {
                     categories is CategoriesUi.Loading -> LoadingState()
@@ -202,6 +204,7 @@ fun LiveContent(
                         layout = layout,
                         nowSecs = nowSecs,
                         actions = actions,
+                        onBack = onBack,
                     )
                 }
             }
@@ -222,6 +225,18 @@ fun LiveContent(
             video = video,
             modifier = videoModifier,
         )
+        // Au doigt, l'heure (plus de barre du haut) se pose en haut à droite de l'aperçu.
+        if (!isTv && showPanels && !state.fullscreen) {
+            Box(
+                Modifier
+                    .offset(start + layout.videoX, top + layout.videoY)
+                    .size(layout.videoWidth, layout.videoHeight)
+                    .padding(8.dp),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                PreviewClock()
+            }
+        }
 
         val message = state.message
         if (message != null && (layout.compact || !showPanels)) {
@@ -261,6 +276,7 @@ private fun LivePanels(
     layout: LiveLayout,
     nowSecs: Long,
     actions: LiveActions,
+    onBack: () -> Unit,
 ) {
     val isTv = Hs.isTv
     val firstChannel = remember { FocusRequester() }
@@ -312,6 +328,7 @@ private fun LivePanels(
             selectedFocus = selectedCategory,
             compact = layout.compact,
             onSelect = actions::onSelectCategory,
+            onBack = onBack,
             modifier = Modifier
                 .width(layout.categoriesWidth)
                 .fillMaxHeight(),
@@ -354,6 +371,7 @@ private fun CategoriesPanel(
     selectedFocus: FocusRequester,
     compact: Boolean,
     onSelect: (LiveCategory) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier,
 ) {
     val isTv = Hs.isTv
@@ -375,14 +393,18 @@ private fun CategoriesPanel(
                 .padding(horizontal = if (compact) 8.dp else 12.dp)
         },
     ) {
-        if (isTv) PanelLabel(stringResource(R.string.live_categories))
+        if (isTv) {
+            PanelLabel(stringResource(R.string.live_categories))
+        } else {
+            PanelBackHeader(stringResource(R.string.live_title), onBack)
+        }
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .focusRestorer(),
             // Marges dans la liste : les lignes défilent jusqu'au bord, sans être coupées avant.
-            contentPadding = PaddingValues(vertical = if (isTv) 0.dp else if (compact) 8.dp else 16.dp),
+            contentPadding = PaddingValues(bottom = if (isTv) 0.dp else if (compact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 3.dp else 2.dp),
         ) {
             items(categories, key = { it.key.listKey }, contentType = { "category" }) { category ->
@@ -748,5 +770,21 @@ private fun LiveToast(text: String, modifier: Modifier = Modifier) {
             .background(colors.text)
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .semantics { liveRegion = LiveRegionMode.Polite },
+    )
+}
+
+/** Heure sur l'aperçu vidéo (au doigt), lisible sur toute image. */
+@Composable
+private fun PreviewClock() {
+    val now by rememberNow()
+    Text(
+        text = Formats.time(now, currentLocale()),
+        style = Hs.type.small.tabular().copy(fontWeight = FontWeight.SemiBold),
+        color = HsColors.OnMedia,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(Hs.dimens.badgeRadius))
+            .background(HsColors.MediaScrim)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }

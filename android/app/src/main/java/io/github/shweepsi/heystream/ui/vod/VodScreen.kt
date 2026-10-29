@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
@@ -64,11 +68,10 @@ import androidx.paging.compose.itemContentType
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.appGraph
-import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.CategoryRow
-import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.components.MessageState
+import io.github.shweepsi.heystream.ui.components.PanelBackHeader
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -222,36 +225,26 @@ fun VodContent(
                 .fillMaxSize()
                 .background(Hs.colors.background),
         ) {
-            // Nom de la catégorie dans la barre du haut, au-dessus de la grille :
-            // une rangée d'affiches de plus à l'écran. Le titre occupe la
-            // largeur du panneau des catégories, moins le bouton retour.
-            HsTopBar(
-                title = title,
-                onBack = onBack,
-                titleWidth = dimens.categoriesPanelWidth + 1.dp + 8.dp - TOP_BAR_BACK - 12.dp * 2,
-            ) {
-                val selected = state.selectedCategory
-                if (!state.loading && state.error == null && selected != null) {
-                    GridHeader(
-                        title = selected.label(),
-                        count = categoryCount(state, selected),
-                        section = state.section,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
+            // Pas de barre du haut (maquette C) : retour et titre en tête des
+            // catégories, nom de la catégorie en tête de la grille, sur la même ligne.
             Row(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .windowInsetsPadding(BelowTopBar),
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
-                categories(
+                Column(
                     Modifier
                         .width(dimens.categoriesPanelWidth)
-                        .fillMaxHeight(),
-                    PaddingValues(horizontal = 12.dp, vertical = dimens.screenVertical),
-                )
+                        .fillMaxHeight()
+                        .padding(start = 8.dp),
+                ) {
+                    PanelBackHeader(title, onBack)
+                    categories(
+                        Modifier.weight(1f),
+                        PaddingValues(start = 4.dp, end = 12.dp, bottom = dimens.screenVertical),
+                    )
+                }
                 Box(
                     Modifier
                         .width(1.dp)
@@ -261,8 +254,7 @@ fun VodContent(
                 grid(
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .padding(top = dimens.screenVertical),
+                        .fillMaxHeight(),
                     dimens.screenHorizontal,
                     dimens.screenVertical,
                 )
@@ -373,9 +365,6 @@ private fun CategoriesPanel(
 private fun categoryCount(state: VodUiState, selected: VodCategory): Long? =
     if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
 
-/** Bouton retour de la barre du haut (48 dp). */
-private val TOP_BAR_BACK = 48.dp
-
 @Composable
 private fun VodCategory.label(): String = when (key) {
     CategoryKey.Continue -> stringResource(R.string.continue_watching)
@@ -411,14 +400,26 @@ private fun GridPane(
                 CatalogEmpty(state.downloading, onRefreshCatalog)
             }
             else -> {
-                // Au doigt, le nom de la catégorie est dans la barre du haut.
-                if (Hs.isTv) {
+                val header = @Composable { modifier: Modifier ->
                     GridHeader(
                         title = selected.label(),
                         count = categoryCount(state, selected),
                         section = state.section,
-                        modifier = Modifier.padding(horizontal = edge),
+                        modifier = modifier,
                     )
+                }
+                if (Hs.isTv) {
+                    header(Modifier.padding(horizontal = edge))
+                } else {
+                    // Au doigt, à la hauteur du retour et du titre de la colonne voisine.
+                    Box(
+                        Modifier
+                            .height(Hs.dimens.topBarHeight)
+                            .padding(horizontal = edge),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        header(Modifier)
+                    }
                 }
                 // Une grille par catégorie : position et focus propres à chacune.
                 key(selected.key.listKey) {

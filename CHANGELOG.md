@@ -20,8 +20,9 @@ Polissage de l'interface, même style sur TV, tablette et téléphone.
 - Noms sans préfixe de langue (« FR - », « |FR| », « FR -4K ») ni langue
   en fin de titre (« FR », « _fr ») pour les films, séries et chaînes ; les
   catégories gardent le leur.
-- Au doigt, le nom de la catégorie monte dans la barre du haut, au-dessus de
-  la grille : une rangée d'affiches de plus.
+- Direct, Films, Séries au doigt : plus de barre du haut. Retour et titre en
+  tête des catégories, nom de la catégorie en tête de la grille, heure sur
+  l'aperçu vidéo du direct : 48 dp de plus pour les listes.
 - Fiche série : onglets de saisons sur tous les appareils ; épisodes sur
   toute la largeur.
 

@@ -5,9 +5,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 
-/** Barre du haut d'une tablette (`HsTopBar`) et son séparateur ; plus basse sur téléphone. */
-val LiveTopBarHeight = 64.dp + 1.dp
-
 /**
  * Mesures des trois panneaux et place de l'aperçu vidéo dans la zone utile
  * (hors barres système). L'aperçu et le plein écran sont le même lecteur :
@@ -37,8 +34,8 @@ data class LiveLayout(
 
 /**
  * TV : maquette 1280 × 720 ramenée à 960 × 540 dp (marges 30 / 24 dp,
- * 18 dp entre les panneaux). Tablette : barre du haut, puis trois colonnes
- * séparées par un trait. Téléphone (moins de 960 dp de large) : colonnes
+ * 18 dp entre les panneaux). Tablette : trois colonnes séparées par un
+ * trait, sans barre du haut (retour en tête des catégories). Téléphone (moins de 960 dp de large) : colonnes
  * proportionnelles, plus étroites.
  */
 fun liveLayout(
@@ -47,7 +44,7 @@ fun liveLayout(
     height: Dp,
     categories: Dp,
     channels: Dp,
-    topBar: Dp = LiveTopBarHeight,
+    topBar: Dp = 0.dp,
 ): LiveLayout {
     if (isTv) {
         val horizontal = 30.dp

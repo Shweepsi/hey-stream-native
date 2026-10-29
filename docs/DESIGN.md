@@ -99,6 +99,8 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
   partout : fond **Surface 2**, texte blanc demi-gras. Le blanc plein est
   réservé au bouton principal (« Lecture »).
 - Barre du haut (au doigt) : 48 dp, sur le fond de l'écran, retour sans fond.
+  Direct, Films et Séries n'en ont pas : retour et titre en tête de la
+  colonne des catégories (maquette C, 2026-10-29).
 - Grille commune : marges d'écran de 16 dp (téléphone), 24 dp (tablette),
   48 × 27 dp (TV) ; espacements de 8, 16, 24 ou 32 dp ; coins de 12 dp
   partout.

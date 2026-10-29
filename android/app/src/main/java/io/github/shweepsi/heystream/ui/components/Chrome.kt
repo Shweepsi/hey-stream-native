@@ -136,6 +136,25 @@ fun HsTopBar(
     }
 }
 
+/**
+ * Retour et titre en tête de la colonne des catégories, au doigt (Direct,
+ * Films, Séries) : ces écrans n'ont pas de barre du haut, la place va aux
+ * listes (décidé le 2026-10-29, maquette C).
+ */
+@Composable
+fun PanelBackHeader(title: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(Hs.dimens.topBarHeight),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
+        Text(title, style = Hs.type.title, maxLines = 1)
+    }
+}
+
 /** Contenu sous [HsTopBar] : hors des barres système et de l'encoche, sur les côtés et en bas. */
 val BelowTopBar: WindowInsets
     @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
