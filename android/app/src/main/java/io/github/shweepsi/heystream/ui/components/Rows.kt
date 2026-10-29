@@ -79,7 +79,7 @@ fun CategoryRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
-                    .marqueeWhen(selected || LocalSurfaceFocused.current),
+                    .marqueeWhen(if (dimens.isTv) LocalSurfaceFocused.current else selected),
             )
             if (locked) {
                 Icon(

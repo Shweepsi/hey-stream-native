@@ -322,9 +322,16 @@ impl Catalog {
             sql.push_str(&format!(" AND i.search_key LIKE ?{} ESCAPE '\\'", i + 2));
         }
         sql.push_str(&self.visibility("i", true));
+        // Début de mot : après une espace ou une décoration de fournisseur
+        // (« FR:Retour », « |FR|Retour », « FR-Retour »).
         let p = words.len() + 2;
+        let word_start = WORD_SEPARATORS
+            .chars()
+            .map(|c| format!("instr(' ' || i.search_key, '{c}' || ?{p}) > 0"))
+            .collect::<Vec<_>>()
+            .join(" OR ");
         sql.push_str(&format!(
-            " ORDER BY CASE WHEN instr(' ' || i.search_key, ' ' || ?{p}) > 0 THEN 0 \
+            " ORDER BY CASE WHEN {word_start} THEN 0 \
                WHEN instr(i.search_key, ?{p}) > 0 THEN 1 ELSE 2 END, \
              i.sort_key, i.id LIMIT {limit}"
         ));
@@ -614,6 +621,10 @@ pub(crate) const PROGRESS_JOIN: &str = concat!(
                             ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
     END"
 );
+
+/// Caractères après lesquels un mot commence, pour le classement de la
+/// recherche (sans apostrophe ni guillemet : ils iraient dans le SQL).
+const WORD_SEPARATORS: &str = " |:-_.([/";
 
 /// Marque adultes les catégories non vides dont toutes les entrées sont
 /// marquées `is_adult` par le fournisseur. Une catégorie mixte garde le

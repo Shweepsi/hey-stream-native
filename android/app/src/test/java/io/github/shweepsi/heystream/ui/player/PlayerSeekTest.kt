@@ -43,4 +43,17 @@ class PlayerSeekTest {
         advanceMainUntil { viewModel.state.value.pendingSeekMs == null }
         assertNull(viewModel.state.value.pendingSeekMs)
     }
+
+    @Test
+    fun leavingTheAppAppliesThePendingJumpBeforeSaving() {
+        val handle = PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, 7, seriesId = null, fromStart = false)
+        val viewModel = PlayerViewModel(fakeSession(core), controller, handle)
+        runMainUntil { opens.count == 1 }
+
+        repeat(3) { viewModel.nudge(forward = true) }
+        // Avant les 0,7 s : rien ne doit se perdre.
+        viewModel.onBackground()
+        assertNull(viewModel.state.value.pendingSeekMs)
+        assertEquals(3 * FORWARD_STEP_MS, controller.player.currentPosition)
+    }
 }

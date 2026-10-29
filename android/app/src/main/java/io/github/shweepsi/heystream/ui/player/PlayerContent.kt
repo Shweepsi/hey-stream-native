@@ -11,9 +11,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -261,20 +264,24 @@ fun PlayerContent(
                     }
                 }
                 .pointerInput(Unit) {
+                    // Pendant le cumul, chaque toucher d'un côté ajoute un pas
+                    // tout de suite, sans attendre le délai du double tap (un
+                    // tap rapide ne doit être ni perdu ni compté en double).
+                    awaitEachGesture {
+                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                        val side = sideOf(down.position.x, size.width)
+                        if (seeking.value && side != null) {
+                            down.consume()
+                            tapNudge(side, down.position)
+                            waitForUpOrCancellation(pass = PointerEventPass.Initial)?.consume()
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
                     // Double tap sur un côté : recul (gauche) ou avance (droite).
-                    // Pendant le cumul, chaque tap de ce côté ajoute un pas.
                     detectTapGestures(
                         onDoubleTap = { offset -> sideOf(offset.x, size.width)?.let { tapNudge(it, offset) } },
-                        onTap = { offset ->
-                            val side = sideOf(offset.x, size.width)
-                            if (seeking.value && side != null) {
-                                tapNudge(side, offset)
-                            } else if (chrome.visible) {
-                                chrome.hide()
-                            } else {
-                                chrome.show()
-                            }
-                        },
+                        onTap = { if (chrome.visible) chrome.hide() else chrome.show() },
                     )
                 }
                 .then(

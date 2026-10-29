@@ -144,7 +144,8 @@ val LocalSurfaceFocused = compositionLocalOf { false }
 /**
  * Nom trop long pour sa place : il défile quand l'élément est mis en avant
  * (focus à la télécommande, sélection au doigt) au lieu d'être coupé par
- * « … ». Un seul élément l'est à la fois : rien de coûteux sur la Mi Box S.
+ * « … ». Sur TV, seul l'élément focalisé défile : une ligne à la fois sur la
+ * Mi Box S.
  */
 fun Modifier.marqueeWhen(active: Boolean): Modifier =
     if (active) basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 1_000, repeatDelayMillis = 1_500) else this

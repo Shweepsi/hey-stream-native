@@ -81,8 +81,8 @@ private class Media(
 private class Resolved(val media: Media, val url: String, val startMs: Long)
 
 /** Pas d'un appui : on avance pour sauter un passage, on recule pour revoir une réplique. */
-internal const val FORWARD_STEP_MS = 30_000L
-internal const val BACK_STEP_MS = 10_000L
+internal const val FORWARD_STEP_MS = PlayerController.SEEK_FORWARD_MS
+internal const val BACK_STEP_MS = PlayerController.SEEK_BACK_MS
 
 /** Délai sans nouvel appui avant d'appliquer le saut cumulé. */
 internal const val SEEK_COMMIT_MS = 700L
@@ -206,6 +206,11 @@ class PlayerViewModel(
 
     private var pendingSeek: Job? = null
 
+    /** Écran fermé ou app quittée : le saut cumulé part maintenant (flux ouvert) ou est oublié. */
+    private fun settleSeek() {
+        if (started) commitSeek() else dropPendingSeek()
+    }
+
     private fun dropPendingSeek() {
         pendingSeek?.cancel()
         pendingSeek = null
@@ -277,6 +282,8 @@ class PlayerViewModel(
      */
     fun close() {
         if (closed) return
+        // Saut cumulé pas encore parti : appliqué, puis enregistré avec la position.
+        settleSeek()
         closed = true
         resolveJob?.cancel()
         nextJob?.cancel()
@@ -293,6 +300,7 @@ class PlayerViewModel(
      */
     fun onBackground() {
         if (closed || !foreground) return
+        settleSeek()
         foreground = false
         if (started && !endHandled) saveProgress()
         nextJob?.cancel()

@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
@@ -55,15 +56,17 @@ class PlayerGesturesTest {
     private val actions = Recorder()
     private val levels = Levels()
 
-    private fun show() {
+    private val chrome = PlayerChrome(visible = false)
+
+    private fun show(state: PlayerUiState = PlayerUiState(title = "Nord Express", resolving = false)) {
         compose.setContent {
             HeyStreamTheme(isTv = false) {
                 PlayerContent(
-                    state = PlayerUiState(title = "Nord Express", resolving = false),
+                    state = state,
                     status = PlaybackStatus(active = true, playing = true),
                     position = PlaybackPosition(60_000, 600_000),
                     // Commandes masquées : la vidéo reçoit les gestes.
-                    chrome = PlayerChrome(visible = false),
+                    chrome = chrome,
                     actions = actions,
                     levels = levels,
                 )
@@ -79,6 +82,16 @@ class PlayerGesturesTest {
         compose.onRoot().performTouchInput { doubleClick(Offset(width * 0.1f, centerY)) }
         compose.waitForIdle()
         assertEquals(listOf(true, false), actions.nudges.take(2))
+    }
+
+    @Test
+    fun duringAJumpEachTapOnASideCountsAtOnce() {
+        show(PlayerUiState(title = "Nord Express", resolving = false, pendingSeekMs = 30_000))
+        compose.onRoot().performTouchInput { click(Offset(width * 0.9f, centerY)) }
+        compose.onRoot().performTouchInput { click(Offset(width * 0.9f, centerY)) }
+        // Pas d'attente du double tap, pas de commandes montrées.
+        assertEquals(listOf(true, true), actions.nudges)
+        assertEquals(false, chrome.visible)
     }
 
     @Test

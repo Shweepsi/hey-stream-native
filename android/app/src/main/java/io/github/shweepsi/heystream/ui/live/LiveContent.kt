@@ -594,8 +594,8 @@ private fun ChannelRow(
             }
             ChannelLogo(channel.image, channel.name)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                // Nom et programme complets sur la chaîne en aperçu ou focalisée.
-                val highlighted = inPreview || LocalSurfaceFocused.current
+                // Nom et programme complets : chaîne focalisée sur TV, en aperçu au doigt.
+                val highlighted = if (isTv) LocalSurfaceFocused.current else inPreview
                 Text(
                     text = channel.name,
                     style = Hs.type.itemTitle,

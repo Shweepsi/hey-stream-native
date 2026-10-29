@@ -93,7 +93,9 @@ Police **Inter** (licence OFL), embarquée dans l'app. Titres 600–700, texte
 - **Au doigt** (tablette, téléphone), pas de contour : l'élément choisi passe
   en **couleurs inversées** (fond Texte, texte Fond : blanc sur sombre, noir
   sur clair).
-- Zones tactiles ≥ 48 dp (Android) / 44 pt (Apple).
+- Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone
+  (densité compacte, décidée le 2026-10-29 : barre du haut de 52 dp, marges
+  réduites, texte courant à 14 sp) / 44 pt (Apple).
 
 ## Animations
 

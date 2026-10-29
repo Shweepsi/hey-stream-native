@@ -111,6 +111,8 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
             delay(POSITION_REFRESH_MS)
         }
     }
+    // Saut cumulé appliqué : la barre suit aussitôt (sans attendre la relecture suivante).
+    LaunchedEffect(state.pendingSeekMs) { if (state.pendingSeekMs == null) readPosition() }
 
     // Masquage automatique pendant la lecture, relancé à chaque touche.
     LaunchedEffect(chrome.visible, chrome.menu, chrome.interaction, status.playing) {
@@ -150,11 +152,7 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         object : PlayerActions {
             override fun togglePause() = viewModel.togglePause()
 
-            // La barre suit aussitôt (sans attendre la relecture suivante).
-            override fun nudge(forward: Boolean) {
-                viewModel.nudge(forward)
-                readPosition()
-            }
+            override fun nudge(forward: Boolean) = viewModel.nudge(forward)
 
             override fun seekTo(fraction: Float) {
                 viewModel.seekToFraction(fraction)
