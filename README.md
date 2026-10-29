@@ -32,7 +32,7 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | Liaisons UniFFI (Kotlin, Swift) : `ffi/`, `scripts/bindings.sh` | ✅ testé |
 | `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
 | Android : socle (Gradle + cœur Rust, design, session, lecteur Media3), connexion, accueil | ✅ CI (JVM + émulateur) |
-| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | en cours |
+| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | ✅ CI (JVM + émulateur), à essayer sur appareil |
 | Apple (SwiftUI + AVPlayer) | à faire |
 
 ## Développer
