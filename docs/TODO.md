@@ -9,8 +9,7 @@ ligne quand sa PR est fusionnée.
    les objectifs de `docs/MATERIEL.md` (démarrage < 2 s, liste < 500 ms,
    changement de chaîne < 1,5 s, < 300 Mo en lecture, 0 plantage sur 4 h).
 2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo C
-   retenu pour le site, choix final face aux pistes D à F, puis icônes,
-   bannière TV, fiche Play Store.
+   appliqué (site et app, 0.5.0) ; reste la fiche Play Store.
 3. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
 
 ## Cœur (acceptables pour l'instant)
