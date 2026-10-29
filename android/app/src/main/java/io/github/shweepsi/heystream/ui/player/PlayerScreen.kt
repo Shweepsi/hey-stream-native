@@ -60,8 +60,8 @@ internal fun keepsScreenOn(state: PlayerUiState, status: PlaybackStatus): Boolea
  *
  * Les arguments ne font que remplir le `SavedStateHandle` de l'entrée de
  * navigation à sa création ([PlayerArgs]) : restauré après l'arrêt de
- * l'app, l'écran relit le handle (épisode enchaîné, « Depuis le début »
- * déjà appliqué), pas la route d'origine.
+ * l'app, l'écran relit le handle (épisode enchaîné, position atteinte),
+ * pas la route d'origine.
  */
 @Composable
 fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boolean, onExit: () -> Unit) {

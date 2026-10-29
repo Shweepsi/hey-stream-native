@@ -10,9 +10,10 @@ import io.github.shweepsi.heystream.core.PlaybackKind
  * Sur la Mi Box S (2 Go), Android arrête souvent l'app en arrière-plan ; au
  * retour, l'écran est restauré avec les arguments **d'origine** de la route.
  * Le handle, lui, est restauré tel qu'il a été laissé :
- * - « Depuis le début » ne vaut que pour la première ouverture : une fois le
- *   flux donné au lecteur, une restauration reprend à la position enregistrée
- *   (au lieu de repartir de 0 et d'écraser la reprise) ;
+ * - la position atteinte par l'écran ([reached]) y est gardée : une
+ *   restauration reprend là, au lieu de repartir de 0 après un « Depuis le
+ *   début » (et d'écraser la reprise) ou de sauter à l'ancienne reprise que
+ *   le cœur garde tant que 30 s n'ont pas été vues ;
  * - l'épisode enchaîné automatiquement remplace celui de la route : une
  *   restauration rouvre celui qu'on regardait, pas le premier.
  *
@@ -35,9 +36,26 @@ internal class PlayerArgs(private val handle: SavedStateHandle) {
     val fromStart: Boolean
         get() = handle[FROM_START] ?: false
 
-    /** Flux donné au lecteur : une restauration reprend désormais à la position enregistrée. */
-    fun started() {
-        handle[FROM_START] = false
+    /** Dernière position enregistrée par l'écran pour ce titre ; `null` avant la première. */
+    val positionMs: Long?
+        get() = handle[POSITION_MS]
+
+    /**
+     * Où ouvrir le titre, ou `null` pour la reprise enregistrée par le cœur :
+     * la position atteinte par l'écran (restauré après l'arrêt de l'app),
+     * sinon 0 pour « Depuis le début ».
+     *
+     * La position de l'écran passe avant le cœur, qui ne retient rien sous
+     * 30 s : « Depuis le début », l'app arrêtée au bout de 20 s, puis le
+     * retour ne ramènent pas à l'ancienne reprise. Tant que l'écran n'a rien
+     * enregistré (flux en chargement), « Depuis le début » vaut toujours.
+     */
+    val startMs: Long?
+        get() = positionMs ?: if (fromStart) 0L else null
+
+    /** Progression enregistrée (lecture, pause, arrière-plan) : une restauration reprend là. */
+    fun reached(positionMs: Long) {
+        handle[POSITION_MS] = positionMs
     }
 
     /** Épisode suivant enchaîné : c'est lui qu'une restauration rouvre, à sa position enregistrée. */
@@ -45,6 +63,8 @@ internal class PlayerArgs(private val handle: SavedStateHandle) {
         handle[KIND] = PlaybackKind.EPISODE.name
         handle[ID] = episodeId
         handle[FROM_START] = false
+        // La position atteinte était celle de l'épisode précédent.
+        handle.remove<Long>(POSITION_MS)
     }
 
     companion object {
@@ -53,11 +73,13 @@ internal class PlayerArgs(private val handle: SavedStateHandle) {
         const val SERIES_ID = "seriesId"
         const val FROM_START = "fromStart"
 
+        /** Propre à l'écran (pas un argument de la route). */
+        const val POSITION_MS = "positionMs"
+
         /**
          * Remplit [handle] avec les arguments de la route, seulement pour les
          * clés absentes : un handle restauré garde ses valeurs (titre en cours,
-         * « Depuis le début » déjà appliqué) ; un handle créé hors navigation
-         * reçoit tout.
+         * position atteinte) ; un handle créé hors navigation reçoit tout.
          */
         fun seed(handle: SavedStateHandle, kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boolean): SavedStateHandle {
             if (!handle.contains(KIND)) handle[KIND] = kind.name

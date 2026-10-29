@@ -275,10 +275,11 @@ class PlayerViewModel(
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
         val kind = args.kind
         val id = args.id
-        val fromStart = args.fromStart
+        // Position atteinte par l'écran (restauré), ou 0 pour « Depuis le début ».
+        val startMs = args.startMs
         resolveJob = viewModelScope.launch {
             try {
-                val resolved = session.withCore { core -> resolveMedia(core, kind, id, fromStart) }
+                val resolved = session.withCore { core -> resolveMedia(core, kind, id, startMs) }
                 if (closed) return@launch
                 media = resolved.media
                 _state.update {
@@ -296,20 +297,20 @@ class PlayerViewModel(
     private fun open(resolved: Resolved) {
         controller.playVod(resolved.url, resolved.startMs)
         started = true
-        // « Depuis le début » est appliqué : restauré après l'arrêt de l'app,
-        // l'écran reprendra à la position enregistrée, sans l'écraser.
-        args.started()
     }
 
-    /** Appel bloquant (cœur) : fiche, extension, position de reprise, récents. */
-    private fun resolveMedia(core: HeyStreamCore, kind: PlaybackKind, id: Long, fromStart: Boolean): Resolved {
+    /**
+     * Appel bloquant (cœur) : fiche, extension, position de reprise, récents.
+     * [startMs] : position imposée ([PlayerArgs.startMs]) ; `null` : reprise du cœur.
+     */
+    private fun resolveMedia(core: HeyStreamCore, kind: PlaybackKind, id: Long, startMs: Long?): Resolved {
         val media = when (kind) {
             PlaybackKind.MOVIE -> movieMedia(core, id)
             PlaybackKind.EPISODE -> episodeMedia(core, id, seriesId ?: throw HeyStreamException.NotFound())
         }
         val streamKind = if (kind == PlaybackKind.MOVIE) StreamKind.MOVIE else StreamKind.SERIES
         val url = core.streamUrl(streamKind, id, media.extension)
-        val start = if (fromStart) 0L else core.progress(kind, id) ?: 0L
+        val start = startMs ?: core.progress(kind, id) ?: 0L
         // Secondaire : un échec n'empêche pas la lecture.
         runCatching {
             if (kind == PlaybackKind.MOVIE) core.addRecent(Section.MOVIES, id) else seriesId?.let { core.addRecent(Section.SERIES, it) }
@@ -439,6 +440,10 @@ class PlayerViewModel(
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: media.durationMs
         val position = if (final && duration > 0) duration else player.currentPosition.coerceAtLeast(0)
         if (position <= 0 && !final) return
+        // Gardée dans le handle : restauré après l'arrêt de l'app, l'écran
+        // reprend là (même sous 30 s, que le cœur ne retient pas). Pas la
+        // position finale : le titre est fini, le handle garde la dernière lue.
+        if (!final && media.id == args.id) args.reached(position)
         val resume = Resume(
             kind = media.kind,
             id = media.id,

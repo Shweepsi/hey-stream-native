@@ -50,27 +50,45 @@ class PlayerLogicTest {
     }
 
     @Test
-    fun fromStartAppliesOnlyUntilTheStreamIsOpened() {
-        // « Depuis le début » sur un film, regardé, puis l'app est arrêtée en arrière-plan.
-        val handle = PlayerArgs.seed(routeHandle(PlaybackKind.MOVIE, 42, -1, true), PlaybackKind.MOVIE, 42, null, true)
-        val args = PlayerArgs(handle)
-        assertTrue(args.fromStart)
-        args.started()
-
-        // Au retour, la route dit toujours « depuis le début » : le handle l'emporte,
-        // la lecture reprend à la position enregistrée (elle n'est pas écrasée).
-        val restored = restore(handle, PlaybackKind.MOVIE, 42, null, fromStart = true)
-        assertEquals(PlaybackKind.MOVIE, restored.kind)
-        assertEquals(42L, restored.id)
-        assertFalse(restored.fromStart)
+    fun startPositionFollowsTheRouteOnFirstOpening() {
+        // « Reprendre » : la reprise du cœur ; « Depuis le début » : 0.
+        assertNull(PlayerArgs(PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, 42, null, false)).startMs)
+        assertEquals(0L, PlayerArgs(PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, 42, null, true)).startMs)
     }
 
     @Test
-    fun fromStartStillAppliesIfTheStreamWasNeverOpened() {
-        // Arrêtée avant l'ouverture du flux (fiche en chargement, app en arrière-plan) :
+    fun aRestoredFromStartResumesWhereTheScreenWasNotAtZero() {
+        // « Depuis le début » sur un film (ancienne reprise à 50:00 dans le cœur),
+        // regardé jusqu'à 40:00, puis l'app est arrêtée en arrière-plan.
+        val handle = PlayerArgs.seed(routeHandle(PlaybackKind.MOVIE, 42, -1, true), PlaybackKind.MOVIE, 42, null, true)
+        val args = PlayerArgs(handle)
+        args.reached(2_400_000)
+
+        // Au retour, la route dit toujours « depuis le début » : le handle l'emporte,
+        // la lecture reprend à 40:00 (et la reprise n'est pas écrasée par un départ à 0).
+        val restored = restore(handle, PlaybackKind.MOVIE, 42, null, fromStart = true)
+        assertEquals(PlaybackKind.MOVIE, restored.kind)
+        assertEquals(42L, restored.id)
+        assertEquals(2_400_000L, restored.startMs)
+    }
+
+    @Test
+    fun aRestoredFromStartUnder30sDoesNotJumpToTheOldResumePoint() {
+        // « Depuis le début », arrêtée au bout de 20 s : le cœur, qui ne retient rien
+        // sous 30 s, a toujours l'ancienne reprise (50:00). L'écran reprend à 0:20.
+        val handle = PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, 42, null, true)
+        PlayerArgs(handle).reached(20_000)
+        assertEquals(20_000L, restore(handle, PlaybackKind.MOVIE, 42, null, fromStart = true).startMs)
+    }
+
+    @Test
+    fun fromStartStillAppliesIfNothingWasRecorded() {
+        // Arrêtée avant toute position (fiche ou flux en chargement, app en arrière-plan) :
         // rien n'a été lu, « Depuis le début » vaut toujours.
         val handle = PlayerArgs.seed(SavedStateHandle(), PlaybackKind.MOVIE, 42, null, true)
-        assertTrue(restore(handle, PlaybackKind.MOVIE, 42, null, fromStart = true).fromStart)
+        val restored = restore(handle, PlaybackKind.MOVIE, 42, null, fromStart = true)
+        assertTrue(restored.fromStart)
+        assertEquals(0L, restored.startMs)
     }
 
     @Test
@@ -78,19 +96,24 @@ class PlayerLogicTest {
         // Épisode 21 lancé depuis la fiche, puis 22 et 23 enchaînés.
         val handle = PlayerArgs.seed(routeHandle(PlaybackKind.EPISODE, 21, 5, false), PlaybackKind.EPISODE, 21, 5, false)
         val args = PlayerArgs(handle)
-        args.started()
+        args.reached(2_000_000)
         args.advanceTo(22)
-        args.started()
+        args.reached(2_100_000)
         args.advanceTo(23)
         assertEquals(23L, args.id)
         assertFalse(args.fromStart)
+        // La position atteinte était celle du 22 : le 23 s'ouvre à sa reprise.
+        assertNull(args.startMs)
 
         // La route nomme toujours l'épisode 21 (vu, sans reprise) : c'est le 23 qui revient.
         val restored = restore(handle, PlaybackKind.EPISODE, 21, 5, fromStart = false)
         assertEquals(PlaybackKind.EPISODE, restored.kind)
         assertEquals(23L, restored.id)
         assertEquals(5L, restored.seriesId)
-        assertFalse(restored.fromStart)
+        assertNull(restored.startMs)
+        // Regardé un peu, puis arrêtée : le 23 reprend là.
+        PlayerArgs(handle).reached(600_000)
+        assertEquals(600_000L, restore(handle, PlaybackKind.EPISODE, 21, 5, fromStart = false).startMs)
     }
 
     @Test
@@ -99,6 +122,7 @@ class PlayerLogicTest {
         val args = PlayerArgs(PlayerArgs.seed(SavedStateHandle(), PlaybackKind.EPISODE, 21, 5, true))
         args.advanceTo(22)
         assertFalse(args.fromStart)
+        assertNull(args.startMs)
     }
 
     @Test

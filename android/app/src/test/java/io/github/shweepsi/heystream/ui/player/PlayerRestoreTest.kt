@@ -105,10 +105,12 @@ class PlayerRestoreTest {
         assertEquals(21L, first.id)
         assertTrue(first.fromStart)
 
-        // Flux ouvert, puis l'épisode 22 enchaîné ; l'app est arrêtée en arrière-plan.
+        // Épisode 21 regardé, l'épisode 22 enchaîné et regardé jusqu'à 10:00 ;
+        // l'app est arrêtée en arrière-plan.
         compose.runOnIdle {
-            first.started()
+            first.reached(2_000_000)
             first.advanceTo(22)
+            first.reached(600_000)
         }
         restoration.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
@@ -116,12 +118,13 @@ class PlayerRestoreTest {
         // La route restaurée nomme toujours l'épisode 21, « depuis le début »…
         assertEquals(21L, routeId)
         assertEquals(true, routeFromStart)
-        // … mais le nouvel écran lit le handle : l'épisode 22, à sa position enregistrée.
+        // … mais le nouvel écran lit le handle : l'épisode 22, à 10:00.
         val restored = checkNotNull(current)
         assertNotSame(first, restored)
         assertEquals(PlaybackKind.EPISODE, restored.kind)
         assertEquals(22L, restored.id)
         assertEquals(5L, restored.seriesId)
         assertFalse(restored.fromStart)
+        assertEquals(600_000L, restored.startMs)
     }
 }
