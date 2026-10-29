@@ -16,6 +16,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,6 +47,13 @@ class SmokeTest {
         server.shutdown()
     }
 
+    /** La bibliothèque du cœur se charge et répond par JNA, comme dans l'app. */
+    @Test
+    fun coreLibraryLoads() {
+        System.loadLibrary("heystream")
+        assertTrue(io.github.shweepsi.heystream.core.coreVersion().isNotBlank())
+    }
+
     @Test
     fun signInDownloadsTheCatalogAndOpensLive() {
         step("formulaire de connexion") { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size >= 3 }
@@ -68,7 +76,9 @@ class SmokeTest {
         try {
             compose.waitUntil(TIMEOUT, condition)
         } catch (timeout: Throwable) {
-            val screen = runCatching { compose.onRoot().printToString(maxDepth = 30) }.getOrElse { "?" }
+            // Seulement les textes à l'écran (dont un éventuel message d'erreur).
+            val screen = runCatching { compose.onRoot().printToString(maxDepth = 40) }.getOrElse { "?" }
+                .lines().filter { "Text =" in it }.joinToString("\n") { it.trim() }
             throw AssertionError(
                 "Étape non atteinte en ${TIMEOUT / 1000} s : $name\n" +
                     "Requêtes reçues par le faux panneau : ${server.requestCount}\nÉcran :\n$screen",
