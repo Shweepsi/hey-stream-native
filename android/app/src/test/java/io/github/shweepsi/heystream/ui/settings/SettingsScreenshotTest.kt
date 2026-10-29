@@ -38,6 +38,7 @@ class SettingsScreenshotTest {
         categories = categories,
         parental = ParentalUi(loaded = true, hasPin = true, unlocked = true),
         catalog = CatalogUi(
+            updatedAt = 1_793_181_600L,
             results = listOf(
                 SectionResult(Section.LIVE, RefreshOutcome.Updated, 3_330),
                 SectionResult(Section.MOVIES, RefreshOutcome.KeptCache, 0),
@@ -98,6 +99,7 @@ class SettingsScreenshotTest {
     private val notRetried = state.copy(
         section = SettingsSection.Catalog,
         catalog = CatalogUi(
+            updatedAt = 1_793_181_600L,
             results = listOf(
                 SectionResult(Section.LIVE, RefreshOutcome.UpToDate, 0),
                 SectionResult(Section.MOVIES, RefreshOutcome.UpToDate, 0),

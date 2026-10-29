@@ -33,6 +33,13 @@ object Formats {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale)
             .format(Instant.ofEpochSecond(epochSecs).atZone(zone))
 
+    /** Jours entre la date de [epochSecs] et celle de [nowSecs] (0 : aujourd'hui, 1 : hier). */
+    fun daysAgo(epochSecs: Long, nowSecs: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        java.time.temporal.ChronoUnit.DAYS.between(
+            Instant.ofEpochSecond(epochSecs).atZone(zone).toLocalDate(),
+            Instant.ofEpochSecond(nowSecs).atZone(zone).toLocalDate(),
+        )
+
     /** Position de lecture (« 1:07:20 », « 7:05 »). */
     fun clock(ms: Long): String {
         val total = (ms.coerceAtLeast(0) / 1000)

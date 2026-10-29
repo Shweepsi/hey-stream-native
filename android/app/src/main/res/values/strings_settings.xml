@@ -32,6 +32,10 @@
     <string name="settings_language_english" translatable="false">English</string>
 
     <string name="settings_catalog_intro">The catalog is stored on this device and updated automatically once a day. You can also update it now.</string>
+    <string name="settings_catalog_updated_today">Last updated: today at %1$s</string>
+    <string name="settings_catalog_updated_yesterday">Last updated: yesterday at %1$s</string>
+    <string name="settings_catalog_updated_on">Last updated: %1$s at %2$s</string>
+    <string name="settings_catalog_never">Catalog not downloaded yet</string>
     <string name="settings_catalog_update">Update now</string>
     <string name="settings_catalog_updating">Updating…</string>
     <string name="settings_catalog_running">Downloading the catalog. You can keep using the app.</string>

@@ -108,6 +108,8 @@ internal class ParentalFakeCore : HeyStreamCore(NoHandle) {
 
     override fun count(section: Section, categoryId: String?): ULong = 0u
 
+    override fun catalogUpdatedAt(): Long? = null
+
     override fun nowNext(streamId: Long): NowNext = NowNext(now = null, next = null)
 
     override fun cachedNow(streamIds: List<Long>): List<ChannelNow> = emptyList()

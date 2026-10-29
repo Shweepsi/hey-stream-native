@@ -102,6 +102,8 @@ data class CatalogUi(
     val running: Boolean = false,
     val results: List<SectionResult>? = null,
     val error: UiText? = null,
+    /** Dernière mise à jour réussie (secondes Unix), `null` avant le premier chargement. */
+    val updatedAt: Long? = null,
 )
 
 /**
@@ -149,7 +151,11 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
 
     private val running = session.refresh.map { it is RefreshState.Running }.distinctUntilChanged()
 
-    private val catalog = combine(session.refresh, catalogRequested, ::catalogUiOf)
+    private val catalogUpdatedAt = MutableStateFlow<Long?>(null)
+
+    private val catalog = combine(session.refresh, catalogRequested, catalogUpdatedAt) { refresh, requested, updatedAt ->
+        catalogUiOf(refresh, requested).copy(updatedAt = updatedAt)
+    }
 
     private val account = session.account.map { accountUiOf(it, System.currentTimeMillis() / 1000) }
 
@@ -176,6 +182,12 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
         }
         viewModelScope.launch {
             session.userDataVersion.collectLatest { loadParental() }
+        }
+        viewModelScope.launch {
+            // Relue après chaque mise à jour du catalogue (quotidienne ou demandée).
+            session.catalogVersion.collectLatest {
+                catalogUpdatedAt.value = runCatching { session.withCore { it.catalogUpdatedAt() } }.getOrNull()
+            }
         }
         viewModelScope.launch {
             // La bibliothèque native est chargée avec le cœur de la session.

@@ -176,6 +176,15 @@ impl Catalog {
         })
     }
 
+    /// Dernière mise à jour du catalogue entier : la plus ancienne des
+    /// sections chargées (le catalogue est à jour au moins à cette date).
+    /// `None` si aucune section n'a encore été chargée.
+    pub fn updated_at(&self) -> Result<Option<i64>> {
+        Ok(self
+            .conn
+            .query_row("SELECT MIN(refreshed_at) FROM refresh", [], |r| r.get(0))?)
+    }
+
     pub fn refreshed_at(&self, section: Section) -> Result<Option<i64>> {
         Ok(self
             .conn
