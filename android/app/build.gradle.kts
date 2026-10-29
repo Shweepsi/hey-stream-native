@@ -14,6 +14,20 @@ plugins {
 // versionnées.
 
 val rustRoot: File = rootDir.parentFile
+
+// Version ---------------------------------------------------------------------
+//
+// Une seule source : `[workspace.package] version` du Cargo.toml racine (le
+// cœur, les liaisons et l'app portent la même). versionCode en découle :
+// 1.2.3 → 10203, toujours croissant tant que la version monte.
+val appVersion: String = Regex("""(?m)^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"""")
+    .find(rustRoot.resolve("Cargo.toml").readText())
+    ?.let { "${it.groupValues[1]}.${it.groupValues[2]}.${it.groupValues[3]}" }
+    ?: error("Version introuvable dans Cargo.toml ([workspace.package] version = \"x.y.z\")")
+val appVersionCode: Int = appVersion.split('.').map(String::toInt).let { (major, minor, patch) ->
+    require(minor < 100 && patch < 100) { "versionCode : mineure et correctif < 100 ($appVersion)" }
+    major * 10_000 + minor * 100 + patch
+}
 // arm64-v8a : Xiaomi Pad 7 ; armeabi-v7a : Mi Box S (espace utilisateur 32 bits).
 // La CI ajoute x86_64 pour l'émulateur (-Pheystream.abis=x86_64).
 val rustAbis: List<String> = providers.gradleProperty("heystream.abis").orNull
@@ -152,8 +166,8 @@ android {
         // Android 11 : Mi Box S 2e gén. (docs/MATERIEL.md).
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += rustAbis }
     }

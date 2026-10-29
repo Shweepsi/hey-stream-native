@@ -22,6 +22,10 @@ Lire d’abord `README.md`, `docs/SPEC_V1.md` (périmètre v1 : rien d’autre),
   réponses simulées (wiremock). `examples/smoke.rs` ne se lance qu'à la main,
   par le propriétaire, depuis son propre réseau.
 
+- **Version** : toute PR qui change l'app monte `[workspace.package] version`
+  (`Cargo.toml` racine) et ajoute son entrée en tête de `CHANGELOG.md`
+  (`docs/DECISIONS.md`, « Versions »).
+
 ## Vérifications avant de livrer
 
 ```sh

@@ -1,6 +1,6 @@
 [package]
 name = "heystream-ffi"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 description = "Liaisons UniFFI du cœur hey-stream pour Kotlin (Android) et Swift (Apple)"
 
