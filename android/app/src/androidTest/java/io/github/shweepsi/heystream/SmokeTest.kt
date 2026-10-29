@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream
 
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -44,7 +45,7 @@ class SmokeTest {
 
     @Test
     fun signInDownloadsTheCatalogAndOpensLive() {
-        compose.waitUntil(TIMEOUT) { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size >= 3 }
+        step("formulaire de connexion") { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size >= 3 }
         val fields = compose.onAllNodes(hasSetTextAction())
         fields[0].performTextInput(server.url("/").toString().trimEnd('/'))
         fields[1].performTextInput("utilisateur")
@@ -52,11 +53,18 @@ class SmokeTest {
         compose.onNodeWithText(context.getString(R.string.login_submit)).performClick()
 
         val live = context.getString(R.string.home_live)
-        compose.waitUntil(TIMEOUT) { compose.onAllNodes(androidx.compose.ui.test.hasText(live)).fetchSemanticsNodes().isNotEmpty() }
+        step("accueil après connexion") { compose.onAllNodes(hasText(live)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText(live).performClick()
 
-        compose.waitUntil(TIMEOUT) {
-            compose.onAllNodes(androidx.compose.ui.test.hasText(CHANNEL)).fetchSemanticsNodes().isNotEmpty()
+        step("chaîne du catalogue dans le Direct") { compose.onAllNodes(hasText(CHANNEL)).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    /** Attend [condition] ; un échec nomme l'étape qui n'a pas abouti. */
+    private fun step(name: String, condition: () -> Boolean) {
+        try {
+            compose.waitUntil(TIMEOUT, condition)
+        } catch (timeout: Throwable) {
+            throw AssertionError("Étape non atteinte en ${TIMEOUT / 1000} s : $name", timeout)
         }
     }
 
