@@ -231,3 +231,60 @@ fn categories_without_items_stay_due_for_refresh() {
     catalog.store_series(&[], &[], 1_000).unwrap();
     assert!(!catalog.needs_refresh(Section::Series, 1_001).unwrap());
 }
+
+#[test]
+fn stored_names_drop_the_french_mention_and_search_on_them() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let movies: Vec<Movie> = serde_json::from_value(serde_json::json!([
+        {"stream_id": 1, "name": "FR - Dune (2021)"},
+        {"stream_id": 2, "name": "EN - Dune (2021)"},
+        {"stream_id": 3, "name": "FR -4K Gravity (2013)"},
+    ]))
+    .unwrap();
+    catalog.store_movies(&[], &movies, 0).unwrap();
+    let names: Vec<String> = catalog
+        .search(Section::Movies, "dune", 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.name)
+        .collect();
+    assert!(names.contains(&"Dune (2021)".to_owned()));
+    assert!(names.contains(&"EN - Dune (2021)".to_owned()));
+    // « fr » ne correspond plus à tous les titres français.
+    assert!(
+        catalog
+            .search(Section::Movies, "fr", 10)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        catalog.search(Section::Movies, "gravity", 10).unwrap()[0].name,
+        "4K Gravity (2013)"
+    );
+}
+
+#[test]
+fn names_stored_by_an_older_version_are_cleaned_on_open() {
+    let dir = std::env::temp_dir().join(format!("hs-names-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut catalog = Catalog::open(&path).unwrap();
+        let live: Vec<LiveStream> =
+            serde_json::from_value(serde_json::json!([{"stream_id": 1, "name": "|FR| CANAL+"}]))
+                .unwrap();
+        catalog.store_live(&[], &live, 0).unwrap();
+    }
+    // Ligne écrite avant la migration 5 : nom brut, pas de `raw_name`.
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "UPDATE item SET name = '|FR| CANAL+', search_key = '|fr| canal+', raw_name = NULL;",
+        )
+        .unwrap();
+    }
+    let catalog = Catalog::open(&path).unwrap();
+    let found = catalog.search(Section::Live, "canal", 10).unwrap();
+    assert_eq!(found[0].name, "CANAL+");
+    std::fs::remove_dir_all(&dir).unwrap();
+}

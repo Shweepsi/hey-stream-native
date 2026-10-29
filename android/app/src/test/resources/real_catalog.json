@@ -1,5 +1,5 @@
 {
- "source": "Listes réelles d'un fournisseur (2026-10-29), anonymisées : ni identifiants, ni adresse du panneau, ni URL de flux ; images TMDB seulement.",
+ "source": "Listes réelles d'un fournisseur (2026-10-29), anonymisées : ni identifiants, ni adresse du panneau, ni URL de flux ; images TMDB seulement. Noms des films, séries et chaînes tels que le cœur les enregistre (sans la mention du français).",
  "live": {
   "categories": [
    "|FR| ✪ RÉUNION",
@@ -70,71 +70,71 @@
   "channels": [
    {
     "id": 1,
-    "name": "|FR| canal+ FOOT UHD"
+    "name": "canal+ FOOT UHD"
    },
    {
     "id": 2,
-    "name": "|FR|  CANAL+ SPORT 360 ᵁᴴᴰ"
+    "name": "CANAL+ SPORT 360 ᵁᴴᴰ"
    },
    {
     "id": 3,
-    "name": "|FR| CANAL+ Sport 360 ᵁᴴᴰ"
+    "name": "CANAL+ Sport 360 ᵁᴴᴰ"
    },
    {
     "id": 4,
-    "name": "|FR| CANAL+ SPORT360 ᴴᴰ"
+    "name": "CANAL+ SPORT360 ᴴᴰ"
    },
    {
     "id": 5,
-    "name": "|FR| CANAL+ Sport 360 ᴴᴰ"
+    "name": "CANAL+ Sport 360 ᴴᴰ"
    },
    {
     "id": 6,
-    "name": "|FR|  CANAL+ SPORT ᵁᴴᴰ"
+    "name": "CANAL+ SPORT ᵁᴴᴰ"
    },
    {
     "id": 7,
-    "name": "|FR| CANAL+ SPORT ᵁᴴᴰ"
+    "name": "CANAL+ SPORT ᵁᴴᴰ"
    },
    {
     "id": 8,
-    "name": "|FR| Canal+ Sport ᴴᴰ"
+    "name": "Canal+ Sport ᴴᴰ"
    },
    {
     "id": 9,
-    "name": "|FR| CANAL  SPORT ˢᴰ"
+    "name": "CANAL  SPORT ˢᴰ"
    },
    {
     "id": 10,
-    "name": "|FR|  CANAL+ PREMIER LEAGUE ᵁᴴᴰ"
+    "name": "CANAL+ PREMIER LEAGUE ᵁᴴᴰ"
    },
    {
     "id": 11,
-    "name": "|FR| CANAL+ PREMIER LEAGUE ᴴᴰ"
+    "name": "CANAL+ PREMIER LEAGUE ᴴᴰ"
    },
    {
     "id": 12,
-    "name": "|FR| CANAL+ PREMIER LEAGUE ˢᴰ"
+    "name": "CANAL+ PREMIER LEAGUE ˢᴰ"
    },
    {
     "id": 13,
-    "name": "|FR| CANAL+ FOOT ᵁᴴᴰ"
+    "name": "CANAL+ FOOT ᵁᴴᴰ"
    },
    {
     "id": 14,
-    "name": "|FR| CANAL+ FOOT 4K."
+    "name": "CANAL+ FOOT 4K."
    },
    {
     "id": 15,
-    "name": "|FR| CANAL+ FOOT ˢᴰ"
+    "name": "CANAL+ FOOT ˢᴰ"
    },
    {
     "id": 16,
-    "name": "|FR| CANAL FOOT ᴴᴰ"
+    "name": "CANAL FOOT ᴴᴰ"
    },
    {
     "id": 17,
-    "name": "|FR| EVENEMENT SPORT UHD"
+    "name": "EVENEMENT SPORT UHD"
    }
   ]
  },
@@ -196,289 +196,289 @@
   "items": [
    {
     "id": 1,
-    "name": "FR - To Philly with Love (2026) FHD",
+    "name": "To Philly with Love (2026) FHD",
     "rating": "5.7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3qMH4UiwRR1pu1MOyMvyvq9rnkJ.jpg"
    },
    {
     "id": 2,
-    "name": "FR - Permis de détruire (2026)",
+    "name": "Permis de détruire (2026)",
     "rating": "5.9",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gZQmPbQ9jo44jj9h4OSb61j14RD.jpg"
    },
    {
     "id": 3,
-    "name": "FR - ‎La Bataille de Gaulle : J'écris ton nom (2026)",
+    "name": "‎La Bataille de Gaulle : J'écris ton nom (2026)",
     "rating": "7.8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9qc5CzjnxGpjpuwVlIziVr7ODcL.jpg"
    },
    {
     "id": 4,
-    "name": "FR - Ali G : J'suis qui ? (2026) MULTI",
+    "name": "Ali G : J'suis qui ? (2026) MULTI",
     "rating": "5.6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/xRieId2D3sqKeyhfwO7iJzjbojb.jpg"
    },
    {
     "id": 5,
-    "name": "FR - Affection (2026) MULTI",
+    "name": "Affection (2026) MULTI",
     "rating": "5.6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3b3wC8JFjURlMsFj9gqbv0SyTJs.jpg"
    },
    {
     "id": 6,
-    "name": "FR - Verity - 2026 MULTI",
+    "name": "Verity - 2026 MULTI",
     "rating": "6.382",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zLCjFOyjvKqYdkQYYAyTtfJ5mpk.jpg"
    },
    {
     "id": 7,
-    "name": "FR - Tony (2026) MULTI",
+    "name": "Tony (2026) MULTI",
     "rating": "7.5",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zsisvReIrSIUPS3JXawt1ib9JDS.jpg"
    },
    {
     "id": 8,
-    "name": "FR - Lettres d'amour à Philadelphie (2026)",
+    "name": "Lettres d'amour à Philadelphie (2026)",
     "rating": "5.7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hr7AI4AnkucXPaYdoMXN2CSjMax.jpg"
    },
    {
     "id": 9,
-    "name": "FR - The Stunt Driver (2026) FHD",
+    "name": "The Stunt Driver (2026) FHD",
     "rating": "8.3",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/fph0piUmCFAdmApMpjznWhqqNch.jpg"
    },
    {
     "id": 10,
-    "name": "FR - Signal One (2026) MULTI",
+    "name": "Signal One (2026) MULTI",
     "rating": "6.06",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bi7Aeaozl51cd5K6vAn8tI1lOW0.jpg"
    },
    {
     "id": 11,
-    "name": "FR - Le Transport (2026) MULTI",
+    "name": "Le Transport (2026) MULTI",
     "rating": "8.3",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/vJk2TW1QZAmBiD7oj9ZF9EPTYY1.jpg"
    },
    {
     "id": 12,
-    "name": "FR - Ali G : J'suis qui ? (2026)",
+    "name": "Ali G : J'suis qui ? (2026)",
     "rating": "6.8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/uTyVxPeWX8Ai30IQoyDDQONNcq.jpg"
    },
    {
     "id": 13,
-    "name": "FR - Drive - The Pretenders (2026)",
+    "name": "Drive - The Pretenders (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bLDFCD3vMxeJJ5o8F4FOksnb0Fd.jpg"
    },
    {
     "id": 14,
-    "name": "FR - Verity (2026)",
+    "name": "Verity (2026)",
     "rating": "6.4",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zLCjFOyjvKqYdkQYYAyTtfJ5mpk.jpg"
    },
    {
     "id": 15,
-    "name": "FR - Tow - Le prix à payer (2026) MULTI",
+    "name": "Tow - Le prix à payer (2026) MULTI",
     "rating": "6.837",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ixSfQghbdfZGDptzdqttZy00B6V.jpg"
    },
    {
     "id": 16,
-    "name": "FR - The Stunt Driver (2026)",
+    "name": "The Stunt Driver (2026)",
     "rating": "5",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jFiMdTG8Hw41A3VxrzLEWtMFIYX.jpg"
    },
    {
     "id": 17,
-    "name": "FR - The Dog Stars (2026) MULTI",
+    "name": "The Dog Stars (2026) MULTI",
     "rating": "6.6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w7c49Qgp3TAUC4hlo0mtgRpLOGG.jpg"
    },
    {
     "id": 18,
-    "name": "FR - Signal One (2026)",
+    "name": "Signal One (2026)",
     "rating": "6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bi7Aeaozl51cd5K6vAn8tI1lOW0.jpg"
    },
    {
     "id": 19,
-    "name": "FR - Le Transport (2026)",
+    "name": "Le Transport (2026)",
     "rating": "8.3",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4gRzxdF2IEGiANKEDVtjMuNl12n.jpg"
    },
    {
     "id": 20,
-    "name": "FR - Les Parfait(s) : Arnaques en Famille (2026)",
+    "name": "Les Parfait(s) : Arnaques en Famille (2026)",
     "rating": "6.7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wrVQlyShWb9KUhifSuf4MXWCGQV.jpg"
    },
    {
     "id": 21,
-    "name": "FR - François.e (2026)",
+    "name": "François.e (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/r7YyenJwtDcl6pgnHrxadnuX6b.jpg"
    },
    {
     "id": 22,
-    "name": "FR - The Dog Stars (2026)",
+    "name": "The Dog Stars (2026)",
     "rating": "6.596",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w7c49Qgp3TAUC4hlo0mtgRpLOGG.jpg"
    },
    {
     "id": 23,
-    "name": "FR - Tony - 2026",
+    "name": "Tony - 2026",
     "rating": "7.5",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zsisvReIrSIUPS3JXawt1ib9JDS.jpg"
    },
    {
     "id": 24,
-    "name": "FR - Raison et Sentiments (2026)",
+    "name": "Raison et Sentiments (2026)",
     "rating": "7.188",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9XNEI2AYgQIIqXper5kOdGTnyf5.jpg"
    },
    {
     "id": 25,
-    "name": "FR - Les Parfait(s) : Arnaques en Famille (2026)",
+    "name": "Les Parfait(s) : Arnaques en Famille (2026)",
     "rating": "6.7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wrVQlyShWb9KUhifSuf4MXWCGQV.jpg"
    },
    {
     "id": 26,
-    "name": "FR - Maya & Samar (2026)",
+    "name": "Maya & Samar (2026)",
     "rating": "7.6",
     "image": null
    },
    {
     "id": 27,
-    "name": "FR - The Fix (2026) VOST",
+    "name": "The Fix (2026) VOST",
     "rating": "6.399",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jlP8XDjZN89GrpM3je5Uf8Grqx8.jpg"
    },
    {
     "id": 28,
-    "name": "FR - Nightborn - 2026 MULTI",
+    "name": "Nightborn - 2026 MULTI",
     "rating": "6.041",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/A83uVI9q4ETlzGdVcpn7Cl2hFQB.jpg"
    },
    {
     "id": 29,
-    "name": "FR - Contre l'Ouragan (2026)",
+    "name": "Contre l'Ouragan (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/lFaMt4I8LiQAGW9Rb5gfGFXbvOY.jpg"
    },
    {
     "id": 30,
-    "name": "FR - Soudain (2026)",
+    "name": "Soudain (2026)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bfWVYzLQnykGlDfnnduqLtofRAJ.jpg"
    },
    {
     "id": 31,
-    "name": "FR - Nervures (2026)",
+    "name": "Nervures (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/Dxf2Hi20bp6HaEy7OqDHsyrXy3.jpg"
    },
    {
     "id": 32,
-    "name": "FR - Anna et les Enfants (2026)",
+    "name": "Anna et les Enfants (2026)",
     "rating": "6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/5EdivY4D1dnI3POKym4GsLnlEAR.jpg"
    },
    {
     "id": 33,
-    "name": "FR - Nightborn (2026)",
+    "name": "Nightborn (2026)",
     "rating": "6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/cF1g9qtuRyATaZ75O6zRop2zmfZ.jpg"
    },
    {
     "id": 34,
-    "name": "FR - En sursis (2026) MULTI",
+    "name": "En sursis (2026) MULTI",
     "rating": "7.3",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/AeU2EsYPJgXW9pQyjK5mE3lCZe8.jpg"
    },
    {
     "id": 35,
-    "name": "FR - Coup de foudre en Amazonie (2026)",
+    "name": "Coup de foudre en Amazonie (2026)",
     "rating": "6.3",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4yCeyro6m0cayrrJ3yOaRHKB4a1.jpg"
    },
    {
     "id": 36,
-    "name": "FR - Les Caprices de l’Enfant Roi (2026)",
+    "name": "Les Caprices de l’Enfant Roi (2026)",
     "rating": "5.2",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yQ5ZTigq3buO4qe1cx2VHsrEaT1.jpg"
    },
    {
     "id": 37,
-    "name": "FR - Juste après l'Aube (2026) FHD",
+    "name": "Juste après l'Aube (2026) FHD",
     "rating": "5",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4GxSC6ByogOhbUsQQnFKjyAs5tJ.jpg"
    },
    {
     "id": 38,
-    "name": "FR - Harceleurs (2026)",
+    "name": "Harceleurs (2026)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yHE9nlvMq8f7YzSrYTi1CDAtMrT.jpg"
    },
    {
     "id": 39,
-    "name": "FR - Girls Like Girls (2026) MULTI",
+    "name": "Girls Like Girls (2026) MULTI",
     "rating": "7.5",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gbP30EOIwUW0HZY9BwQMTRrk8uX.jpg"
    },
    {
     "id": 40,
-    "name": "FR - He's Watching You (2026) MULTI",
+    "name": "He's Watching You (2026) MULTI",
     "rating": "5.9",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/lGrxMTGzoO120uuHuYxwbv5Ypcw.jpg"
    },
    {
     "id": 41,
-    "name": "FR - By Any Means (2026) MULTI",
+    "name": "By Any Means (2026) MULTI",
     "rating": "6.865",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/evCy2B3j57AwSNBZqlePjMl3zj3.jpg"
    },
    {
     "id": 42,
-    "name": "FR - Spidernado (2026) VOST",
+    "name": "Spidernado (2026) VOST",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wMSysl6cp67jdlF3YJXrTfYEs9P.jpg"
    },
    {
     "id": 43,
-    "name": "FR - Silent Friend (2026) VOST",
+    "name": "Silent Friend (2026) VOST",
     "rating": "7.2",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yTPbeO1Peb9fgmJLecTk7KyzctQ.jpg"
    },
    {
     "id": 44,
-    "name": "FR - Project Y (2026)",
+    "name": "Project Y (2026)",
     "rating": "6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/s4z1ek0vRtIa5ZOcK4EpdU6qen9.jpg"
    },
    {
     "id": 45,
-    "name": "FR - By Any Means (2026) VOST",
+    "name": "By Any Means (2026) VOST",
     "rating": "7.171",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/evCy2B3j57AwSNBZqlePjMl3zj3.jpg"
    },
    {
     "id": 46,
-    "name": "FR - Parasites - 2026 VOST",
+    "name": "Parasites - 2026 VOST",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zGkFCfPZ5GECB6XkvotxlgucDAk.jpg"
    },
    {
     "id": 47,
-    "name": "FR - Oublie-moi (2026)",
+    "name": "Oublie-moi (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/6RLH6MPpUCnBCk3vNIkFHaFv6lY.jpg"
    },
    {
     "id": 48,
-    "name": "FR - Les Contrebandiers (2026) VOST",
+    "name": "Les Contrebandiers (2026) VOST",
     "rating": "6.9",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hjM3hITDk5XvWu4cMn7dj7IpwY8.jpg"
    }
@@ -498,7 +498,7 @@
    },
    {
     "id": 2,
-    "name": "The Crown (2016) FR",
+    "name": "The Crown (2016)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/snrhOM9JOY3i7UGNDZBfBakiq4n.jpg",
     "plot": "Cette série dramatique retrace les rivalités politiques, intrigues et événements qui ont marqué le règne de la reine Élisabeth II et la seconde moitié du XXe siècle.",
@@ -506,7 +506,7 @@
    },
    {
     "id": 3,
-    "name": "Death Inc. (2024) FR",
+    "name": "Death Inc. (2024)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/6X9f1ypWBRDsXC61YgAwYDzTltn.jpg",
     "plot": "Quand Gonzalo Torregrosa, propriétaire et fondateur des Pompes Funèbres Torregrosa, décède, Nieves, la veuve septuagénaire, décide de prendre la tête de l'entreprise familiale, avec l'aide de son gendre, Chemi, un expert en marketing, et au mépris des plans de ses filles qui veulent fermer les Pompes funèbres et ouvrir une salle de fitness.",
@@ -514,7 +514,7 @@
    },
    {
     "id": 4,
-    "name": "Operation Safed Saga (2026) FR",
+    "name": "Operation Safed Saga (2026)",
     "rating": "0",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/f56PHAGbUFPmHMRippWWNpRgSao.jpg",
     "plot": null,
@@ -522,7 +522,7 @@
    },
    {
     "id": 5,
-    "name": "A Shop for Killers (2024) FR",
+    "name": "A Shop for Killers (2024)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gfw41bHY2boxVse5l8M6m0sft5n.jpg",
     "plot": "Le seul tuteur de Jian est son oncle. Après la mort soudaine de ce dernier, elle apprend qu’il a laissé derrière lui tout un centre commercial douteux. Qui était son oncle et quel genre de centre commercial dirigeait-il ? Avant même que Jian ne puisse comprendre ce qui se passe, elle est attaquée par des personnes non identifiées qui veulent s’emparer des provisions de son oncle. Maintenant qu’elle est seule, Jian pourra-t-elle survivre face à eux ?",
@@ -538,7 +538,7 @@
    },
    {
     "id": 7,
-    "name": "How to Sell Drugs Online (Fast) (2019)_fr",
+    "name": "How to Sell Drugs Online (Fast) (2019)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/f606fmTMkoPxBHetjDsIfhs8AZg.jpg",
     "plot": "Pour reconquérir son ex, un ado fou d'informatique se met à vendre de l'ecstasy en ligne, et devient l'un des plus gros dealers d'Europe... sans quitter sa chambre.",
@@ -546,7 +546,7 @@
    },
    {
     "id": 8,
-    "name": "Bad Blood (2017)_fr",
+    "name": "Bad Blood (2017)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ukrAdTtJHHEaDRUJmi4XYwBUpRu.jpg",
     "plot": "Cette fresque dramatique policière suit l'histoire vraie de la famille Rizzuto et de ses complices, qui ont régné pendant des décennies sur le crime organisé à Montréal.",
@@ -554,7 +554,7 @@
    },
    {
     "id": 9,
-    "name": "1670 (2023)_fr",
+    "name": "1670 (2023)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/sMPLjSZYJEeeXfxeKQ7Ct7SEYuV.jpg",
     "plot": "Dans cette comédie satirique, un noble farfelu se heurte à des querelles familiales et paysannes dans sa quête pour devenir la personnalité la plus célèbre de Pologne.",
@@ -562,7 +562,7 @@
    },
    {
     "id": 10,
-    "name": "Ma vie avec les Walter Boys (2023)_fr",
+    "name": "Ma vie avec les Walter Boys (2023)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/o2DAuoa5GClwZL61nTT8EmTLvWg.jpg",
     "plot": "Quand une tragédie bouleverse sa vie, une ado emménage avec la grande famille de sa tutrice dans une petite ville où elle apprend beaucoup sur l'amour, l'espoir et l'amitié.",
@@ -570,7 +570,7 @@
    },
    {
     "id": 11,
-    "name": "Spinning Out (2020)_fr",
+    "name": "Spinning Out (2020)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/kaZbULnXt9hMSJK21rMtcZcoRys.jpg",
     "plot": "Une jeune patineuse artistique, futur espoir des J.O., se débat entre amour, famille et troubles mentaux quand elle voit son rêve de victoire risquer de lui échapper.",
@@ -578,7 +578,7 @@
    },
    {
     "id": 12,
-    "name": "Infamia (2023)_fr",
+    "name": "Infamia (2023)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/d12dXWivpu5wBBUTe03wQB8DhyU.jpg",
     "plot": "Tiraillée entre ses racines roms et la pression de ses amis, une jeune fille de 17 ans rêve de se faire un nom dans le hip-hop malgré les règles strictes de sa famille.",
@@ -586,7 +586,7 @@
    },
    {
     "id": 13,
-    "name": "When They See Us (2019)-fr",
+    "name": "When They See Us (2019)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wARtDgBwhs3jNiQdIVaKMirpSIi.jpg",
     "plot": "Le cauchemar commence quand cinq ados de Harlem se retrouvent accusés à tort d'une violente agression à Central Park.",
@@ -594,7 +594,7 @@
    },
    {
     "id": 14,
-    "name": "Kings of Jo'Burg (2020)_fr",
+    "name": "Kings of Jo'Burg (2020)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/vSM1FB86gr3QNelkk0jDovN5228.jpg",
     "plot": "Les frères Masire gouvernent le monde criminel de Johannesburg, mais une malédiction familiale surnaturelle et un réseau de trahisons enchevêtrées menacent de les détruire.",
@@ -602,7 +602,7 @@
    },
    {
     "id": 15,
-    "name": "Pernille (2021)_fr",
+    "name": "Pernille (2021)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/DSUYF4sJkyHhUROdklMLHUOUl2.jpg",
     "plot": "Le mariage d'Ole Johan et de Stephen approche. Entre l'organisation de l'enterrement de vie de garçon et la gestion des épisodes de stress d'Ole Johan, Pernille commence à travailler à temps partiel pour les services d'urgence de protection de l'enfance. Elle se réjouit de partir à Liverpool avec sa famille, mais un événement choquant donne un tour inattendu au séjour. Pernille et Bjørnar sont de nouveau amis… mais est-ce vraiment suffisant pour Pernille ?",
@@ -610,7 +610,7 @@
    },
    {
     "id": 16,
-    "name": "Haters Back Off (2016)_fr",
+    "name": "Haters Back Off (2016)",
     "rating": "6",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/kSF3AymHUK4XLuh1rzIX1TnRXAM.jpg",
     "plot": "Miranda Sings n'a aucun talent, mais elle est persuadée du contraire. Bien décidée à devenir une superstar, elle s'embarque dans une quête délirante de la célébrité.",
@@ -618,7 +618,7 @@
    },
    {
     "id": 17,
-    "name": "Héros Fragile (2022)_fr",
+    "name": "Héros Fragile (2022)",
     "rating": "9",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qWY4cFftaZxvtHet3S9p7NYTZeD.jpg",
     "plot": "Yeon Si Eun est un étudiant modèle. Il est le numéro 1 au classement de son lycée. En apparence fragile et calme, il dissimule ses véritables compétences. Haïssant particulièrement le harcèlement, il va utiliser son intelligence et sa force pour lutter contre la violence présente à l'intérieur et à l'extérieur de son école.",
@@ -626,7 +626,7 @@
    },
    {
     "id": 18,
-    "name": "Move to Heaven (2021)_fr",
+    "name": "Move to Heaven (2021)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/drEK6iGpzQBzFCmiT5KiG3s8ktO.jpg",
     "plot": "Fraîchement réunis, un \"nettoyeur\" méticuleux et son oncle livrent à des personnes ayant perdu un proche les histoires que racontent des objets lui ayant appartenu.",
@@ -634,7 +634,7 @@
    },
    {
     "id": 19,
-    "name": "XO, Kitty (2023)_fr",
+    "name": "XO, Kitty (2023)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/v13uTYMFsVAY69q7CpJ4UFwB9mN.jpg",
     "plot": "Kitty Song Covey pense tout savoir sur l'amour. Quand elle part à l'autre bout du monde pour retrouver son petit ami, elle se rend compte que les relations sont beaucoup plus compliquées qu'il n'y paraît.",
@@ -650,7 +650,7 @@
    },
    {
     "id": 21,
-    "name": "Le Serpent (2021)_fr",
+    "name": "Le Serpent (2021)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/t7r5QhKhjXm3uRuW1CCc6puWCmc.jpg",
     "plot": "Dans les années 1970, l'impitoyable tueur Charles Sobhraj traque les touristes occidentaux qui font la route en Asie du Sud. Inspiré de terrifiants faits réels.",
@@ -658,7 +658,7 @@
    },
    {
     "id": 22,
-    "name": "La Créature de Kyŏngsŏng (2023)_fr",
+    "name": "La Créature de Kyŏngsŏng (2023)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3YjJDK9wQIXYTz42kWTUMAj8DTQ.jpg",
     "plot": "Au printemps 1945, un jeune homme et une jeune femme luttent pour leur survie dans un monde sinistre, tout en combattant des monstres engendrés par la cupidité humaine.",
@@ -690,7 +690,7 @@
    },
    {
     "id": 26,
-    "name": "Ragnarök (2020)_fr",
+    "name": "Ragnarök (2020)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9HfeuiRHwLoIdWXzk6Br09RA7aQ.jpg",
     "plot": "Dans un village norvégien pollué et troublé par la fonte des glaciers, la fin des temps semble bien réelle. Mais un combat doit opposer une légende à un mal ancestral.",
@@ -698,7 +698,7 @@
    },
    {
     "id": 27,
-    "name": "Biohackers (2020)_fr",
+    "name": "Biohackers (2020)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/5vo9FY2aXSuoqtawSLP99EqbsUn.jpg",
     "plot": "Mia est étudiante en médecine. Elle découvre l'utilisation de la technologie de pointe du bio-piratage au sein de son université. Lorsqu'une découverte révolutionnaire tombe entre de mauvaises mains, Mia doit décider de quel côté elle souhaite être...",
@@ -730,7 +730,7 @@
    },
    {
     "id": 31,
-    "name": "Unstable (2023)_fr",
+    "name": "Unstable (2023)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qlrKGt38eMpGza5QFZZ2pqysNiC.jpg",
     "plot": "Le père est un génie excentrique de la biotechnologie. Le fils a les pieds sur terre et vit dans son ombre. Pour sauver l'entreprise familiale, ils vont devoir régler leurs différends.",
@@ -746,7 +746,7 @@
    },
    {
     "id": 33,
-    "name": "That '90s Show (2023)_fr",
+    "name": "That '90s Show (2023)",
     "rating": "7",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nZcufEuqZqNYMx6mNjlh2rmjDqx.jpg",
     "plot": "En 1995, Leia Forman, fille d'Eric et de Donna, rend visite à ses grands-parents pour l'été. Elle se lie d'amitié à la nouvelle génération de jeunes de Point Place sous l'œil attentif de Kitty et le regard sévère de Red.",
@@ -770,7 +770,7 @@
    },
    {
     "id": 36,
-    "name": "La Casa de Papel (ES)_fr",
+    "name": "La Casa de Papel (ES)",
     "rating": "8",
     "image": null,
     "plot": "Huit voleurs font une prise d'otages dans la Maison royale de la Monnaie d'Espagne, tandis qu'un génie du crime manipule la police pour mettre son plan à exécution.",
@@ -786,7 +786,7 @@
    },
    {
     "id": 38,
-    "name": "13 Reasons Why (2017)_fr",
+    "name": "13 Reasons Why (2017)",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nel144y4dIOdFFid6twN5mAX9Yd.jpg",
     "plot": "After a teenage girl's perplexing suicide, a classmate receives a series of tapes that unravel the mystery of her tragic choice.",
@@ -842,7 +842,7 @@
    },
    {
     "id": 45,
-    "name": "Black Mirror_fr",
+    "name": "Black Mirror",
     "rating": "8",
     "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pXeuSWSKgWUnhRFHZ4TjAUU8lbE.jpg",
     "plot": "A contemporary British re-working of The Twilight Zone with stories that tap into the collective unease about our modern world. \r\n\r\nOver the last ten years, technology has transformed almost every aspect of our lives before we've had time to stop and question it. In every home; on every desk; in every palm - a plasma screen; a monitor; a smartphone - a black mirror of our 21st Century existence.",

@@ -61,7 +61,7 @@ data class SearchHit(
 fun CatalogItem.toHit(): SearchHit = SearchHit(
     section = section,
     id = id,
-    name = Formats.displayName(name),
+    name = name,
     image = image,
     number = number,
     progress = progress?.takeIf { it.durationMs > 0 }?.let { Formats.fraction(it.positionMs, it.durationMs) },

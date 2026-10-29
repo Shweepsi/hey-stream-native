@@ -573,7 +573,7 @@ private fun ChannelRow(
     val dimens = Hs.dimens
     val isTv = dimens.isTv
     val favoriteLabel = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add)
-    val name = remember(channel.name) { Formats.displayName(channel.name) }
+    val name = channel.name
     HsSurface(
         onClick = onClick,
         onLongClick = onToggleFavorite,
