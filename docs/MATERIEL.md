@@ -25,8 +25,14 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
   Google TV y tourne en 32 bits : la cible `armv7-linux-androideabi` est
   **obligatoire**, à côté de `aarch64-linux-android` (exigée par Google Play).
   Un APK uniquement 64 bits ne s'installe pas sur cette box.
-- **TLS** : `reqwest` + rustls utilise `aws-lc-rs`, qui demande le NDK + CMake
-  pour la compilation croisée. À valider tôt en CI ; repli possible sur `ring`.
+- **TLS** : `reqwest` + rustls utilise `aws-lc-rs` ; sa compilation croisée
+  passe avec le NDK r28 seul, sans CMake (validé le 2026-10-28, CI `android`).
+  Sur Android, le cœur vérifie les certificats avec les racines Mozilla
+  embarquées (`webpki-root-certs`) : le vérificateur du système demanderait
+  une initialisation JNI par l'app.
+- **Taille** : cœur optimisé (LTO, symboles retirés) ≈ 7 Mo en arm64-v8a et
+  5 Mo en armeabi-v7a, avant compression dans l'APK. Segments alignés sur
+  16 Ko (exigence d'Android 15+), vérifié en CI.
 
 ### Mémoire (2 Go)
 - Le catalogue (souvent 20 000 à 100 000 entrées) vit **dans SQLite**, jamais

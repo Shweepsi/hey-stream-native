@@ -1,0 +1,41 @@
+name: android
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  NDK_VERSION: "28.2.13676358"
+
+jobs:
+  core:
+    name: cœur (arm64-v8a, armeabi-v7a)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+          components: clippy
+      - name: NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - run: cargo install cargo-ndk --version 4.1.2 --locked
+      # Le code propre à Android (racines TLS) n'est compilé que pour ces cibles.
+      - run: cargo ndk -t arm64-v8a -t armeabi-v7a --platform 30 clippy --workspace -- -D warnings
+      - run: cargo ndk -t arm64-v8a -t armeabi-v7a --platform 30 build -p heystream-ffi --release
+      - name: Taille et alignement 16 Ko (Android 15+)
+        run: |
+          readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          for target in aarch64-linux-android armv7-linux-androideabi; do
+            lib="target/$target/release/libheystream.so"
+            ls -l "$lib"
+          done
+          lib="target/aarch64-linux-android/release/libheystream.so"
+          for align in $("$readelf" -lW "$lib" | awk '$1 == "LOAD" { print $NF }'); do
+            if (( align < 16384 )); then
+              echo "segment LOAD aligné sur $align octets au lieu de 16 Ko"; exit 1
+            fi
+          done

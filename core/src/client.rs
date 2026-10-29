@@ -35,12 +35,13 @@ impl XtreamClient {
         if username.is_empty() || password.is_empty() {
             return Err(Error::MissingCredentials);
         }
-        let http = reqwest::Client::builder()
+        let builder = reqwest::Client::builder()
             .user_agent(USER_AGENT)
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(60))
-            .build()
-            .map_err(Error::network)?;
+            .timeout(Duration::from_secs(60));
+        #[cfg(target_os = "android")]
+        let builder = builder.tls_certs_only(android_roots());
+        let http = builder.build().map_err(Error::network)?;
         Ok(Self {
             base: normalize_server_url(&credentials.server_url)?,
             username: username.to_owned(),
@@ -192,4 +193,32 @@ fn category(category_id: Option<&str>) -> Vec<(&'static str, &str)> {
     category_id
         .map(|id| vec![("category_id", id)])
         .unwrap_or_default()
+}
+
+/// Racines de confiance sur Android : celles de Mozilla, embarquées. Le
+/// vérificateur du système (`rustls-platform-verifier`) demanderait d'être
+/// initialisé par l'app avec le contexte Android (JNI), sans quoi chaque
+/// requête HTTPS échouerait.
+#[cfg(any(target_os = "android", test))]
+fn android_roots() -> Vec<reqwest::Certificate> {
+    webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .filter_map(|der| reqwest::Certificate::from_der(der).ok())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn android_roots_are_all_readable() {
+        let roots = android_roots();
+        assert!(roots.len() > 100);
+        assert_eq!(roots.len(), webpki_root_certs::TLS_SERVER_ROOT_CERTS.len());
+        reqwest::Client::builder()
+            .tls_certs_only(roots)
+            .build()
+            .expect("client construit avec les seules racines embarquées");
+    }
 }
