@@ -25,6 +25,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -32,6 +33,7 @@ import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.SubtitleView
 import io.github.shweepsi.heystream.core.PlaybackKind
+import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.VideoSurface
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.theme.Hs
@@ -44,14 +46,31 @@ private const val CONTROLS_TIMEOUT_MS = 4_000L
 private const val POSITION_REFRESH_MS = 500L
 
 /**
+ * L'écran reste allumé seulement pendant la lecture, ou pendant le
+ * chargement et les reconnexions : en pause, après un échec ou sur un
+ * message d'erreur, la mise en veille (et l'écran de veille de la TV)
+ * reste possible.
+ */
+internal fun keepsScreenOn(state: PlayerUiState, status: PlaybackStatus): Boolean =
+    state.error == null && !status.failed && (status.playing || status.buffering)
+
+/**
  * Lecteur plein écran d'un film ou d'un épisode : le lecteur unique de
  * l'app, ses sous-titres, et les commandes de [PlayerContent].
+ *
+ * Les arguments ne font que remplir le `SavedStateHandle` de l'entrée de
+ * navigation à sa création ([PlayerArgs]) : restauré après l'arrêt de
+ * l'app, l'écran relit le handle (épisode enchaîné, position atteinte),
+ * pas la route d'origine.
  */
 @Composable
 fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boolean, onExit: () -> Unit) {
     val graph = appGraph()
     val controller = graph.player
-    val viewModel = viewModel { PlayerViewModel(graph.session, controller, kind, id, seriesId, fromStart) }
+    val viewModel = viewModel {
+        val handle = PlayerArgs.seed(createSavedStateHandle(), kind, id, seriesId, fromStart)
+        PlayerViewModel(graph.session, controller, handle)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val status by controller.status.collectAsStateWithLifecycle()
     val chrome = remember { PlayerChrome(visible = true) }
@@ -159,7 +178,7 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         actions = actions,
         video = {
             Box(Modifier.fillMaxSize()) {
-                VideoSurface(player, Modifier.fillMaxSize())
+                VideoSurface(player, Modifier.fillMaxSize(), keepScreenOn = keepsScreenOn(state, status))
                 Subtitles(player, raised = chrome.visible, modifier = Modifier.fillMaxSize())
             }
         },

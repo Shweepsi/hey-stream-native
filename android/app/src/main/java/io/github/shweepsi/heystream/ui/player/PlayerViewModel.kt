@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream.ui.player
 
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
@@ -89,21 +90,23 @@ private const val CONTINUE_LIMIT = 200u
  * pause, à la sortie) et enchaîne l'épisode suivant. Le cœur marque le
  * titre « vu » en fin de lecture : rien n'est décidé ici.
  *
+ * Le titre à lire (film ou épisode, « Depuis le début ») est lu dans
+ * [handle], celui de l'entrée de navigation ([PlayerArgs]) : il survit à
+ * l'arrêt de l'app en arrière-plan.
+ *
  * Utilisé depuis le fil principal (lecteur Media3).
  */
 class PlayerViewModel(
     private val session: CoreSession,
     private val controller: PlayerController,
-    kind: PlaybackKind,
-    id: Long,
-    private val seriesId: Long?,
-    fromStart: Boolean,
+    handle: SavedStateHandle,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
-    private var kind = kind
-    private var id = id
+    /** Titre en cours (et « Depuis le début »), gardé dans le handle de l'écran. */
+    private val args = PlayerArgs(handle)
+    private val seriesId: Long? = args.seriesId
     private var media: Media? = null
 
     /** Le flux de [media] a été donné au lecteur (son état le concerne). */
@@ -113,9 +116,6 @@ class PlayerViewModel(
     private var closed = false
     private var resolveJob: Job? = null
     private var nextJob: Job? = null
-
-    /** « Depuis le début » demandé pour le titre en cours (repris par « Réessayer »). */
-    private var startOver = fromStart
 
     /**
      * L'écran est au premier plan. En arrière-plan (TV éteinte, touche
@@ -140,7 +140,7 @@ class PlayerViewModel(
 
     init {
         player.addListener(listener)
-        resolve(fromStart)
+        resolve()
         viewModelScope.launch {
             while (isActive) {
                 delay(SAVE_EVERY_MS)
@@ -185,10 +185,13 @@ class PlayerViewModel(
         player.trackSelectionParameters = disableSubtitles(player.trackSelectionParameters)
     }
 
-    /** « Réessayer » : flux coupé (lecteur) ou adresse introuvable (fiche). */
+    /**
+     * « Réessayer » : flux coupé (lecteur) ou adresse introuvable (fiche).
+     * Flux pas encore ouvert : « Depuis le début » vaut toujours (handle).
+     */
     fun retry() {
         if (_state.value.error != null || !started) {
-            resolve(fromStart = startOver)
+            resolve()
         } else {
             _state.update { it.copy(retrying = true) }
             controller.retry()
@@ -202,9 +205,9 @@ class PlayerViewModel(
         nextJob = null
         pendingNext = null
         _state.update { it.copy(next = null) }
-        kind = PlaybackKind.EPISODE
-        id = next.id
-        resolve(fromStart = false)
+        // Gardé dans le handle : une restauration rouvre cet épisode, pas celui de la route.
+        args.advanceTo(next.id)
+        resolve()
     }
 
     /** « Annuler » l'épisode suivant : l'écran se ferme. */
@@ -262,19 +265,21 @@ class PlayerViewModel(
 
     // Lecture -------------------------------------------------------------------
 
-    private fun resolve(fromStart: Boolean) {
+    /** Prépare le titre du handle ([args]) : fiche, adresse, position de reprise. */
+    private fun resolve() {
         resolveJob?.cancel()
-        startOver = fromStart
         started = false
         endHandled = false
         wasPlaying = false
         deferred = null
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
-        val kind = kind
-        val id = id
+        val kind = args.kind
+        val id = args.id
+        // Position atteinte par l'écran (restauré), ou 0 pour « Depuis le début ».
+        val startMs = args.startMs
         resolveJob = viewModelScope.launch {
             try {
-                val resolved = session.withCore { core -> resolveMedia(core, kind, id, fromStart) }
+                val resolved = session.withCore { core -> resolveMedia(core, kind, id, startMs) }
                 if (closed) return@launch
                 media = resolved.media
                 _state.update {
@@ -294,15 +299,18 @@ class PlayerViewModel(
         started = true
     }
 
-    /** Appel bloquant (cœur) : fiche, extension, position de reprise, récents. */
-    private fun resolveMedia(core: HeyStreamCore, kind: PlaybackKind, id: Long, fromStart: Boolean): Resolved {
+    /**
+     * Appel bloquant (cœur) : fiche, extension, position de reprise, récents.
+     * [startMs] : position imposée ([PlayerArgs.startMs]) ; `null` : reprise du cœur.
+     */
+    private fun resolveMedia(core: HeyStreamCore, kind: PlaybackKind, id: Long, startMs: Long?): Resolved {
         val media = when (kind) {
             PlaybackKind.MOVIE -> movieMedia(core, id)
             PlaybackKind.EPISODE -> episodeMedia(core, id, seriesId ?: throw HeyStreamException.NotFound())
         }
         val streamKind = if (kind == PlaybackKind.MOVIE) StreamKind.MOVIE else StreamKind.SERIES
         val url = core.streamUrl(streamKind, id, media.extension)
-        val start = if (fromStart) 0L else core.progress(kind, id) ?: 0L
+        val start = startMs ?: core.progress(kind, id) ?: 0L
         // Secondaire : un échec n'empêche pas la lecture.
         runCatching {
             if (kind == PlaybackKind.MOVIE) core.addRecent(Section.MOVIES, id) else seriesId?.let { core.addRecent(Section.SERIES, it) }
@@ -432,6 +440,10 @@ class PlayerViewModel(
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: media.durationMs
         val position = if (final && duration > 0) duration else player.currentPosition.coerceAtLeast(0)
         if (position <= 0 && !final) return
+        // Gardée dans le handle : restauré après l'arrêt de l'app, l'écran
+        // reprend là (même sous 30 s, que le cœur ne retient pas). Pas la
+        // position finale : le titre est fini, le handle garde la dernière lue.
+        if (!final && media.id == args.id) args.reached(position)
         val resume = Resume(
             kind = media.kind,
             id = media.id,

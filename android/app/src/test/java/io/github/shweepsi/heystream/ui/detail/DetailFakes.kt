@@ -71,7 +71,13 @@ object DetailFakes {
         seasons = listOf(1, 2, 3),
         selectedSeason = 2,
         episodes = season2,
-        playTarget = PlayTarget(episodeId = 23, season = 2, number = 3, resume = true),
+        playTarget = PlayTarget(episodeId = 23, season = 2, number = 3, resume = true, progress = WatchProgress(1_320_000, 2_640_000)),
+    )
+
+    /** Série jamais commencée : « Lecture » sur le premier épisode, ni reprise ni « Depuis le début ». */
+    val seriesNotStarted = series.copy(
+        episodes = season2.map { it.copy(progress = null, watched = false) },
+        playTarget = PlayTarget(episodeId = 21, season = 2, number = 1, resume = false),
     )
 
     val seriesLoadingEpisodes = SeriesDetailState(

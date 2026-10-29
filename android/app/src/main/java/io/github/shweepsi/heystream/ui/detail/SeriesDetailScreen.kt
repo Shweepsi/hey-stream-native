@@ -57,7 +57,10 @@ import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 
-/** Fiche série : affiche, infos, reprise, favori, vu ; saisons puis épisodes. */
+/**
+ * Fiche série : affiche, infos, reprise (« Vu jusqu’à … », « Depuis le
+ * début »), favori, vu ; saisons puis épisodes.
+ */
 @Composable
 fun SeriesDetailScreen(id: Long, onPlayEpisode: (episodeId: Long, fromStart: Boolean) -> Unit, onBack: () -> Unit) {
     val session = appGraph().session
@@ -139,19 +142,30 @@ private fun SeriesBody(
         lastPlayed = episode
         onPlayEpisode(episode, false)
     }
-    val playTarget: (Long) -> Unit = { episode ->
-        // Lancé par le premier bouton : c'est lui qui reprend le focus.
+    val playTarget: (Long, Boolean) -> Unit = { episode, fromStart ->
+        // Lancé par le premier bouton (ou « Depuis le début ») : le premier
+        // bouton reprend le focus au retour.
         lastPlayed = null
-        onPlayEpisode(episode, false)
+        onPlayEpisode(episode, fromStart)
     }
+    // Épisode en cours de la série (celui du premier bouton) : comme un film commencé.
+    val resumed = state.playTarget?.takeIf { it.resume }
+    val resumedProgress = resumed?.progress
     PosterLayout(header.image) { modifier, padding, compact ->
         LazyColumn(
             modifier = modifier,
             state = listState,
             contentPadding = padding,
         ) {
+            val blockGap = if (dimens.isTv) 18.dp else if (compact) 14.dp else 20.dp
             item(key = "header", contentType = "header") {
-                DetailHeaderBlock(header, Modifier.padding(bottom = if (dimens.isTv) 18.dp else if (compact) 14.dp else 20.dp), compact)
+                DetailHeaderBlock(header, Modifier.padding(bottom = blockGap), compact)
+            }
+            if (resumedProgress != null) {
+                // « Vu jusqu’à … », temps restant et barre de l'épisode en cours.
+                item(key = "progress", contentType = "progress") {
+                    ProgressBlock(resumedProgress, Modifier.padding(bottom = blockGap))
+                }
             }
             item(key = "buttons", contentType = "buttons") {
                 FlowRow(
@@ -160,7 +174,15 @@ private fun SeriesBody(
                     itemVerticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = if (compact) 0.dp else 4.dp, bottom = dimens.gapLarge),
                 ) {
-                    PrimarySeriesButton(state, first, onPlay = playTarget, onRetry = onRetry)
+                    PrimarySeriesButton(state, first, onPlay = { playTarget(it, false) }, onRetry = onRetry)
+                    if (resumed != null) {
+                        // L'épisode en cours, lu depuis 0 (sa position enregistrée est ignorée).
+                        HsButton(
+                            text = stringResource(R.string.from_start),
+                            onClick = { playTarget(resumed.episodeId, true) },
+                            icon = Lucide.RotateCcw,
+                        )
+                    }
                     FavoriteButton(state.favorite, onToggleFavorite)
                     if (state.episodes.isNotEmpty() || state.seasons.isNotEmpty()) {
                         WatchedButton(state.watched, onToggleWatched, compact = compact)

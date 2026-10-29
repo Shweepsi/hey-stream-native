@@ -64,5 +64,7 @@ class DetailScreenshotTest {
 
     @Test fun seriesPhone() = series("detail_series", Device.Phone, DetailFakes.series)
 
+    @Test fun seriesNotStartedTv() = series("detail_series_new", Device.Tv, DetailFakes.seriesNotStarted)
+
     @Test fun seriesLoadingEpisodesTv() = series("detail_series_loading", Device.Tv, DetailFakes.seriesLoadingEpisodes)
 }
