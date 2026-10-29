@@ -198,16 +198,16 @@ class CoreSession(
     /** Rafraîchissement attendu (bouton manuel, tâche quotidienne). */
     suspend fun refreshNow(force: Boolean): List<SectionRefresh> {
         // Cœur remplacé pendant le téléchargement (« Modifier l'adresse du
-        // serveur ») : son résultat ne concerne plus la session, et ne doit
-        // pas masquer celui du nouveau.
+        // serveur ») : son état ne concerne plus la session, et ne doit pas
+        // masquer celui du nouveau.
         val used = core
         _refresh.value = RefreshState.Running
         return try {
             val sections = withContext(Dispatchers.IO) { (used ?: throw HeyStreamException.SignedOut()).refresh(force) }
-            if (core === used) {
-                if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
-                _refresh.value = RefreshState.Done(sections)
-            }
+            // Le cache, lui, est partagé : ce que le cœur a pu y enregistrer
+            // (même abonnement, ou avant d'être remplacé) recharge les listes.
+            if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
+            if (core === used) _refresh.value = RefreshState.Done(sections)
             sections
         } catch (error: Throwable) {
             if (core === used) _refresh.value = RefreshState.Failed(error)

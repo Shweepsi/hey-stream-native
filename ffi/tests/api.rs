@@ -493,6 +493,44 @@ fn a_replaced_core_stores_nothing() {
 }
 
 #[test]
+fn a_replaced_core_does_not_save_its_account_info() {
+    // Vérification du lancement, lente, encore en cours quand « Modifier
+    // l'adresse du serveur » lie le cache à un autre identifiant.
+    let panel = panel(vec![]);
+    panel.runtime.block_on(
+        Mock::given(method("GET"))
+            .and(query_param_is_missing("action"))
+            .and(query_param("username", "a"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"user_info": {"auth": 1, "exp_date": "1700000000"}}))
+                    .set_delay(std::time::Duration::from_millis(800)),
+            )
+            .mount(&panel.server),
+    );
+    panel.accept_with("b", json!({"auth": 1, "exp_date": "1800000000"}));
+    let url = panel.server.uri();
+    let dir = temp_dir("replaced-account");
+    let old = open_as(&url, "a", &dir);
+    let checking = {
+        let old = Arc::clone(&old);
+        thread::spawn(move || old.authenticate())
+    };
+    thread::sleep(std::time::Duration::from_millis(200));
+    let new = open_as(&url, "b", &dir);
+    new.authenticate().unwrap();
+    assert!(matches!(
+        checking.join().unwrap(),
+        Err(HeyStreamError::SignedOut)
+    ));
+    // Échéance du nouvel abonnement, pas celle de l'ancien.
+    let info = new.account_info().unwrap().unwrap();
+    assert_eq!(info.expires_at, Some(1_800_000_000));
+    drop((old, new));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn a_failed_section_is_not_downloaded_again_at_once() {
     let panel = live_panel();
     panel.route(

@@ -545,7 +545,14 @@ impl HeyStreamCore {
         self.check_signed_in()?;
         let account = self.runtime.block_on(self.client.authenticate())?;
         self.bind_if_pending()?;
-        Ok(self.lock()?.save_account(&account, now())?.into())
+        let mut store = self.lock()?;
+        // Cache repris pendant la requête par un objet plus récent (vérification
+        // du lancement encore en cours, puis « Modifier l'adresse du serveur ») :
+        // ces infos ne sont pas celles de son abonnement.
+        if store.account_match(&self.account)? != xc::AccountMatch::Same {
+            return Err(HeyStreamError::SignedOut);
+        }
+        Ok(store.save_account(&account, now())?.into())
     }
 
     /// Infos de la dernière authentification réussie (date d'expiration pour

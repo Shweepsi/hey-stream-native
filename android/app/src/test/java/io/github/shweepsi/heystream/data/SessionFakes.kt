@@ -49,6 +49,8 @@ class FakeCore(
     private val checking: Gate? = null,
     private val downloading: Gate? = null,
     private val sections: List<SectionRefresh> = emptyList(),
+    /** Levée par [refresh] une fois [downloading] passé. */
+    private val failure: Throwable? = null,
 ) : HeyStreamCore(NoHandle) {
     @Volatile
     var refreshed = false
@@ -62,6 +64,7 @@ class FakeCore(
     override fun refresh(force: Boolean): List<SectionRefresh> {
         downloading?.pass()
         refreshed = true
+        failure?.let { throw it }
         return sections
     }
 
