@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
@@ -109,8 +108,6 @@ fun HsTopBar(
     title: String,
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    /** Largeur fixe du titre : [actions] commencent alors juste après (au lieu d'être à droite). */
-    titleWidth: Dp? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -126,12 +123,7 @@ fun HsTopBar(
         if (onBack != null) {
             HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
         }
-        Text(
-            title,
-            style = Hs.type.title,
-            maxLines = 1,
-            modifier = if (titleWidth != null) Modifier.width(titleWidth) else Modifier.weight(1f),
-        )
+        Text(title, style = Hs.type.title, maxLines = 1, modifier = Modifier.weight(1f))
         actions()
     }
 }
@@ -180,6 +172,8 @@ fun MessageState(
     icon: ImageVector? = null,
     action: String? = null,
     onAction: (() -> Unit)? = null,
+    /** Erreur : icône en rouge (docs/DESIGN.md). */
+    alert: Boolean = false,
 ) {
     Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(
@@ -188,7 +182,7 @@ fun MessageState(
             modifier = Modifier.widthIn(max = 420.dp),
         ) {
             if (icon != null) {
-                val tint = if (icon == Lucide.CircleAlert) HsColors.Alert else Hs.colors.textSecondary
+                val tint = if (alert) HsColors.Alert else Hs.colors.textSecondary
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
             }
             Text(title, style = Hs.type.itemTitle, textAlign = TextAlign.Center)

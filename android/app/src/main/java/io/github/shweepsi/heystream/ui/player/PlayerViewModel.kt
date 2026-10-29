@@ -481,7 +481,7 @@ class PlayerViewModel(
             return Media(
                 kind = PlaybackKind.EPISODE,
                 id = episodeId,
-                title = seriesName ?: resume.title,
+                title = seriesName ?: Formats.displayName(resume.title),
                 episode = null,
                 image = resume.image,
                 extension = resume.extension,
@@ -496,7 +496,7 @@ class PlayerViewModel(
         return Media(
             kind = PlaybackKind.EPISODE,
             id = episodeId,
-            title = seriesName ?: info.name.orEmpty(),
+            title = seriesName ?: Formats.displayName(info.name.orEmpty()),
             episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episode.title?.takeIf { it.isNotBlank() }),
             image = info.cover ?: episode.image,
             extension = episode.extension,

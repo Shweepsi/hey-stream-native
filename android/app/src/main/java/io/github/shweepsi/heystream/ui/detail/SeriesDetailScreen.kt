@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -251,12 +253,19 @@ private fun PrimarySeriesButton(
 private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) -> Unit) {
     val dimens = Hs.dimens
     val selectedFocus = remember { FocusRequester() }
+    // Saison reprise hors de l'écran (série longue, téléphone) : la faire défiler en vue.
+    val selectedInView = remember { BringIntoViewRequester() }
+    LaunchedEffect(selected) {
+        withFrameNanos { }
+        selectedInView.bringIntoView()
+    }
     Row(
         Modifier
             .fillMaxWidth()
             .focusRestorer(selectedFocus)
             .horizontalScroll(rememberScrollState())
-            .padding(vertical = 4.dp)
+            // Place du contour de focus, tracé hors de l'onglet.
+            .padding(horizontal = 4.dp, vertical = 4.dp)
             .padding(bottom = if (dimens.isTv) 10.dp else 12.dp),
         horizontalArrangement = Arrangement.spacedBy(dimens.gapSmall),
     ) {
@@ -265,7 +274,7 @@ private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) ->
             HsSurface(
                 onClick = { onSelect(season) },
                 selected = isSelected,
-                modifier = (if (isSelected) Modifier.focusRequester(selectedFocus) else Modifier)
+                modifier = (if (isSelected) Modifier.focusRequester(selectedFocus).bringIntoViewRequester(selectedInView) else Modifier)
                     .heightIn(min = dimens.minTouch),
                 contentPadding = PaddingValues(horizontal = if (dimens.isTv) 14.dp else 16.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,

@@ -171,7 +171,7 @@ fun SearchContent(
                     icon = Lucide.Search,
                 )
                 SearchResults.Downloading -> LoadingState(text = stringResource(R.string.catalog_downloading))
-                is SearchResults.Failed -> MessageState(title = results.error.resolve(), icon = Lucide.CircleAlert)
+                is SearchResults.Failed -> MessageState(title = results.error.resolve(), icon = Lucide.CircleAlert, alert = true)
                 is SearchResults.Found -> if (results.isEmpty) {
                     MessageState(
                         title = stringResource(R.string.search_no_results),

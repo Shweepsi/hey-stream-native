@@ -68,7 +68,7 @@ const val FOCUS_ANIMATION_MS = 130
 /**
  * Élément activable à la télécommande comme au doigt (docs/DESIGN.md).
  *
- * - **Focus** (télécommande, clavier) : contour blanc de 2 dp, 2 dp autour des
+ * - **Focus** (télécommande, clavier) : contour bleu de 2 dp, 2 dp autour des
  *   bords (lisible aussi sur un bouton blanc ; rien ne bouge autour), ombre
  *   douce et agrandissement [focusScale].
  * - **Sélectionné** ([selected]) : fond Surface 2, partout (TV, tablette,

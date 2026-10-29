@@ -132,10 +132,10 @@ class LiveLogicTest {
     @Test
     fun tvLayoutFollowsTheMockup() {
         val layout = liveLayout(isTv = true, width = 960.dp, height = 540.dp, categories = 180.dp, channels = 285.dp)
-        assertEquals(531.dp, layout.videoX)
-        assertEquals(24.dp, layout.videoY)
-        assertEquals(399.dp, layout.videoWidth)
-        assertEquals(399f * 9 / 16, layout.videoHeight.value, 0.01f)
+        assertEquals(545.dp, layout.videoX)
+        assertEquals(27.dp, layout.videoY)
+        assertEquals(367.dp, layout.videoWidth)
+        assertEquals(367f * 9 / 16, layout.videoHeight.value, 0.01f)
         assertFalse(layout.compact)
     }
 

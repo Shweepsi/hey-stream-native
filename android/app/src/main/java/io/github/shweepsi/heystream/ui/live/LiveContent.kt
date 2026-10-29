@@ -182,6 +182,7 @@ fun LiveContent(
                     categories is CategoriesUi.Failed -> MessageState(
                         title = categories.error.resolve(),
                         icon = Lucide.CircleAlert,
+                        alert = true,
                         action = stringResource(R.string.retry),
                         onAction = actions::onReloadCategories,
                         modifier = Modifier.focusRequester(rootAction),
@@ -404,7 +405,8 @@ private fun CategoriesPanel(
                 .fillMaxSize()
                 .focusRestorer(),
             // Marges dans la liste : les lignes défilent jusqu'au bord, sans être coupées avant.
-            contentPadding = PaddingValues(bottom = if (isTv) 0.dp else if (compact) 8.dp else 16.dp),
+            // Sur TV, place du contour de focus (tracé hors de la ligne) en haut et en bas.
+            contentPadding = PaddingValues(top = if (isTv) 4.dp else 0.dp, bottom = if (isTv) 4.dp else if (compact) 8.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTv) 3.dp else 2.dp),
         ) {
             items(categories, key = { it.key.listKey }, contentType = { "category" }) { category ->
@@ -462,6 +464,7 @@ private fun ChannelsPanel(
             refresh is LoadState.Error -> MessageState(
                 title = refresh.error.toUiText().resolve(),
                 icon = Lucide.CircleAlert,
+                alert = true,
                 action = stringResource(R.string.retry),
                 onAction = channels::retry,
             )
@@ -567,7 +570,7 @@ private fun ChannelRow(
     val dimens = Hs.dimens
     val isTv = dimens.isTv
     val favoriteLabel = stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add)
-    val name = Formats.displayName(channel.name)
+    val name = remember(channel.name) { Formats.displayName(channel.name) }
     HsSurface(
         onClick = onClick,
         onLongClick = onToggleFavorite,

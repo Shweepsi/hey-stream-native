@@ -258,7 +258,7 @@ class LiveViewModel(
                     ownUserDataVersion = session.userDataVersion.value + 1
                     session.notifyUserDataChanged()
                     val text = if (favorite) R.string.live_favorite_added else R.string.live_favorite_removed
-                    showMessage(UiText(text, listOf(channel.name)))
+                    showMessage(UiText(text, listOf(Formats.displayName(channel.name))))
                 }
                 .onFailure { showMessage(it.toUiText()) }
         }

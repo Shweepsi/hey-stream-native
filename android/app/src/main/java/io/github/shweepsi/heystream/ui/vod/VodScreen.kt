@@ -207,7 +207,7 @@ fun VodContent(
                         .fillMaxHeight(),
                 ) {
                     PanelLabel(title)
-                    categories(Modifier.weight(1f), PaddingValues(bottom = dimens.screenVertical))
+                    categories(Modifier.weight(1f), PaddingValues(top = FOCUS_RING_ROOM, bottom = dimens.screenVertical))
                 }
                 Spacer(Modifier.width(dimens.gapLarge - GRID_EDGE))
                 grid(
@@ -361,6 +361,9 @@ private fun CategoriesPanel(
     }
 }
 
+/** Place du contour de focus, tracé hors de l'élément (HsSurface). */
+private val FOCUS_RING_ROOM = 4.dp
+
 /** Nombre de titres de la catégorie ouverte (« Continuer » : ceux de la liste). */
 private fun categoryCount(state: VodUiState, selected: VodCategory): Long? =
     if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
@@ -393,7 +396,7 @@ private fun GridPane(
             state.error != null -> {
                 restore.GiveUp()
                 // Aucune catégorie à focaliser : « Réessayer » prend le focus.
-                RetryMessage(title = state.error.resolve(), message = null, icon = Lucide.CircleAlert, onRetry = onRetry)
+                RetryMessage(title = state.error.resolve(), message = null, icon = Lucide.CircleAlert, onRetry = onRetry, alert = true)
             }
             selected == null -> {
                 restore.GiveUp()
@@ -486,6 +489,7 @@ private fun PagedBody(
             MessageState(
                 title = refresh.error.toUiText().resolve(),
                 icon = Lucide.CircleAlert,
+                alert = true,
                 action = stringResource(R.string.retry),
                 onAction = items::retry,
                 modifier = modifier,
@@ -676,7 +680,7 @@ private fun CatalogEmpty(downloading: Boolean, onRefreshCatalog: () -> Unit) {
 
 /** Message avec « Réessayer », qui prend le focus à la télécommande. */
 @Composable
-private fun RetryMessage(title: String, message: String?, icon: ImageVector, onRetry: () -> Unit) {
+private fun RetryMessage(title: String, message: String?, icon: ImageVector, onRetry: () -> Unit, alert: Boolean = false) {
     val retry = remember { FocusRequester() }
     if (Hs.isTv) LaunchedEffect(Unit) { retry.requestWhenAttached() }
     Box(
@@ -690,6 +694,7 @@ private fun RetryMessage(title: String, message: String?, icon: ImageVector, onR
             icon = icon,
             action = stringResource(R.string.retry),
             onAction = onRetry,
+            alert = alert,
         )
     }
 }

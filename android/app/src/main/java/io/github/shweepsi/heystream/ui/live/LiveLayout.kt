@@ -19,8 +19,6 @@ data class LiveLayout(
     val marginVertical: Dp,
     /** Espace entre les panneaux (TV). */
     val gap: Dp,
-    /** Barre du haut (tactile), séparateur compris. */
-    val topBar: Dp,
     /** Marge intérieure du panneau d'aperçu (tactile). */
     val previewPadding: Dp,
     /** Aperçu vidéo 16:9, depuis le coin de la zone utile. */
@@ -33,8 +31,8 @@ data class LiveLayout(
 )
 
 /**
- * TV : maquette 1280 × 720 ramenée à 960 × 540 dp (marges 30 / 24 dp,
- * 18 dp entre les panneaux). Tablette : trois colonnes séparées par un
+ * TV : écran de 960 × 540 dp, marges sûres de 48 × 27 dp (grille commune),
+ * 16 dp entre les panneaux. Tablette : trois colonnes séparées par un
  * trait, sans barre du haut (retour en tête des catégories). Téléphone (moins de 960 dp de large) : colonnes
  * proportionnelles, plus étroites.
  */
@@ -44,12 +42,11 @@ fun liveLayout(
     height: Dp,
     categories: Dp,
     channels: Dp,
-    topBar: Dp = 0.dp,
 ): LiveLayout {
     if (isTv) {
-        val horizontal = 30.dp
-        val vertical = 24.dp
-        val gap = 18.dp
+        val horizontal = 48.dp
+        val vertical = 27.dp
+        val gap = 16.dp
         val x = horizontal + categories + gap + channels + gap
         val (videoWidth, videoHeight) = video((width - x - horizontal).coerceAtLeast(0.dp), height - vertical)
         return LiveLayout(
@@ -58,7 +55,6 @@ fun liveLayout(
             marginHorizontal = horizontal,
             marginVertical = vertical,
             gap = gap,
-            topBar = 0.dp,
             previewPadding = 0.dp,
             videoX = x,
             videoY = vertical,
@@ -72,7 +68,7 @@ fun liveLayout(
     val channelsWidth = if (compact) min(channels, width * 0.32f) else channels
     val padding = if (compact) 12.dp else 24.dp
     val x = categoriesWidth + channelsWidth + padding
-    val y = topBar + padding
+    val y = padding
     val (videoWidth, videoHeight) = video((width - x - padding).coerceAtLeast(0.dp), height - y)
     return LiveLayout(
         categoriesWidth = categoriesWidth,
@@ -80,7 +76,6 @@ fun liveLayout(
         marginHorizontal = 0.dp,
         marginVertical = 0.dp,
         gap = 0.dp,
-        topBar = topBar,
         previewPadding = padding,
         videoX = x,
         videoY = y,

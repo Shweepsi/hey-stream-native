@@ -503,13 +503,13 @@ private fun ParentalPane(ui: ParentalUi, actions: SettingsActions) {
 }
 
 @Composable
-private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true) {
+private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true, alert: Boolean = false) {
     val dimens = Hs.dimens
     Row(
         horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = if (icon == Lucide.CircleAlert) HsColors.Alert else Hs.colors.text, modifier = Modifier.size(dimens.icon))
+        Icon(icon, contentDescription = null, tint = if (alert) HsColors.Alert else Hs.colors.text, modifier = Modifier.size(dimens.icon))
         Text(
             text = text,
             style = if (bold) Hs.type.itemTitle else Hs.type.body,
@@ -601,7 +601,7 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
         )
         when {
             ui.running -> Paragraph(stringResource(R.string.settings_catalog_running))
-            ui.error != null -> StatusLine(Lucide.CircleAlert, ui.error.resolve(), bold = false)
+            ui.error != null -> StatusLine(Lucide.CircleAlert, ui.error.resolve(), bold = false, alert = true)
             ui.results != null -> Column(verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp)) {
                 ui.results.forEach { result -> ResultLine(result) }
             }
