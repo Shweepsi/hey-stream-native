@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.shweepsi.heystream.core.CatalogItem
+import io.github.shweepsi.heystream.core.HeyStreamCore
 import io.github.shweepsi.heystream.core.Section
 import kotlinx.coroutines.flow.Flow
 
@@ -36,32 +37,23 @@ object CatalogPaging {
                 },
             )
         }.flow
-
-    /** Favoris d'une section. */
-    fun favorites(session: CoreSession, section: Section): Flow<PagingData<CatalogItem>> =
-        Pager(config) {
-            OffsetPagingSource(
-                total = null,
-                load = { offset, limit ->
-                    session.withCore { it.favorites(section, offset.toUInt(), limit.toUInt()) }
-                },
-            )
-        }.flow
 }
 
 /**
  * Source paginée par décalage. Toutes les pages ont la même taille et
  * commencent à un multiple de cette taille : pas de doublon au défilement
- * vers le haut. [total] (facultatif) donne le nombre d'entrées, pour une
- * barre de défilement juste et des emplacements réservés.
+ * vers le haut. [total] donne le nombre d'entrées, pour une barre de
+ * défilement juste et des emplacements réservés. Il est obligatoire :
+ * [CatalogPaging.config] permet les sauts, que Paging refuse à une source
+ * sans total.
  */
 class OffsetPagingSource<T : Any>(
-    private val total: (suspend () -> Int)?,
+    private val total: suspend () -> Int,
     private val load: suspend (offset: Int, limit: Int) -> List<T>,
 ) : PagingSource<Int, T>() {
     private var count: Int? = null
 
-    override val jumpingSupported: Boolean get() = total != null
+    override val jumpingSupported: Boolean get() = true
 
     override fun getRefreshKey(state: PagingState<Int, T>): Int? {
         val anchor = state.anchorPosition ?: return null
@@ -73,16 +65,38 @@ class OffsetPagingSource<T : Any>(
         val size = params.loadSize
         val offset = (params.key ?: 0).coerceAtLeast(0) / size * size
         val items = load(offset, size)
-        val known = total?.let { count ?: it().also { value -> count = value } }
         val end = offset + items.size
+        // Une page courte termine la liste ; le total lu à part (liste qui
+        // change entre deux lectures) ne laisse ni trou ni entrée perdue.
+        val known = (if (items.size < size) end else maxOf(count ?: total(), end)).also { count = it }
         LoadResult.Page(
             data = items,
             prevKey = if (offset == 0) null else offset - size,
-            nextKey = if (items.size < size || (known != null && end >= known)) null else end,
-            itemsBefore = if (known != null) offset else LoadResult.Page.COUNT_UNDEFINED,
-            itemsAfter = if (known != null) (known - end).coerceAtLeast(0) else LoadResult.Page.COUNT_UNDEFINED,
+            nextKey = if (items.size < size || end >= known) null else end,
+            itemsBefore = offset,
+            itemsAfter = (known - end).coerceAtLeast(0),
         )
     } catch (error: Throwable) {
         LoadResult.Error(error)
     }
+}
+
+/** Taille des lots lus pour compter les favoris. */
+private const val FAVORITES_CHUNK = 500
+
+/** Au-delà, les favoris ne sont plus comptés (lecture bornée). */
+private const val FAVORITES_MAX = 10_000
+
+/**
+ * Nombre de favoris visibles d'une section. Le cœur n'expose pas de
+ * compteur : ils sont lus par lots (souvent un seul).
+ */
+internal fun countFavorites(core: HeyStreamCore, section: Section): Long {
+    var total = 0L
+    while (total < FAVORITES_MAX) {
+        val page = core.favorites(section, total.toUInt(), FAVORITES_CHUNK.toUInt()).size
+        total += page
+        if (page < FAVORITES_CHUNK) break
+    }
+    return total
 }

@@ -15,6 +15,7 @@ import io.github.shweepsi.heystream.data.CatalogPaging
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
+import io.github.shweepsi.heystream.data.countFavorites
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -146,13 +147,13 @@ class LiveViewModel(
         InvalidatingPagingSourceFactory {
             when (key) {
                 CategoryKey.Favorites -> OffsetPagingSource(
-                    total = null,
+                    total = { session.withCore { countFavorites(it, Section.LIVE).toInt() } },
                     load = { offset, limit ->
                         session.withCore { it.favorites(Section.LIVE, offset.toUInt(), limit.toUInt()) }
                     },
                 )
                 CategoryKey.Recents -> OffsetPagingSource(
-                    total = null,
+                    total = { session.withCore { it.recents(Section.LIVE, RECENTS_LIMIT.toUInt()).size } },
                     load = { offset, limit ->
                         session.withCore { it.recents(Section.LIVE, RECENTS_LIMIT.toUInt()) }.drop(offset).take(limit)
                     },
