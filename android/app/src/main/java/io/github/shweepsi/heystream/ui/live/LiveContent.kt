@@ -580,18 +580,6 @@ private fun ChannelRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 10.dp else if (compact) 8.dp else 12.dp),
         ) {
-            val number = channel.number
-            if (number != null) {
-                Text(
-                    text = number.toString(),
-                    style = Hs.type.small.tabular(),
-                    color = secondary,
-                    maxLines = 1,
-                    softWrap = false,
-                    // Place de quatre chiffres : logos alignés d'une ligne à l'autre.
-                    modifier = Modifier.widthIn(min = if (isTv) 30.dp else 36.dp),
-                )
-            }
             ChannelLogo(channel.image, channel.name)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 // Nom et programme complets : chaîne focalisée sur TV, en aperçu au doigt.

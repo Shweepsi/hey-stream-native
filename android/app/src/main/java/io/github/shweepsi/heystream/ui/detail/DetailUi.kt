@@ -99,6 +99,7 @@ internal fun DetailFrame(sectionTitle: String, onBack: () -> Unit, content: @Com
 @Composable
 internal fun PosterLayout(
     image: String?,
+    fallbackIcon: ImageVector,
     body: @Composable (modifier: Modifier, contentPadding: PaddingValues, compact: Boolean) -> Unit,
 ) {
     val dimens = Hs.dimens
@@ -117,6 +118,7 @@ internal fun PosterLayout(
         ) {
             RemoteImage(
                 url = image,
+                fallback = fallbackIcon,
                 modifier = Modifier
                     .padding(vertical = vertical)
                     .width(posterWidth)

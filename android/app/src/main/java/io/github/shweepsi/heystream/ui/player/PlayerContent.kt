@@ -62,6 +62,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -609,6 +610,13 @@ private fun handleKey(
     }
 }
 
+/** Fond des commandes : transparent en haut, noir à 80 % en bas. */
+private val ControlsScrim = Brush.verticalGradient(
+    0f to Color.Transparent,
+    0.45f to Color.Black.copy(alpha = 0.55f),
+    1f to Color.Black.copy(alpha = 0.8f),
+)
+
 @Composable
 private fun Controls(
     state: PlayerUiState,
@@ -637,11 +645,14 @@ private fun Controls(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(HsColors.MediaScrim)
+                // Dégradé fixe posé sur l'image : pas de bord net au-dessus du titre.
+                .background(ControlsScrim)
                 .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
                 .padding(
-                    horizontal = dimens.screenHorizontal,
-                    vertical = if (dimens.isTv) 12.dp else 10.dp,
+                    start = dimens.screenHorizontal,
+                    end = dimens.screenHorizontal,
+                    top = if (dimens.isTv) 36.dp else 40.dp,
+                    bottom = if (dimens.isTv) 12.dp else 10.dp,
                 ),
             verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 6.dp else 8.dp),
         ) {

@@ -62,7 +62,7 @@ class DetailLogicTest {
     @Test
     fun metaLineShowsOnlyProvidedFields() {
         assertEquals(
-            listOf(MetaPart.Year("2025"), MetaPart.Duration(1, 52), MetaPart.Rating("7.4")),
+            listOf(MetaPart.Year("2025"), MetaPart.Duration(1, 52), MetaPart.Rating("7,4")),
             metaParts(DetailHeader("A", year = "2025", durationSecs = 6_720, rating = "7.4")),
         )
         assertEquals(listOf(MetaPart.Duration(0, 45)), metaParts(DetailHeader("A", year = " ", durationSecs = 2_690, rating = "0")))
@@ -79,6 +79,25 @@ class DetailLogicTest {
         assertNull(displayRating("0,0"))
         assertEquals("7,2", displayRating(" 7,2 "))
         assertEquals("PG", displayRating("PG"))
+    }
+
+    @Test
+    fun ratingIsRoundedToOneFrenchDecimal() {
+        assertEquals("7,3", displayRating("7.272"))
+        assertEquals("8", displayRating("8"))
+        assertEquals("8", displayRating("7.96"))
+        assertEquals("6,5", displayRating("6.5"))
+    }
+
+    @Test
+    fun episodeTitleDropsTheSeriesNameAndTheCode() {
+        val names = listOf("13 Reasons Why (2017)_fr", "13 Reasons Why")
+        assertNull(episodeTitle("S01E01", names))
+        assertNull(episodeTitle("13 Reasons Why (2017)_fr - S01E02", names))
+        assertNull(episodeTitle(" ", names))
+        assertEquals("Tape 1, Side A", episodeTitle("13 Reasons Why - S01E01 - Tape 1, Side A", names))
+        assertEquals("Le départ", episodeTitle("S2 E3 : Le départ", names))
+        assertEquals("Le départ", episodeTitle("Le départ", names))
     }
 
     @Test

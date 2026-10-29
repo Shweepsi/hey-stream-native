@@ -1,0 +1,1302 @@
+{
+ "source": "Listes réelles d'un fournisseur (2026-10-29), anonymisées : ni identifiants, ni adresse du panneau, ni URL de flux ; images TMDB seulement.",
+ "live": {
+  "categories": [
+   "|FR| ✪ RÉUNION",
+   "|FR| ✪ CHAINES FRANCAISES U.H.D (4K)",
+   "|FR| ✪ CHAINES FRANCAISES ᵁᴴᴰ",
+   "|FR| ✪ TNT HD",
+   "|FR| ✪ TNT HEVC",
+   "|FR| ✪ TNT SD",
+   "|FR| ✪ MY TF1+",
+   "|FR| ✪ INFOS",
+   "|FR| ✪ CINEMA",
+   "|FR| ✪ BOX OFFICE 4K",
+   "|FR| ✪ NETFLIX  PREMIER",
+   "|FR| ✪ PRIME CINEMA",
+   "|FR| ✪ NETFLIX | CANALPLAY",
+   "|FR| ✪ BOX OFFICE",
+   "|FR| ✪ JEUNESSE",
+   "|FR| ✪ DECOUVERTE",
+   "|FR| ✪ MUSIQUE",
+   "|FR| ✪ DELAY",
+   "|FR| ✪ RMC CHANNEL",
+   "|FR| ✪ RMC SPORT",
+   "|FR| ✪ SPORT",
+   "|FR| ✪ CINE POP",
+   "|FR| ✪ SONY+ CINEMA",
+   "|FR| ✪ PLUTO PREMIER",
+   "|FR| ✪ DISNEY+ CINEMA",
+   "|FR| ✪ HBO CINEMA",
+   "|FR| ✪ NUMERICABLE",
+   "|FR| NBA PRIME",
+   "|FR| ✪ LIGUE + ULTRA ᵁᴴᴰ",
+   "|FR| ✪ LIGUE + ᴴᴰ",
+   "|FR| ✪ DAZN SERIE A",
+   "|FR| ✪ EURO LEAGUE TV PPV",
+   "|FR| ✪ MYSPORTS",
+   "|FR| ✪ AMAZON PRIME EVENTS B",
+   "|FR| ✪ AMAZON PRIME EVENTS",
+   "|FR| ✪ DAZN LIVE",
+   "|FR| ✪ CANAL+ SPORT",
+   "|FR| ✪ CANAL+ LIVE",
+   "|FR| ✪ ROLAND-GARROS",
+   "|FR| ✪ DAZN LIGUE+",
+   "|FR| ✪ DAZN SUPER LEAGUE BASKETBALL",
+   "|FR| ✪ BETCLIC ELITE PPV",
+   "|FR| ✪ EHF EUROPEAN PPV",
+   "|FR| ✪ SKWEEK EVENMENT",
+   "|FR| ✪ EQUIDIA RACING",
+   "|FR| ✪ FANSEAT EVENMENT",
+   "|FR| ✪ FFF TV",
+   "|FR| ✪ LEQUIPE LIVE",
+   "|FR| ✪ DAZN EVENT",
+   "|FR| ✪ BEIN SPORT",
+   "|FR| ✪ EUROSPORT",
+   "|FR| ✪ EUROSPORT 360",
+   "|FR| ✪ DISNEY/LEQUIPE  PPV UHD",
+   "|FR| ✪  DISNEY + PPV",
+   "|FR| ✪ DISNEY + PPV FHD",
+   "FR| ✪ DAZN LALIGA ES",
+   "|FR| ✪ MAX PPV",
+   "|FR|✪ DAZN PPV B",
+   "|PPV| ✪ ALL PPV EVENT",
+   "|FR| ✪ MOLOTO TV",
+   "|+18| ✪ ADULTS",
+   "|+18| ✪ ADULTS LIVE",
+   "|+18| ✪ HANIME TV"
+  ],
+  "selected": "|FR| ✪ CANAL+ SPORT",
+  "channels": [
+   {
+    "id": 1,
+    "name": "|FR| canal+ FOOT UHD"
+   },
+   {
+    "id": 2,
+    "name": "|FR|  CANAL+ SPORT 360 ᵁᴴᴰ"
+   },
+   {
+    "id": 3,
+    "name": "|FR| CANAL+ Sport 360 ᵁᴴᴰ"
+   },
+   {
+    "id": 4,
+    "name": "|FR| CANAL+ SPORT360 ᴴᴰ"
+   },
+   {
+    "id": 5,
+    "name": "|FR| CANAL+ Sport 360 ᴴᴰ"
+   },
+   {
+    "id": 6,
+    "name": "|FR|  CANAL+ SPORT ᵁᴴᴰ"
+   },
+   {
+    "id": 7,
+    "name": "|FR| CANAL+ SPORT ᵁᴴᴰ"
+   },
+   {
+    "id": 8,
+    "name": "|FR| Canal+ Sport ᴴᴰ"
+   },
+   {
+    "id": 9,
+    "name": "|FR| CANAL  SPORT ˢᴰ"
+   },
+   {
+    "id": 10,
+    "name": "|FR|  CANAL+ PREMIER LEAGUE ᵁᴴᴰ"
+   },
+   {
+    "id": 11,
+    "name": "|FR| CANAL+ PREMIER LEAGUE ᴴᴰ"
+   },
+   {
+    "id": 12,
+    "name": "|FR| CANAL+ PREMIER LEAGUE ˢᴰ"
+   },
+   {
+    "id": 13,
+    "name": "|FR| CANAL+ FOOT ᵁᴴᴰ"
+   },
+   {
+    "id": 14,
+    "name": "|FR| CANAL+ FOOT 4K."
+   },
+   {
+    "id": 15,
+    "name": "|FR| CANAL+ FOOT ˢᴰ"
+   },
+   {
+    "id": 16,
+    "name": "|FR| CANAL FOOT ᴴᴰ"
+   },
+   {
+    "id": 17,
+    "name": "|FR| EVENEMENT SPORT UHD"
+   }
+  ]
+ },
+ "movies": {
+  "categories": [
+   "|FR| ✪ ULTRA ᵁᴴᴰ",
+   "|FR| ✪ ORIGINAL  MY CANAL 4K",
+   "|FR| ✪ ULTRA ᵁᴴᴰ 2024",
+   "|FR| ✪ FILMS 2026",
+   "|FR| ✪ DOCUMENTAIRE",
+   "|FR| ✪ ANIMATION",
+   "|FR| ✪ SAGA",
+   "|FR| ✪ WESTERN",
+   "|FR| ✪ FILMS 1980 1999",
+   "|FR| ✪ CLASSIQUE",
+   "|FR| ✪ FILMS 2025",
+   "|FR| ✪ ACTION",
+   "|FR| ✪ THRILLER CRIME",
+   "|FR| ✪ DRAME ROMANCE",
+   "|FR| ✪ HORREUR",
+   "|FR| ✪ COMEDIE DRAMA",
+   "|FR| ✪ ASIATIQUE",
+   "|FR| ✪ GUERRE ET HISTOIRE",
+   "|FR| ✪ KIDS",
+   "|FR| ✪ FILMS RECENTS -CAM-",
+   "|FR| ✪ MANGA ANIME",
+   "|FR| ✪ FILMS_2024",
+   "|FR| ✪ SCIENCE FICTION",
+   "|FR| ✪ FILMS 2023",
+   "|FR| ✪ 4K LIGHT",
+   "|FR| ✪ SPECTACLE",
+   "|FR| ✪ FANTASY AVENTURE",
+   "|AR| ✪ 2026 افـلام اجـنـبـيـة مـتـرجـمـة",
+   "|AF| ✪ AFRIQUE FR",
+   "|FR| ✪ ARTS-MARTIAUX",
+   "|FR| ✪ BOLLYWOOD VOST",
+   "|FR| ✪ CONCERT",
+   "|FR| ✪ ORIGINAL DISNEY+",
+   "|FR| ✪ NOEL",
+   "|FR| ✪ ORIGINAL NETFLIX",
+   "|FR| ✪ ORIGINAL MYTF1+",
+   "|FR| ✪ ORIGINAL MY CANAL 2024",
+   "|FR| ✪ ORIGINAL MY CANAL 2023",
+   "|FR| ✪ ORIGINAL  MY CANAL",
+   "|FR| ✪ QUEBEC NETFLIX",
+   "|FR| ✪ TOP CINEMA",
+   "|FR| ✪ FILMS",
+   "|FR| ✪ ORIGINAL APPLE+",
+   "|FR| ✪ ORIGINAL PRIME +",
+   "|FR| ✪ MAFIA GANGSTER",
+   "|FR| ✪ ZIGGO GO",
+   "|FR| ✪ PARAMOUNT",
+   "|FR| ✪ JEUNESSE 4K 3D",
+   "|FR| ✪ QUEBEC FILMS",
+   "|FR| ✪ QUEBEC NOEL"
+  ],
+  "selected": "|FR| ✪ FILMS 2026",
+  "count": 801,
+  "items": [
+   {
+    "id": 1,
+    "name": "FR - To Philly with Love (2026) FHD",
+    "rating": "5.7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3qMH4UiwRR1pu1MOyMvyvq9rnkJ.jpg"
+   },
+   {
+    "id": 2,
+    "name": "FR - Permis de détruire (2026)",
+    "rating": "5.9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gZQmPbQ9jo44jj9h4OSb61j14RD.jpg"
+   },
+   {
+    "id": 3,
+    "name": "FR - ‎La Bataille de Gaulle : J'écris ton nom (2026)",
+    "rating": "7.8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9qc5CzjnxGpjpuwVlIziVr7ODcL.jpg"
+   },
+   {
+    "id": 4,
+    "name": "FR - Ali G : J'suis qui ? (2026) MULTI",
+    "rating": "5.6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/xRieId2D3sqKeyhfwO7iJzjbojb.jpg"
+   },
+   {
+    "id": 5,
+    "name": "FR - Affection (2026) MULTI",
+    "rating": "5.6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3b3wC8JFjURlMsFj9gqbv0SyTJs.jpg"
+   },
+   {
+    "id": 6,
+    "name": "FR - Verity - 2026 MULTI",
+    "rating": "6.382",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zLCjFOyjvKqYdkQYYAyTtfJ5mpk.jpg"
+   },
+   {
+    "id": 7,
+    "name": "FR - Tony (2026) MULTI",
+    "rating": "7.5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zsisvReIrSIUPS3JXawt1ib9JDS.jpg"
+   },
+   {
+    "id": 8,
+    "name": "FR - Lettres d'amour à Philadelphie (2026)",
+    "rating": "5.7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hr7AI4AnkucXPaYdoMXN2CSjMax.jpg"
+   },
+   {
+    "id": 9,
+    "name": "FR - The Stunt Driver (2026) FHD",
+    "rating": "8.3",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/fph0piUmCFAdmApMpjznWhqqNch.jpg"
+   },
+   {
+    "id": 10,
+    "name": "FR - Signal One (2026) MULTI",
+    "rating": "6.06",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bi7Aeaozl51cd5K6vAn8tI1lOW0.jpg"
+   },
+   {
+    "id": 11,
+    "name": "FR - Le Transport (2026) MULTI",
+    "rating": "8.3",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/vJk2TW1QZAmBiD7oj9ZF9EPTYY1.jpg"
+   },
+   {
+    "id": 12,
+    "name": "FR - Ali G : J'suis qui ? (2026)",
+    "rating": "6.8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/uTyVxPeWX8Ai30IQoyDDQONNcq.jpg"
+   },
+   {
+    "id": 13,
+    "name": "FR - Drive - The Pretenders (2026)",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bLDFCD3vMxeJJ5o8F4FOksnb0Fd.jpg"
+   },
+   {
+    "id": 14,
+    "name": "FR - Verity (2026)",
+    "rating": "6.4",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zLCjFOyjvKqYdkQYYAyTtfJ5mpk.jpg"
+   },
+   {
+    "id": 15,
+    "name": "FR - Tow - Le prix à payer (2026) MULTI",
+    "rating": "6.837",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ixSfQghbdfZGDptzdqttZy00B6V.jpg"
+   },
+   {
+    "id": 16,
+    "name": "FR - The Stunt Driver (2026)",
+    "rating": "5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jFiMdTG8Hw41A3VxrzLEWtMFIYX.jpg"
+   },
+   {
+    "id": 17,
+    "name": "FR - The Dog Stars (2026) MULTI",
+    "rating": "6.6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w7c49Qgp3TAUC4hlo0mtgRpLOGG.jpg"
+   },
+   {
+    "id": 18,
+    "name": "FR - Signal One (2026)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bi7Aeaozl51cd5K6vAn8tI1lOW0.jpg"
+   },
+   {
+    "id": 19,
+    "name": "FR - Le Transport (2026)",
+    "rating": "8.3",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4gRzxdF2IEGiANKEDVtjMuNl12n.jpg"
+   },
+   {
+    "id": 20,
+    "name": "FR - Les Parfait(s) : Arnaques en Famille (2026)",
+    "rating": "6.7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wrVQlyShWb9KUhifSuf4MXWCGQV.jpg"
+   },
+   {
+    "id": 21,
+    "name": "FR - François.e (2026)",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/r7YyenJwtDcl6pgnHrxadnuX6b.jpg"
+   },
+   {
+    "id": 22,
+    "name": "FR - The Dog Stars (2026)",
+    "rating": "6.596",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w7c49Qgp3TAUC4hlo0mtgRpLOGG.jpg"
+   },
+   {
+    "id": 23,
+    "name": "FR - Tony - 2026",
+    "rating": "7.5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zsisvReIrSIUPS3JXawt1ib9JDS.jpg"
+   },
+   {
+    "id": 24,
+    "name": "FR - Raison et Sentiments (2026)",
+    "rating": "7.188",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9XNEI2AYgQIIqXper5kOdGTnyf5.jpg"
+   },
+   {
+    "id": 25,
+    "name": "FR - Les Parfait(s) : Arnaques en Famille (2026)",
+    "rating": "6.7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wrVQlyShWb9KUhifSuf4MXWCGQV.jpg"
+   },
+   {
+    "id": 26,
+    "name": "FR - Maya & Samar (2026)",
+    "rating": "7.6",
+    "image": null
+   },
+   {
+    "id": 27,
+    "name": "FR - The Fix (2026) VOST",
+    "rating": "6.399",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jlP8XDjZN89GrpM3je5Uf8Grqx8.jpg"
+   },
+   {
+    "id": 28,
+    "name": "FR - Nightborn - 2026 MULTI",
+    "rating": "6.041",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/A83uVI9q4ETlzGdVcpn7Cl2hFQB.jpg"
+   },
+   {
+    "id": 29,
+    "name": "FR - Contre l'Ouragan (2026)",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/lFaMt4I8LiQAGW9Rb5gfGFXbvOY.jpg"
+   },
+   {
+    "id": 30,
+    "name": "FR - Soudain (2026)",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bfWVYzLQnykGlDfnnduqLtofRAJ.jpg"
+   },
+   {
+    "id": 31,
+    "name": "FR - Nervures (2026)",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/Dxf2Hi20bp6HaEy7OqDHsyrXy3.jpg"
+   },
+   {
+    "id": 32,
+    "name": "FR - Anna et les Enfants (2026)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/5EdivY4D1dnI3POKym4GsLnlEAR.jpg"
+   },
+   {
+    "id": 33,
+    "name": "FR - Nightborn (2026)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/cF1g9qtuRyATaZ75O6zRop2zmfZ.jpg"
+   },
+   {
+    "id": 34,
+    "name": "FR - En sursis (2026) MULTI",
+    "rating": "7.3",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/AeU2EsYPJgXW9pQyjK5mE3lCZe8.jpg"
+   },
+   {
+    "id": 35,
+    "name": "FR - Coup de foudre en Amazonie (2026)",
+    "rating": "6.3",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4yCeyro6m0cayrrJ3yOaRHKB4a1.jpg"
+   },
+   {
+    "id": 36,
+    "name": "FR - Les Caprices de l’Enfant Roi (2026)",
+    "rating": "5.2",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yQ5ZTigq3buO4qe1cx2VHsrEaT1.jpg"
+   },
+   {
+    "id": 37,
+    "name": "FR - Juste après l'Aube (2026) FHD",
+    "rating": "5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4GxSC6ByogOhbUsQQnFKjyAs5tJ.jpg"
+   },
+   {
+    "id": 38,
+    "name": "FR - Harceleurs (2026)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yHE9nlvMq8f7YzSrYTi1CDAtMrT.jpg"
+   },
+   {
+    "id": 39,
+    "name": "FR - Girls Like Girls (2026) MULTI",
+    "rating": "7.5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gbP30EOIwUW0HZY9BwQMTRrk8uX.jpg"
+   },
+   {
+    "id": 40,
+    "name": "FR - He's Watching You (2026) MULTI",
+    "rating": "5.9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/lGrxMTGzoO120uuHuYxwbv5Ypcw.jpg"
+   },
+   {
+    "id": 41,
+    "name": "FR - By Any Means (2026) MULTI",
+    "rating": "6.865",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/evCy2B3j57AwSNBZqlePjMl3zj3.jpg"
+   },
+   {
+    "id": 42,
+    "name": "FR - Spidernado (2026) VOST",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wMSysl6cp67jdlF3YJXrTfYEs9P.jpg"
+   },
+   {
+    "id": 43,
+    "name": "FR - Silent Friend (2026) VOST",
+    "rating": "7.2",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yTPbeO1Peb9fgmJLecTk7KyzctQ.jpg"
+   },
+   {
+    "id": 44,
+    "name": "FR - Project Y (2026)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/s4z1ek0vRtIa5ZOcK4EpdU6qen9.jpg"
+   },
+   {
+    "id": 45,
+    "name": "FR - By Any Means (2026) VOST",
+    "rating": "7.171",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/evCy2B3j57AwSNBZqlePjMl3zj3.jpg"
+   },
+   {
+    "id": 46,
+    "name": "FR - Parasites - 2026 VOST",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zGkFCfPZ5GECB6XkvotxlgucDAk.jpg"
+   },
+   {
+    "id": 47,
+    "name": "FR - Oublie-moi (2026)",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/6RLH6MPpUCnBCk3vNIkFHaFv6lY.jpg"
+   },
+   {
+    "id": 48,
+    "name": "FR - Les Contrebandiers (2026) VOST",
+    "rating": "6.9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hjM3hITDk5XvWu4cMn7dj7IpwY8.jpg"
+   }
+  ]
+ },
+ "series_netflix": {
+  "selected": "|FR| ✪ NETFLIX",
+  "count": 483,
+  "items": [
+   {
+    "id": 1,
+    "name": "Les Mères pingouins (2024)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/oRug3DwSgWHTv6bJQmiR2A1vNTT.jpg",
+    "plot": "Quand son fils de sept ans change d'école, une combattante de MMA comprend que le combat le plus difficile ne l'attend pas dans l'octogone, mais dans son quotidien de mère.",
+    "year": "2024"
+   },
+   {
+    "id": 2,
+    "name": "The Crown (2016) FR",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/snrhOM9JOY3i7UGNDZBfBakiq4n.jpg",
+    "plot": "Cette série dramatique retrace les rivalités politiques, intrigues et événements qui ont marqué le règne de la reine Élisabeth II et la seconde moitié du XXe siècle.",
+    "year": "2016"
+   },
+   {
+    "id": 3,
+    "name": "Death Inc. (2024) FR",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/6X9f1ypWBRDsXC61YgAwYDzTltn.jpg",
+    "plot": "Quand Gonzalo Torregrosa, propriétaire et fondateur des Pompes Funèbres Torregrosa, décède, Nieves, la veuve septuagénaire, décide de prendre la tête de l'entreprise familiale, avec l'aide de son gendre, Chemi, un expert en marketing, et au mépris des plans de ses filles qui veulent fermer les Pompes funèbres et ouvrir une salle de fitness.",
+    "year": "2024"
+   },
+   {
+    "id": 4,
+    "name": "Operation Safed Saga (2026) FR",
+    "rating": "0",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/f56PHAGbUFPmHMRippWWNpRgSao.jpg",
+    "plot": null,
+    "year": "2026"
+   },
+   {
+    "id": 5,
+    "name": "A Shop for Killers (2024) FR",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/gfw41bHY2boxVse5l8M6m0sft5n.jpg",
+    "plot": "Le seul tuteur de Jian est son oncle. Après la mort soudaine de ce dernier, elle apprend qu’il a laissé derrière lui tout un centre commercial douteux. Qui était son oncle et quel genre de centre commercial dirigeait-il ? Avant même que Jian ne puisse comprendre ce qui se passe, elle est attaquée par des personnes non identifiées qui veulent s’emparer des provisions de son oncle. Maintenant qu’elle est seule, Jian pourra-t-elle survivre face à eux ?",
+    "year": "2024"
+   },
+   {
+    "id": 6,
+    "name": "Permis de vivre (2018)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3Bmnskpw87ADwjbdVLS1x1aO41L.jpg",
+    "plot": "Quand un baron de la drogue galicien décide de cacher son Alzheimer et prendre sa retraite, son second complote pour court-circuiter l'héritier et s'emparer de l'empire.",
+    "year": "2018"
+   },
+   {
+    "id": 7,
+    "name": "How to Sell Drugs Online (Fast) (2019)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/f606fmTMkoPxBHetjDsIfhs8AZg.jpg",
+    "plot": "Pour reconquérir son ex, un ado fou d'informatique se met à vendre de l'ecstasy en ligne, et devient l'un des plus gros dealers d'Europe... sans quitter sa chambre.",
+    "year": "2019"
+   },
+   {
+    "id": 8,
+    "name": "Bad Blood (2017)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ukrAdTtJHHEaDRUJmi4XYwBUpRu.jpg",
+    "plot": "Cette fresque dramatique policière suit l'histoire vraie de la famille Rizzuto et de ses complices, qui ont régné pendant des décennies sur le crime organisé à Montréal.",
+    "year": "2017"
+   },
+   {
+    "id": 9,
+    "name": "1670 (2023)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/sMPLjSZYJEeeXfxeKQ7Ct7SEYuV.jpg",
+    "plot": "Dans cette comédie satirique, un noble farfelu se heurte à des querelles familiales et paysannes dans sa quête pour devenir la personnalité la plus célèbre de Pologne.",
+    "year": "2023"
+   },
+   {
+    "id": 10,
+    "name": "Ma vie avec les Walter Boys (2023)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/o2DAuoa5GClwZL61nTT8EmTLvWg.jpg",
+    "plot": "Quand une tragédie bouleverse sa vie, une ado emménage avec la grande famille de sa tutrice dans une petite ville où elle apprend beaucoup sur l'amour, l'espoir et l'amitié.",
+    "year": "2023"
+   },
+   {
+    "id": 11,
+    "name": "Spinning Out (2020)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/kaZbULnXt9hMSJK21rMtcZcoRys.jpg",
+    "plot": "Une jeune patineuse artistique, futur espoir des J.O., se débat entre amour, famille et troubles mentaux quand elle voit son rêve de victoire risquer de lui échapper.",
+    "year": "2020"
+   },
+   {
+    "id": 12,
+    "name": "Infamia (2023)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/d12dXWivpu5wBBUTe03wQB8DhyU.jpg",
+    "plot": "Tiraillée entre ses racines roms et la pression de ses amis, une jeune fille de 17 ans rêve de se faire un nom dans le hip-hop malgré les règles strictes de sa famille.",
+    "year": "2023"
+   },
+   {
+    "id": 13,
+    "name": "When They See Us (2019)-fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/wARtDgBwhs3jNiQdIVaKMirpSIi.jpg",
+    "plot": "Le cauchemar commence quand cinq ados de Harlem se retrouvent accusés à tort d'une violente agression à Central Park.",
+    "year": "2019"
+   },
+   {
+    "id": 14,
+    "name": "Kings of Jo'Burg (2020)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/vSM1FB86gr3QNelkk0jDovN5228.jpg",
+    "plot": "Les frères Masire gouvernent le monde criminel de Johannesburg, mais une malédiction familiale surnaturelle et un réseau de trahisons enchevêtrées menacent de les détruire.",
+    "year": "2020"
+   },
+   {
+    "id": 15,
+    "name": "Pernille (2021)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/DSUYF4sJkyHhUROdklMLHUOUl2.jpg",
+    "plot": "Le mariage d'Ole Johan et de Stephen approche. Entre l'organisation de l'enterrement de vie de garçon et la gestion des épisodes de stress d'Ole Johan, Pernille commence à travailler à temps partiel pour les services d'urgence de protection de l'enfance. Elle se réjouit de partir à Liverpool avec sa famille, mais un événement choquant donne un tour inattendu au séjour. Pernille et Bjørnar sont de nouveau amis… mais est-ce vraiment suffisant pour Pernille ?",
+    "year": "2021"
+   },
+   {
+    "id": 16,
+    "name": "Haters Back Off (2016)_fr",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/kSF3AymHUK4XLuh1rzIX1TnRXAM.jpg",
+    "plot": "Miranda Sings n'a aucun talent, mais elle est persuadée du contraire. Bien décidée à devenir une superstar, elle s'embarque dans une quête délirante de la célébrité.",
+    "year": "2016"
+   },
+   {
+    "id": 17,
+    "name": "Héros Fragile (2022)_fr",
+    "rating": "9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qWY4cFftaZxvtHet3S9p7NYTZeD.jpg",
+    "plot": "Yeon Si Eun est un étudiant modèle. Il est le numéro 1 au classement de son lycée. En apparence fragile et calme, il dissimule ses véritables compétences. Haïssant particulièrement le harcèlement, il va utiliser son intelligence et sa force pour lutter contre la violence présente à l'intérieur et à l'extérieur de son école.",
+    "year": "2022"
+   },
+   {
+    "id": 18,
+    "name": "Move to Heaven (2021)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/drEK6iGpzQBzFCmiT5KiG3s8ktO.jpg",
+    "plot": "Fraîchement réunis, un \"nettoyeur\" méticuleux et son oncle livrent à des personnes ayant perdu un proche les histoires que racontent des objets lui ayant appartenu.",
+    "year": "2021"
+   },
+   {
+    "id": 19,
+    "name": "XO, Kitty (2023)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/v13uTYMFsVAY69q7CpJ4UFwB9mN.jpg",
+    "plot": "Kitty Song Covey pense tout savoir sur l'amour. Quand elle part à l'autre bout du monde pour retrouver son petit ami, elle se rend compte que les relations sont beaucoup plus compliquées qu'il n'y paraît.",
+    "year": "2023"
+   },
+   {
+    "id": 20,
+    "name": "Poursuis tes rêves (2019)",
+    "rating": "9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pSkkA3Es7ui1pQWfIPIQECcgVxT.jpg",
+    "plot": "La charismatique Mia décroche une bourse dans une prestigieuse académie artistique où elle se fait de nouveaux amis, mais doit affronter la fille du directeur.",
+    "year": "2019"
+   },
+   {
+    "id": 21,
+    "name": "Le Serpent (2021)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/t7r5QhKhjXm3uRuW1CCc6puWCmc.jpg",
+    "plot": "Dans les années 1970, l'impitoyable tueur Charles Sobhraj traque les touristes occidentaux qui font la route en Asie du Sud. Inspiré de terrifiants faits réels.",
+    "year": "2021"
+   },
+   {
+    "id": 22,
+    "name": "La Créature de Kyŏngsŏng (2023)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3YjJDK9wQIXYTz42kWTUMAj8DTQ.jpg",
+    "plot": "Au printemps 1945, un jeune homme et une jeune femme luttent pour leur survie dans un monde sinistre, tout en combattant des monstres engendrés par la cupidité humaine.",
+    "year": "2023"
+   },
+   {
+    "id": 23,
+    "name": "Nous voulons tous être sauvés (2022)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/h764o4wwdkDIQUAO4uD0myFEC2q.jpg",
+    "plot": "Quand il se réveille interné de force dans un hôpital psychiatrique, Daniele doit réapprendre à vivre et à aimer avec l'aide de ses compagnons de soin.",
+    "year": "2022"
+   },
+   {
+    "id": 24,
+    "name": "Ola cherche sa voie (2022)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/kKwBMfmYR5YHczJV8FUvrxew7fn.jpg",
+    "plot": "Après un événement bouleversant, Ola part à la découverte d'elle-même tout en essayant d'élever deux enfants et de joindre les deux bouts.",
+    "year": "2022"
+   },
+   {
+    "id": 25,
+    "name": "L'École de gym : Une seconde chance (2022)",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1X7jR1gF5JSlcBAdNIofgoxezbZ.jpg",
+    "plot": "Après une blessure, la jeune gymnaste américaine Kyra Berry se voit offrir une seconde chance de réaliser ses rêves et d'obtenir une bourse d'études en Australie.",
+    "year": "2022"
+   },
+   {
+    "id": 26,
+    "name": "Ragnarök (2020)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9HfeuiRHwLoIdWXzk6Br09RA7aQ.jpg",
+    "plot": "Dans un village norvégien pollué et troublé par la fonte des glaciers, la fin des temps semble bien réelle. Mais un combat doit opposer une légende à un mal ancestral.",
+    "year": "2020"
+   },
+   {
+    "id": 27,
+    "name": "Biohackers (2020)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/5vo9FY2aXSuoqtawSLP99EqbsUn.jpg",
+    "plot": "Mia est étudiante en médecine. Elle découvre l'utilisation de la technologie de pointe du bio-piratage au sein de son université. Lorsqu'une découverte révolutionnaire tombe entre de mauvaises mains, Mia doit décider de quel côté elle souhaite être...",
+    "year": "2020"
+   },
+   {
+    "id": 28,
+    "name": "3% (2016)_vost",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w9ixRllvnzpiDzu2r0e60U4aS8h.jpg",
+    "plot": "3% nous plonge dans une société dystopique divisée en deux : d’un côté les riches (3% de la population) et de l’autre les pauvres. Pour pouvoir accéder à la plus haute strate, les participants n’auront le droit qu’à une seule chance et se départageront autour d’épreuves. Mais seulement 3% d’entre eux arrivera au bout…",
+    "year": "2016"
+   },
+   {
+    "id": 29,
+    "name": "Deux fois 15 ans (2022)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yq7gYEYHU3u4UtlpqqX4kGa7SR7.jpg",
+    "plot": "Anita, une trentenaire qui n'a pas la vie dont elle rêvait, se téléporte involontairement 15 ans en arrière. Parviendra-t-elle à réécrire sa propre histoire ?",
+    "year": "2022"
+   },
+   {
+    "id": 30,
+    "name": "Qui l'aime la suive (2023) vost",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nyXNUN3XkVopqclWujhtuETzigy.jpg",
+    "plot": "Lassée de ses études, Marcely abandonne l'université pour se consacrer à son nouvel objectif : devenir influenceuse. Mais la vie en ligne n'est pas une mince affaire...",
+    "year": "2023"
+   },
+   {
+    "id": 31,
+    "name": "Unstable (2023)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qlrKGt38eMpGza5QFZZ2pqysNiC.jpg",
+    "plot": "Le père est un génie excentrique de la biotechnologie. Le fils a les pieds sur terre et vit dans son ombre. Pour sauver l'entreprise familiale, ils vont devoir régler leurs différends.",
+    "year": "2023"
+   },
+   {
+    "id": 32,
+    "name": "Intimidation (2020)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/y9mX3A3O4SxffDIAlK8Li8AL8BD.jpg",
+    "plot": "Adam Price mène une vie idyllique : il a un bon travail, deux fils merveilleux et son mariage semble sans faille. Mais son bonheur va soudainement voler en éclats lorsque « The Stranger » dévoile un secret choquant au sujet de sa femme.",
+    "year": "2020"
+   },
+   {
+    "id": 33,
+    "name": "That '90s Show (2023)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nZcufEuqZqNYMx6mNjlh2rmjDqx.jpg",
+    "plot": "En 1995, Leia Forman, fille d'Eric et de Donna, rend visite à ses grands-parents pour l'été. Elle se lie d'amitié à la nouvelle génération de jeunes de Point Place sous l'œil attentif de Kitty et le regard sévère de Red.",
+    "year": "2023"
+   },
+   {
+    "id": 34,
+    "name": "Les Chroniques de la peur (2017)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hgz1FLbKZhaJqhaRBH1Vs2S3z9i.jpg",
+    "plot": "Dans cette série d’anthologie pour enfants, une figure masquée collectionne les contes de magie noire, les rencontres mystiques et les technologies bizarres.",
+    "year": "2017"
+   },
+   {
+    "id": 35,
+    "name": "Perfume",
+    "rating": "7",
+    "image": null,
+    "plot": "When a singer is found murdered, with her scent glands excised from her body, detectives probe a group of friends who attended boarding school with her.",
+    "year": "2018"
+   },
+   {
+    "id": 36,
+    "name": "La Casa de Papel (ES)_fr",
+    "rating": "8",
+    "image": null,
+    "plot": "Huit voleurs font une prise d'otages dans la Maison royale de la Monnaie d'Espagne, tandis qu'un génie du crime manipule la police pour mettre son plan à exécution.",
+    "year": "2017"
+   },
+   {
+    "id": 37,
+    "name": "Dark",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ajmkAwuK1TRFWMjKoSMgoAXbnc7.jpg",
+    "plot": "A missing child causes four families to help each other for answers. What they could not imagine is that this mystery would be connected to innumerable other secrets of the small town.",
+    "year": "2017"
+   },
+   {
+    "id": 38,
+    "name": "13 Reasons Why (2017)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nel144y4dIOdFFid6twN5mAX9Yd.jpg",
+    "plot": "After a teenage girl's perplexing suicide, a classmate receives a series of tapes that unravel the mystery of her tragic choice.",
+    "year": "2017"
+   },
+   {
+    "id": 39,
+    "name": "Riverdale",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/4X7o1ssOEvp4BFLim1AZmPNcYbU.jpg",
+    "plot": "Set in the present, the series offers a bold, subversive take on Archie, Betty, Veronica and their friends, exploring the surreality of small-town life, the darkness and weirdness bubbling beneath Riverdale’s wholesome facade.",
+    "year": "2017"
+   },
+   {
+    "id": 40,
+    "name": "Edgar Rice Burroughs Tarzan and Jane",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/60IcVtP9l8tDjt9toY6Sfo5jZ25.jpg",
+    "plot": "Saved from a plane crash and given supernatural powers, teen Tarzan joins forces with brave city girl Jane to protect his jungle home from threats.",
+    "year": "2017"
+   },
+   {
+    "id": 41,
+    "name": "Alexa and Katie",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jVLqM6g5vF63Zq650lNSgtDx6hW.jpg",
+    "plot": "Lifelong best friends Alexa and Katie are eagerly anticipating the start of their freshman year of high school. The pals confront a crisis that leaves them feeling like outsiders at a time when what seems to matter most is fitting in.",
+    "year": "2018"
+   },
+   {
+    "id": 42,
+    "name": "Altered Carbon",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pZg2NUDPJA54AmDs1Y1ZLizBrpd.jpg",
+    "plot": "After 250 years on ice, a prisoner returns to life in a new body with one chance to win his freedom: by solving a mind-bending murder.",
+    "year": "2018"
+   },
+   {
+    "id": 43,
+    "name": "Beau Séjour",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/nF76EmG1fdIX4Q7tK6OrcEcN1u9.jpg",
+    "plot": "Kato se réveille un matin à l’hôtel Beau séjour, couverte de sang. Elle n’a aucun souvenir de la nuit passée. Peu à peu, elle découvre que les autres, autour d’elle, ne sont plus en mesure de la voir ni de l’entendre. La jeune fille, apparemment assassinée dans des conditions mystérieuses, assiste, impuissante, au choc émotionnel traversé par ses proches. A la fois à leurs côtés et bien loin d'eux, elle tente de résoudre l'énigme de sa propre mort...",
+    "year": "2017"
+   },
+   {
+    "id": 44,
+    "name": "Big Mounth",
+    "rating": "0",
+    "image": null,
+    "plot": null,
+    "year": null
+   },
+   {
+    "id": 45,
+    "name": "Black Mirror_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/pXeuSWSKgWUnhRFHZ4TjAUU8lbE.jpg",
+    "plot": "A contemporary British re-working of The Twilight Zone with stories that tap into the collective unease about our modern world. \r\n\r\nOver the last ten years, technology has transformed almost every aspect of our lives before we've had time to stop and question it. In every home; on every desk; in every palm - a plasma screen; a monitor; a smartphone - a black mirror of our 21st Century existence.",
+    "year": "2011"
+   },
+   {
+    "id": 46,
+    "name": "Black Summer",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/tnRiTrHCL3k5F0QOtQhkQd3AAR5.jpg",
+    "plot": "In the dark, early days of a zombie apocalypse, complete strangers band together to find the strength they need to survive and get back to loved ones.",
+    "year": "2019"
+   },
+   {
+    "id": 47,
+    "name": "BoJack Horseman",
+    "rating": "9",
+    "image": null,
+    "plot": "Meet the most beloved sitcom horse of the 90s - 20 years later. BoJack Horseman was the star of the hit TV show \"Horsin' Around,\" but today he's washed up, living in Hollywood, complaining about everything, and wearing colorful sweaters.",
+    "year": "2014"
+   },
+   {
+    "id": 48,
+    "name": "Bonding",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/a2GGurv3bY7W0qkfohlfkFNMQ7p.jpg",
+    "plot": "A New York City grad student moonlighting as a dominatrix enlists her gay BFF from high school to be her assistant.",
+    "year": "2019"
+   }
+  ]
+ },
+ "series_francaise": {
+  "selected": "|FR| ✪ FRANCAISE",
+  "count": 748,
+  "items": [
+   {
+    "id": 1,
+    "name": "Sous le soleil de Saint-Tropez (2013)",
+    "rating": "5",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/zntMFgT9r77NuUV9TwOJkjzAMec.jpg",
+    "plot": "Quatre ans ont passé depuis la disparition de Caroline. Son fils Tom habite désormais avec leur tante Émilie et sa fille Lisa dans une villa à Saint-Tropez. Émilie a repris la gérance du bar de la plage \"Le Saint-Tropez\" après le départ de Jessica et de sa fille pour les États-Unis. Elle est aidée de Vincent qui s'occupe essentiellement du cabaret adjacent, en tant que chorégraphe. Claudia et Roxanne, les danseuses, font le spectacle chaque soir. La vie a donc repris son cours à Saint-Tropez, jusqu'à ce que François, le meurtrier présumé de Caroline, soit libéré de prison. Au même moment, Caroline réapparaît et compte bien retrouver et sa famille, et son honneur.",
+    "year": "2013"
+   },
+   {
+    "id": 2,
+    "name": "Les Tudors (2007)",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/oyFNcDpABsZmasQa5tFJi5pJeA4.jpg",
+    "plot": "La vie très tourmentée du jeune Henry VIII lors de son début de règne au 16ème siècle en Angleterre ! De ses relations tumultueuses avec les femmes à ses alliances politiques...",
+    "year": "2007"
+   },
+   {
+    "id": 3,
+    "name": "The Chosen (2019)",
+    "rating": "9",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/c8bAjeN1VPPGpVZBksM5vh2mA44.jpg",
+    "plot": "Un pêcheur charismatique aux prises avec des dettes. Une femme troublée aux prises avec ses démons. Un comptable doué, mis au ban de sa famille et de son peuple. Voyez comment Jésus atteint chacun d'entre eux et bien plus encore, alors qu'il accomplit ses premiers miracles et se lance dans son ministère pour changer le monde. Découvrez-le à travers les yeux de ceux qui l'ont connu.",
+    "year": "2019"
+   },
+   {
+    "id": 4,
+    "name": "Le Monde de demain (2022)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/f1sONdnwAR9fJNW7rp5VmGjGYTl.jpg",
+    "plot": "Dans les années 1980, les débuts du hip-hop français racontés à travers la naissance du groupe mythique NTM et le parcours du DJ pionnier Dee Nasty et de la graffeuse Lady V. Une chronique sociale et musicale explosive aux personnages marquants, qui embrasse la révolution culturelle d'une jeunesse en quête de reconnaissance.",
+    "year": "2022"
+   },
+   {
+    "id": 5,
+    "name": "Amour et autres délices (2022)_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/z0tMCEUwNzA3QzxVxUqyRpy3tBp.jpg",
+    "plot": "La cuisinière Ling Xiao Xiao est déterminée à devenir le \"premier chef royal du monde\". Sa première étape pour faire de ce rêve une réalité est de gagner l'appréciation du prince Zhu Shou Kui et d'être engagée pour lui préparer des mets délicats.",
+    "year": "2022"
+   },
+   {
+    "id": 6,
+    "name": "The State",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yCmGOAOZ2ABfColjHIv9uffPfL6.jpg",
+    "plot": "The experiences of four British men and women who leave their lives behind to join ISIS in Syria.",
+    "year": "2017"
+   },
+   {
+    "id": 7,
+    "name": "Famous in Love (US)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ae4z2yBQr5htmHyfh89XdHlyQn2.jpg",
+    "plot": "Ordinary college student Paige gets her big break after auditioning for the starring role in a Hollywood blockbuster. She must now navigate her new star-studded life and the highs and lows that come with being the new It Girl in town as well as balancing her college workload.",
+    "year": "2017"
+   },
+   {
+    "id": 8,
+    "name": "Genius (US)",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/htTLjpN8FqWdByyFvlcoqIf2wzf.jpg",
+    "plot": "The life stories of history's greatest minds. From their days as young adults to their final years we see their discoveries, loves, relationships, causes, flaws and genius.",
+    "year": "2017"
+   },
+   {
+    "id": 9,
+    "name": "La Mante (FR)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qyZtFzKozN6oiIhCwctdrJwO50b.jpg",
+    "plot": "Jeanne Deber, known as \"La Mante\", the famous serial murderer who terrorized France more than 20 years ago, is forced by the police to come out of isolation to track down her copycat. She agrees to collaborate on one condition: to have only one interlocutor, Damien Carrot, her son, who became a cop because of the crimes of his mother, and who refuses all contact with her since her arrest.",
+    "year": "2017"
+   },
+   {
+    "id": 10,
+    "name": "Suburra: Blood on Rome",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/ri1WF0vxDfJcUW8iNUOu8OsmVeJ.jpg",
+    "plot": "In 2008, a fight over land in a seaside town near Rome spirals into a deadly battle between organized crime, corrupt politicians and the Vatican.",
+    "year": "2017"
+   },
+   {
+    "id": 11,
+    "name": "The Brave (US)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/jC5SzIJP8zk1sRroGM9v7nBx9xp.jpg",
+    "plot": "The complex world of our bravest military heroes who make personal sacrifices while executing the most challenging and dangerous missions behind enemy lines.",
+    "year": "2017"
+   },
+   {
+    "id": 12,
+    "name": "You Are Wanted (DE)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/aFLWk6TUhHLzru92oNEVQ4nfFea.jpg",
+    "plot": "Lukas Franke finds himself a victim of a hacking attack, his online information altered to implicate him as having masterminded a cyber-attack on Berlin resulting in a city-wide blackout. Suspected as a terrorist, Lukas scrambles to find out why he's been targeted, as even his family and friends begin to doubt his innocence.",
+    "year": "2017"
+   },
+   {
+    "id": 13,
+    "name": "Ghosted (US)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3sH6dEC1m7Ar43BeZU0NVl20gpV.jpg",
+    "plot": "A skeptic is forced to work with a firm believer of the paranormal on unexplained occurrences in Los Angeles.",
+    "year": "2017"
+   },
+   {
+    "id": 14,
+    "name": "Quantico",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3ofY2mALEiE0QDyRlVOV3sDNMYC.jpg",
+    "plot": "A diverse group of recruits has arrived at the FBI Quantico Base for training. They are the best, the brightest and the most vetted, so it seems impossible that one of them is suspected of masterminding the biggest attack on New York City since 9/11.",
+    "year": "2015"
+   },
+   {
+    "id": 15,
+    "name": "Limitless (2015)_vost",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/l5BERaKn3ozRTLhoylIiNwMDvax.jpg",
+    "plot": "Brian Finch's life takes an extraordinary turn when he uses NZT-48, a neuroenhancing drug whose mystery and chaos lead him to working for the FBI and a senator who is not what he seems.",
+    "year": "2015"
+   },
+   {
+    "id": 16,
+    "name": "American Dad! (US)",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/b2XLAyJKLnZWClMmzNieoa33Sf6.jpg",
+    "plot": "The series focuses on an eccentric motley crew that is the Smith family and their three housemates: Father, husband, and breadwinner Stan Smith; his better half housewife, Francine Smith; their college-aged daughter, Hayley Smith; and their high-school-aged son, Steve Smith. Outside of the Smith family, there are three additional main characters, including Hayley's boyfriend turned husband, Jeff Fischer; the family's man-in-a-goldfish-body pet, Klaus; and most notably the family's zany alien, Roger, who is \"full of masquerades, brazenness, and shocking antics.\"",
+    "year": "2005"
+   },
+   {
+    "id": 17,
+    "name": "Happy Valley",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/xZK5iQSrn2mouZEk2PwyLPCwa4u.jpg",
+    "plot": "Happy Valley is a dark, funny, multi-layered thriller revolving around the personal and professional life of Catherine, a dedicated, experienced, hard-working copper. She is also a bereaved mother who looks after her orphaned grandchild.",
+    "year": "2014"
+   },
+   {
+    "id": 18,
+    "name": "The Order (US)",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/x8vDUOvladgjJo8sdNpRelm4lSC.jpg",
+    "plot": "Out to avenge his mother's death, a college student pledges a secret order and lands in a war between werewolves and practitioners of dark magic.",
+    "year": "2019"
+   },
+   {
+    "id": 19,
+    "name": "Teachers (US)",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/rpHSszz8xR6OAJAYPmEFwr8tQWK.jpg",
+    "plot": "Written by and starring acclaimed comedy troupe The Katydids, Teachers shows their hilariously warped perspective as six elementary school teachers trying to mold young minds, even though their own lives aren’t really together.",
+    "year": "2016"
+   },
+   {
+    "id": 20,
+    "name": "Black Spot (BE)",
+    "rating": "7",
+    "image": null,
+    "plot": "In the small bordertown of Villefranche, lost in the heart of a large forest, crime rate is six times higher than elsewhere in the area. Each new crime Major Laurène Weiss solves with the help of her unusual team makes her sink deeper and deeper into secrets of the area.",
+    "year": "2017"
+   },
+   {
+    "id": 21,
+    "name": "Wisdom of the Crowd",
+    "rating": "7",
+    "image": null,
+    "plot": "A tech innovator creates a cutting-edge crowd-sourcing hub to solve his own daughter's murder, as well as revolutionizing crime solving in San Francisco.",
+    "year": "2017"
+   },
+   {
+    "id": 22,
+    "name": "Unit 42 (BE)",
+    "rating": "7",
+    "image": null,
+    "plot": "The investigations of two police officers from The Brussels Digital Unit, a unit specializing in cybercrime.",
+    "year": "2017"
+   },
+   {
+    "id": 23,
+    "name": "Forever",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/dNKmZ96oGAAIHGB9KppVtLKOsdo.jpg",
+    "plot": "June et Oscar vivent une vie de couple marié confortable bien que prévisible. Cependant, un événement soudain va les mettre dans une situation complètement inattendue, ce qui va les pousser à remettre en cause leur vision de l'amour et du mariage.",
+    "year": "2018"
+   },
+   {
+    "id": 24,
+    "name": "White Collar_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w154/417XNiGvdzCsG9kDnnQJYaBsIrx.jpg",
+    "plot": "In exchange for his freedom, charming con artist Neal Caffrey provides his expertise to help straight-man FBI agent Peter Burke catch elusive white-collar criminals.",
+    "year": "2009"
+   },
+   {
+    "id": 25,
+    "name": "Playing with Fire (MX)",
+    "rating": "6",
+    "image": null,
+    "plot": "Three prosperous women -- including a mother and her daughter -- fall for a seductive man in Colombia's Coffee Triangle.",
+    "year": "2019"
+   },
+   {
+    "id": 26,
+    "name": "When The Devil Calls Your Name",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/3u4tkm7loi44K53sPbbHe8gMClT.jpg",
+    "plot": "Music producer and composer Ha Rib made a contract with the devil to trade his soul for fame. This devilish transaction brought him all the fame he could ask for, producing many hit songs. As the contract expiration draws near, he bargains with the devil for an extension. For that, he must find another person to sell the soul. Ha Rib finds a perfect candidate, but contemplates because she would have to suffer for 10 years for his selfish fame.",
+    "year": "2019"
+   },
+   {
+    "id": 27,
+    "name": "Z: The Beginning of Everything",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/dJxnK0conCaxk3HU4YPb3aQs9UZ.jpg",
+    "plot": "A biography series based on the life of Zelda Sayre Fitzgerald, the brilliant, beautiful and talented Southern Belle who becomes the original flapper and icon of the wild, flamboyant Jazz Age in the 20s. Z starts before Zelda Fitzgerald meets the unpublished writer F. Scott Fitzgerald and moves through their passionate, turbulent love affair and their marriage-made in heaven, lived out in hell as the celebrity couple of their time.",
+    "year": "2017"
+   },
+   {
+    "id": 28,
+    "name": "The Arrangement",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/vqtG6BNCAtaYm3CqrYepjYUSf0h.jpg",
+    "plot": "An aspiring actress is presented with an arrangement that would link her romantically to a big star in Hollywood, but sticking to the details of her contract may not be easy.",
+    "year": "2017"
+   },
+   {
+    "id": 29,
+    "name": "Les Bracelets rouges",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/5R2AfTo6PBPsBJu4kiGGboCxnXo.jpg",
+    "plot": null,
+    "year": "2018"
+   },
+   {
+    "id": 30,
+    "name": "Harlots",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/w6F93B2ZUCEUhRpgCS1cU82htqz.jpg",
+    "plot": "Brothel owner, Margaret Wells, struggles to raise her daughters in London during the 18th century.",
+    "year": "2017"
+   },
+   {
+    "id": 31,
+    "name": "Cable Girls",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/2QZzVoZEHTZgj5KrhCHkcUr2ITU.jpg",
+    "plot": "In 1920s Madrid, four women at the National Telephone Company ring in revolution as they deal with romance, envy and the modern workplace.",
+    "year": "2017"
+   },
+   {
+    "id": 32,
+    "name": "The Good Doctor_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/53P8oHo9cfOsgb1cLxBi4pFY0ja.jpg",
+    "plot": "A young surgeon with Savant syndrome is recruited into the surgical unit of a prestigious hospital. The question will arise: can a person who doesn't have the ability to relate to people actually save their lives?",
+    "year": "2017"
+   },
+   {
+    "id": 33,
+    "name": "Burden of Truth",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/2YLg5PQ27kgRp6uncqUhKHoXXUC.jpg",
+    "plot": "A big city lawyer returns to her hometown to take the case of a group of girls suffering from a mysterious illness.",
+    "year": "2018"
+   },
+   {
+    "id": 34,
+    "name": "American Horror Story",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/uR2K0Ui9UsOqnzb5IrV6tLUcUHl.jpg",
+    "plot": "An anthology horror drama series centering on different characters and locations, including a house with a murderous past, an asylum, a witch coven, a freak show, a hotel, a farmhouse in Roanoke and a cult.",
+    "year": "2011"
+   },
+   {
+    "id": 35,
+    "name": "Vampire Diaries (2009)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/xKltipwfXRgvyD2u79FUnXAZ09F.jpg",
+    "plot": "Quatre mois après le tragique accident de voiture qui a tué leurs parents, Elena Gilbert, 17 ans, et son frère Jeremy, 15 ans, essaient encore de s'adapter à cette nouvelle réalité. Belle et populaire, l'adolescente poursuit ses études au Mystic Falls High en s'efforçant de masquer son chagrin. Elena est immédiatement fascinée par Stefan et Damon Salvatore, deux frères que tout oppose. Elle ne tarde pas à découvrir qu'ils sont en fait des vampires...",
+    "year": "2009"
+   },
+   {
+    "id": 36,
+    "name": "The Tick",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/8sngJVF54bugHfCkjJOsY4wx8Hk.jpg",
+    "plot": "In a world where superheroes have been real for decades, an accountant with zero powers comes to realize his city is owned by a super villain. As he struggles to uncover this conspiracy, he falls in league with a strange blue superhero.",
+    "year": "2016"
+   },
+   {
+    "id": 37,
+    "name": "The Orville",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1q2gRQ8uN8D2ythPMzd5NvsHkVf.jpg",
+    "plot": "Follows the crew of the not-so-functional exploratory ship in the Earth's interstellar fleet, 400 years in the future.",
+    "year": "2017"
+   },
+   {
+    "id": 38,
+    "name": "Taboo",
+    "rating": "8",
+    "image": null,
+    "plot": "Adventurer James Keziah Delaney returns to London from Africa in 1814 along with fourteen stolen diamonds to seek vengeance after the death of his father.",
+    "year": "2017"
+   },
+   {
+    "id": 39,
+    "name": "Philip K Dick s Electric Dreams",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/cLz7dqSwH4dK1mVrVuh8O6yPp39.jpg",
+    "plot": "A diverse anthology of ambitious, moving tales inspired by Philip K Dick's short stories.",
+    "year": "2017"
+   },
+   {
+    "id": 40,
+    "name": "Ghost Wars",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hdOWk4uAKXXPBdyLd54ejmbzpVP.jpg",
+    "plot": "Set in a remote Alaskan town that has been overrun by paranormal forces, the series focuses on local outcast Roman Mercer who must overcome the town’s prejudices and his own personal demons if he’s to harness his repressed psychic powers and save everyone from the mass haunting that’s threatening to destroy them all.",
+    "year": "2017"
+   },
+   {
+    "id": 41,
+    "name": "Blood Drive",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/qB9PBQMyKrp8diKGxVpfayKZbgd.jpg",
+    "plot": "Set in a near-dystopian future, a former cop is forced to take part in a death race where the cars run on human blood. You lose a leg and you lose your head.",
+    "year": "2017"
+   },
+   {
+    "id": 42,
+    "name": "The Gifted",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/yQGnwhqXwljiZWtnwnemm8iDieY.jpg",
+    "plot": "Ritdha High School is not the only school with gifted students. But what makes it unique is its \"Gifted Program\". In the Gifted class, only a handful of students were chosen to be in this program, but only those who are deemed \"special\".",
+    "year": "2018"
+   },
+   {
+    "id": 43,
+    "name": "Future Man",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/9P72cymABXbQKaOUBdZf6pOW64e.jpg",
+    "plot": "Josh Futturman, a janitor by day/world-ranked gamer by night, is tasked with preventing the extinction of humanity after mysterious visitors from the future proclaim him the key to defeating the imminent super-race invasion.",
+    "year": "2017"
+   },
+   {
+    "id": 44,
+    "name": "Legion (2017)_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/xH6g58326TcAxypFesaDIua20jL.jpg",
+    "plot": "L'histoire de David Haller, le fils schizophrène du professeur Xavier, un homme sujet depuis l'adolescence à une maladie mentale. Au cours d'un de ses nombreux séjours en hôpital psychiatrique, une étrange rencontre avec un patient lui fait réaliser que les voix qu'il entend et les visions auxquelles il est confronté pourraient se révéler vraies.",
+    "year": "2017"
+   },
+   {
+    "id": 45,
+    "name": "Salvation",
+    "rating": "6",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/hXCd9FUT7ZjoB390cGioVhEiXOB.jpg",
+    "plot": "An MIT grad student and a tech superstar bring a low-level Pentagon official a staggering discovery that an asteroid is just six months away from colliding with Earth.",
+    "year": "2017"
+   },
+   {
+    "id": 46,
+    "name": "The Blacklist_fr",
+    "rating": "7",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/bgbQCW4fE9b6wSOSC6Fb4FfVzsW.jpg",
+    "plot": "Raymond \"Red\" Reddington, one of the FBI's most wanted fugitives, surrenders in person at FBI Headquarters in Washington, D.C. He claims that he and the FBI have the same interests: bringing down dangerous criminals and terrorists. In the last two decades, he's made a list of criminals and terrorists that matter the most but the FBI cannot find because it does not know they exist. Reddington calls this \"The Blacklist\". Reddington will co-operate, but insists that he will speak only to Elizabeth Keen, a rookie FBI profiler.",
+    "year": "2013"
+   },
+   {
+    "id": 47,
+    "name": "9-1-1_fr",
+    "rating": "8",
+    "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/htX1x0gq8Y5bN9vtGzERf9nbOTK.jpg",
+    "plot": "Explore the high-pressure experiences of police officers, paramedics and firefighters who are thrust into the most frightening, shocking and heart-stopping situations. These emergency responders must try to balance saving those who are at their most vulnerable with solving the problems in their own lives.",
+    "year": "2018"
+   },
+   {
+    "id": 48,
+    "name": "11.22.63",
+    "rating": "8",
+    "image": null,
+    "plot": "An English teacher travels back in time to prevent the Kennedy assassination, but discovers he is attached to the life he has made in a bygone era.",
+    "year": "2016"
+   }
+  ]
+ },
+ "series_categories": [
+  "|FR| ✪ SERIES VF/VO",
+  "|FR| ✪ SERIES 2026",
+  "|FR| ✪ SERIES 2025",
+  "|FR| ✪ SERIES 2024",
+  "|FR| ✪ MY TF1",
+  "|FR| ✪ MY CANAL",
+  "|FR| ✪ ANCIENNES",
+  "|FR| ✪ TELE  REALITE",
+  "|FR| ✪ SITCOM",
+  "|FR| ✪ NETFLIX",
+  "|FR| ✪ DOCUMENTAIRES",
+  "|FR| ✪ TOP IMDB",
+  "|FR| ✪ HBO",
+  "|FR| ✪ STARZ PLAY",
+  "|FR| ✪ HBO OCS",
+  "|FR| ✪ MARVEL",
+  "|FR| ✪ APPLE TV+",
+  "|FR| ✪ AMAZON",
+  "|FR| ✪ ACTION",
+  "|FR| ✪ CRIME THRILLER DRAME",
+  "|FR| ✪ COMEDIE DRAMATIQUE",
+  "|FR| ✪ DISNEY +",
+  "|FR| ✪ WESTERN",
+  "|FR| ✪ ANIMES",
+  "|FR| ✪ ANIMATION  FAMILIAL",
+  "|FR| ✪ ASIATIQUES VOST",
+  "|FR| ✪ TURQUE VOST",
+  "|FR| ✪ FRANCAISE",
+  "|FR| ✪ SCIENCE FICTION FANTASTIQUE",
+  "|CA| ✪ QUEBECOISE",
+  "|CA| ✪ ANIMATION QUEBECOISE",
+  "|AF| ✪ AFRICANES",
+  "|ES| ✪ ESPAÑOLAS"
+ ]
+}

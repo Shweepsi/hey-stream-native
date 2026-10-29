@@ -6,12 +6,13 @@
     <string name="detail_unavailable">This title is not available</string>
     <string name="detail_rating">Rating %1$s</string>
     <string name="detail_resume_episode">Resume S%1$d · E%2$d</string>
+    <string name="detail_play_episode">Play S%1$d · E%2$d</string>
     <string name="detail_season">Season %1$d</string>
     <string name="detail_specials">Specials</string>
     <string name="detail_episodes">Episodes</string>
     <string name="detail_episode_untitled">Episode %1$d</string>
     <string name="detail_episodes_loading">Loading episodes…</string>
     <string name="detail_episodes_empty">No episodes for now</string>
-    <string name="detail_episode_hint_tv">Long press OK or MENU: mark as watched or unwatched</string>
-    <string name="detail_episode_hint_touch">Long press an episode to mark it as watched or unwatched</string>
+    <string name="detail_episode_hint_tv">Hold OK or press MENU to mark an episode as watched or unwatched.</string>
+    <string name="detail_episode_hint_touch">Press and hold an episode to mark it as watched or unwatched.</string>
 </resources>

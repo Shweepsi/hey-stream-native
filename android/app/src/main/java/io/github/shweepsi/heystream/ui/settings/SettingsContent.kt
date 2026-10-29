@@ -74,6 +74,7 @@ import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
+import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.home.Subscription
 import io.github.shweepsi.heystream.ui.home.text
@@ -588,6 +589,7 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_catalog)) {
         Paragraph(stringResource(R.string.settings_catalog_intro))
+        Paragraph(catalogUpdatedText(ui.updatedAt), secondary = false)
         // Toujours activé : un bouton désactivé perdrait le focus de la télécommande.
         HsButton(
             text = stringResource(if (ui.running) R.string.settings_catalog_updating else R.string.settings_catalog_update),
@@ -602,6 +604,19 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
                 ui.results.forEach { result -> ResultLine(result) }
             }
         }
+    }
+}
+
+/** « Dernière mise à jour : aujourd’hui à 14:02 », « hier à … », « le 27 octobre 2026 à … ». */
+@Composable
+private fun catalogUpdatedText(updatedAt: Long?): String {
+    if (updatedAt == null) return stringResource(R.string.settings_catalog_never)
+    val locale = currentLocale()
+    val time = Formats.timeOfSeconds(updatedAt, locale)
+    return when (Formats.daysAgo(updatedAt, System.currentTimeMillis() / 1000)) {
+        0L -> stringResource(R.string.settings_catalog_updated_today, time)
+        1L -> stringResource(R.string.settings_catalog_updated_yesterday, time)
+        else -> stringResource(R.string.settings_catalog_updated_on, Formats.longDate(updatedAt, locale), time)
     }
 }
 

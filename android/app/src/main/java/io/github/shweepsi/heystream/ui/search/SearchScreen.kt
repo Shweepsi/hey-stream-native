@@ -362,14 +362,6 @@ private fun ChannelResult(hit: SearchHit, onClick: () -> Unit, modifier: Modifie
             horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 10.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (hit.number != null) {
-                Text(
-                    text = hit.number.toString(),
-                    style = Hs.type.small.tabular(),
-                    color = Hs.colors.textSecondary,
-                    maxLines = 1,
-                )
-            }
             ChannelLogo(hit.image, hit.name)
             Text(
                 text = hit.name,
@@ -392,6 +384,7 @@ private fun PosterResult(hit: SearchHit, onClick: () -> Unit, modifier: Modifier
         onClick = onClick,
         progress = hit.progress,
         watched = hit.watched,
+        fallbackIcon = if (hit.section == Section.SERIES) Lucide.MonitorPlay else Lucide.Film,
         modifier = modifier.width(Hs.dimens.posterMinWidth),
     )
 }

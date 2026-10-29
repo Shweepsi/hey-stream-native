@@ -730,6 +730,12 @@ impl HeyStreamCore {
 
     // Catalogue --------------------------------------------------------------
 
+    /// Dernière mise à jour réussie du catalogue (secondes Unix), la plus
+    /// ancienne des trois sections ; `None` avant le premier chargement.
+    pub fn catalog_updated_at(&self) -> Result<Option<i64>> {
+        Ok(self.lock()?.updated_at()?)
+    }
+
     pub fn categories(&self, section: Section) -> Result<Vec<CategoryEntry>> {
         Ok(self
             .lock()?

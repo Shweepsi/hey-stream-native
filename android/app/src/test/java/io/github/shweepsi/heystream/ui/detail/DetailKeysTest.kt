@@ -101,7 +101,8 @@ class DetailKeysTest {
         val calls = SeriesCalls()
         showSeries(calls, DetailFakes.seriesNotStarted)
         val context = ApplicationProvider.getApplicationContext<Context>()
-        compose.onNodeWithText(context.getString(R.string.play)).assertExists()
+        // Le bouton dit quel épisode démarre.
+        compose.onNodeWithText(context.getString(R.string.detail_play_episode, 2, 1)).assertExists()
         compose.onNodeWithText(context.getString(R.string.from_start)).assertDoesNotExist()
         // Aucun « Vu jusqu’à … », quelle que soit la position.
         val watchedUntil = context.getString(R.string.watched_until, "").trim()

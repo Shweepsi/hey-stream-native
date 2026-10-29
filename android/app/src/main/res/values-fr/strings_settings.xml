@@ -30,6 +30,10 @@
     <string name="settings_language_system">Langue du système</string>
 
     <string name="settings_catalog_intro">Le catalogue est enregistré sur cet appareil et mis à jour automatiquement une fois par jour. Vous pouvez aussi le mettre à jour maintenant.</string>
+    <string name="settings_catalog_updated_today">Dernière mise à jour&#160;: aujourd’hui à %1$s</string>
+    <string name="settings_catalog_updated_yesterday">Dernière mise à jour&#160;: hier à %1$s</string>
+    <string name="settings_catalog_updated_on">Dernière mise à jour&#160;: le %1$s à %2$s</string>
+    <string name="settings_catalog_never">Catalogue pas encore téléchargé</string>
     <string name="settings_catalog_update">Mettre à jour maintenant</string>
     <string name="settings_catalog_updating">Mise à jour…</string>
     <string name="settings_catalog_running">Téléchargement du catalogue. Vous pouvez continuer à utiliser l’app.</string>

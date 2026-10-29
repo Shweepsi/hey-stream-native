@@ -82,6 +82,42 @@ async fn movie_info_reads_a_large_bare_duration_as_seconds() {
 }
 
 #[tokio::test]
+async fn movie_info_reads_a_short_duration_as_hours_and_minutes() {
+    for (id, info) in [
+        ("9", json!({"duration": "01:49"})),
+        ("10", json!({"duration_secs": 109})),
+        (
+            "11",
+            json!({"duration_secs": "109", "duration": "00:01:49"}),
+        ),
+    ] {
+        let server = serve(
+            "get_vod_info",
+            ("vod_id", id),
+            json!({"info": info, "movie_data": {"name": "X", "container_extension": "mkv"}}),
+        )
+        .await;
+        let info = client(&server)
+            .movie_info(id.parse().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(info.duration_secs, Some(109 * 60), "vod_id {id}");
+    }
+}
+
+#[tokio::test]
+async fn episode_keeps_a_short_duration() {
+    let server = serve(
+        "get_series_info",
+        ("series_id", "4"),
+        json!({"episodes": {"1": [{"id": "1", "episode_num": 1, "info": {"duration": "08:30"}}]}}),
+    )
+    .await;
+    let info = client(&server).series_info(4).await.unwrap();
+    assert_eq!(info.seasons[0].episodes[0].duration_secs, Some(510));
+}
+
+#[tokio::test]
 async fn movie_info_tolerates_empty_info() {
     let server = serve(
         "get_vod_info",

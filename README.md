@@ -32,8 +32,15 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | Liaisons UniFFI (Kotlin, Swift) : `ffi/`, `scripts/bindings.sh` | ✅ testé |
 | `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
 | Android : socle (Gradle + cœur Rust, design, session, lecteur Media3), connexion, accueil | ✅ CI (JVM + émulateur) |
-| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | ✅ CI (JVM + émulateur), à essayer sur appareil |
+| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | ✅ CI (JVM + émulateur) |
+| Android mobile (téléphone, tablette) : essayé sur Xiaomi 14 et Xiaomi Pad 7 | ✅ v0.2.0, en pause |
+| Android TV : essai sur la Mi Box S 2e gén. (appareil de référence) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |
+
+Version courante et historique : `CHANGELOG.md`. Reste à faire côté Android :
+essai sur la Mi Box S, Baseline Profiles, rapports de plantage (GlitchTip),
+fiches et guide des programmes réels relevés par `examples/smoke.rs` depuis le
+réseau du propriétaire (le panneau refuse les requêtes d'une IP de datacenter).
 
 ## Développer
 

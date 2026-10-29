@@ -70,4 +70,15 @@ class FormatsTest {
         assertEquals("FC", initials("|FR| Canal"))
         assertEquals("", initials(""))
     }
+
+    @Test
+    fun daysAgoCountsCalendarDaysInTheLocalZone() {
+        // 29 octobre 2026, 0:30 et 23:30 à Paris (UTC+1).
+        val earlyMorning = 1_793_230_200L
+        val lateEvening = earlyMorning + 23 * 3600
+        assertEquals(0L, Formats.daysAgo(earlyMorning, lateEvening, paris))
+        // 28 octobre 23:30 → 29 octobre 0:30 : hier, une heure plus tôt.
+        assertEquals(1L, Formats.daysAgo(earlyMorning - 3600, earlyMorning, paris))
+        assertEquals(3L, Formats.daysAgo(earlyMorning - 3 * 86_400, earlyMorning, paris))
+    }
 }

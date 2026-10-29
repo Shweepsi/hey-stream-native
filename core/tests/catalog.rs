@@ -185,6 +185,18 @@ fn refresh_is_due_after_24_hours() {
 }
 
 #[test]
+fn catalog_is_up_to_date_as_of_its_oldest_section() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    assert_eq!(catalog.updated_at().unwrap(), None);
+    catalog.store_series(&[], &[], 10_000).unwrap();
+    let (cats, streams) = sample_live();
+    catalog.store_live(&cats, &streams, 12_000).unwrap();
+    assert_eq!(catalog.updated_at().unwrap(), Some(10_000));
+    catalog.store_series(&[], &[], 13_000).unwrap();
+    assert_eq!(catalog.updated_at().unwrap(), Some(12_000));
+}
+
+#[test]
 fn reopening_a_file_keeps_data() {
     let dir = std::env::temp_dir().join(format!("hs-catalog-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

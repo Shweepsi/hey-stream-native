@@ -156,7 +156,7 @@ private fun SeriesBody(
     // Épisode en cours de la série (celui du premier bouton) : comme un film commencé.
     val resumed = state.playTarget?.takeIf { it.resume }
     val resumedProgress = resumed?.progress
-    PosterLayout(header.image) { modifier, padding, compact ->
+    PosterLayout(header.image, Lucide.MonitorPlay) { modifier, padding, compact ->
         LazyColumn(
             modifier = modifier,
             state = listState,
@@ -224,7 +224,7 @@ private fun SeriesBody(
 private val EPISODE_MAX_WIDTH = 720.dp
 
 /**
- * « Reprendre S2 · E3 », sinon « Lecture » (premier épisode non vu) ;
+ * « Reprendre S2 · E3 », sinon « Lecture S1 · E1 » (premier épisode non vu) ;
  * « Réessayer » si la liste des épisodes n'a pas pu être chargée.
  */
 @Composable
@@ -242,6 +242,7 @@ private fun PrimarySeriesButton(
         text = when {
             target?.resume == true -> stringResource(R.string.detail_resume_episode, target.season, target.number)
             retry -> stringResource(R.string.retry)
+            target != null -> stringResource(R.string.detail_play_episode, target.season, target.number)
             else -> stringResource(R.string.play)
         },
         onClick = {
@@ -374,7 +375,7 @@ private fun EpisodesLabel(state: SeriesDetailState) {
 }
 
 /**
- * Ligne d'épisode : numéro, titre, durée, barre si commencé, pastille si vu.
+ * Ligne d'épisode : numéro, titre, résumé court, durée, barre si commencé, pastille si vu.
  * OK le lit (reprise s'il est commencé) ; appui long ou MENU change sa marque « vu ».
  */
 @Composable
@@ -425,6 +426,15 @@ private fun EpisodeItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                episode.plot?.let { plot ->
+                    Text(
+                        text = plot,
+                        style = Hs.type.small,
+                        color = Hs.colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 val duration = episode.durationSecs
                 val fraction = episode.progress?.fraction
                 if (duration != null || fraction != null) {

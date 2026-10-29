@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -100,27 +101,18 @@ fun HomeContent(
             Spacer(Modifier.weight(1f))
             Clock()
         }
-        Row(
+        // Tablette : tuiles au plus en 16:9, bloc centré dans la hauteur (sur
+        // une tablette 3:2, des tuiles pleine hauteur laissaient un grand vide).
+        // TV et téléphone en paysage : la hauteur disponible est déjà plus basse.
+        BoxWithConstraints(
             Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(dimens.gapLarge),
+            contentAlignment = Alignment.Center,
         ) {
-            val tile = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-            HomeTile(
-                Lucide.Tv, stringResource(R.string.home_live), stringResource(R.string.home_live_subtitle), onOpenLive,
-                tile.focusRequester(focus.getValue(HomeTarget.Live)),
-            )
-            HomeTile(
-                Lucide.Film, stringResource(R.string.home_movies), stringResource(R.string.home_movies_subtitle), onOpenMovies,
-                tile.focusRequester(focus.getValue(HomeTarget.Movies)),
-            )
-            HomeTile(
-                Lucide.MonitorPlay, stringResource(R.string.home_series), stringResource(R.string.home_series_subtitle), onOpenSeries,
-                tile.focusRequester(focus.getValue(HomeTarget.Series)),
-            )
+            val gap = dimens.gapLarge
+            val tileHeight = if (dimens.isTv) maxHeight else minOf(maxHeight, (maxWidth - gap * 2) / 3 * TILE_RATIO)
+            HomeTiles(focus, onOpenLive, onOpenMovies, onOpenSeries, Modifier.fillMaxWidth().height(tileHeight))
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(dimens.gap),
@@ -145,6 +137,36 @@ fun HomeContent(
                 )
             }
         }
+    }
+}
+
+/** Rapport hauteur / largeur maximal d'une tuile de l'accueil (16:9), hors TV. */
+private const val TILE_RATIO = 9f / 16f
+
+@Composable
+private fun HomeTiles(
+    focus: Map<HomeTarget, FocusRequester>,
+    onOpenLive: () -> Unit,
+    onOpenMovies: () -> Unit,
+    onOpenSeries: () -> Unit,
+    modifier: Modifier,
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(Hs.dimens.gapLarge)) {
+        val tile = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+        HomeTile(
+            Lucide.Tv, stringResource(R.string.home_live), stringResource(R.string.home_live_subtitle), onOpenLive,
+            tile.focusRequester(focus.getValue(HomeTarget.Live)),
+        )
+        HomeTile(
+            Lucide.Film, stringResource(R.string.home_movies), stringResource(R.string.home_movies_subtitle), onOpenMovies,
+            tile.focusRequester(focus.getValue(HomeTarget.Movies)),
+        )
+        HomeTile(
+            Lucide.MonitorPlay, stringResource(R.string.home_series), stringResource(R.string.home_series_subtitle), onOpenSeries,
+            tile.focusRequester(focus.getValue(HomeTarget.Series)),
+        )
     }
 }
 
