@@ -13,6 +13,27 @@ import java.util.Locale
  * les ressources.
  */
 object Formats {
+    /**
+     * Nom d'un film, d'une série ou d'une chaîne sans la mention du français,
+     * implicite dans l'app (« FR - », « |FR| », « VF - » ; « FR -4K Gravity »
+     * devient « 4K Gravity »), ni « FR » ajouté à la fin (« (2016) FR »,
+     * « (2017)_fr »). La qualité reste : deux versions ne se confondent pas. Les autres langues restent affichées (« EN - Dune »,
+     * « |BE| BEIN SPORTS 1 ») : deux versions d'un titre ne se confondent pas.
+     * Les noms de catégories ne passent pas par ici. Rien n'est retiré si le
+     * nom ne contient que la mention.
+     */
+    fun displayName(raw: String): String {
+        val stripped = LANGUAGE_SUFFIX.replaceFirst(LANGUAGE_PREFIX.replaceFirst(raw, ""), "").trim()
+        return stripped.ifEmpty { raw.trim() }
+    }
+
+    private val LANGUAGE_PREFIX = Regex(
+        """^\s*(?:\|\s*(?:FR|VF)\s*\|\s*|(?:FR|VF)\s*[-:|]\s*)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    private val LANGUAGE_SUFFIX = Regex("""(?<=\S)[\s_-]+(?:FR|VF)\s*$""", RegexOption.IGNORE_CASE)
+
     /** Heure (« 21:47 », « 9:47 PM »). */
     fun time(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
         DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)

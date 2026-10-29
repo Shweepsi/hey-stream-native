@@ -4,6 +4,29 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.3.0 — 2026-10-29
+
+Polissage de l'interface, même style sur TV, tablette et téléphone.
+
+- Élément sélectionné sur fond gris doux partout (plus de pilule blanche
+  au doigt).
+- Focus à la télécommande : contour bleu électrique autour de l'élément,
+  ombre douce, agrandissement de 5 %. Champ de saisie actif bordé de bleu.
+- Rouge vif pour les alertes (icônes d'erreur, abonnement expiré ou
+  expirant sous 7 jours) et le cœur des favoris (trait rouge).
+- Barre du haut fondue dans le fond, plus basse (48 dp).
+- Marges et espacements sur une grille commune ; coins de 12 dp partout ;
+  lignes de chaînes plus compactes au doigt.
+- Le français, implicite, n'est plus écrit dans les noms de films, séries et
+  chaînes (« FR - », « |FR| », « FR -4K », « (2016) FR », « _fr ») ; les
+  autres langues et la qualité restent (« EN - Dune », « 4K Gravity ») et
+  les catégories gardent leur nom.
+- Direct, Films, Séries au doigt : plus de barre du haut ni d'en-tête de
+  grille. Retour et titre en tête des catégories (la catégorie ouverte et
+  son nombre y restent), heure sur l'aperçu vidéo du direct.
+- Fiche série : onglets de saisons sur tous les appareils ; épisodes sur
+  toute la largeur.
+
 ## 0.2.0 — 2026-10-29
 
 Retours du Xiaomi Pad 7.

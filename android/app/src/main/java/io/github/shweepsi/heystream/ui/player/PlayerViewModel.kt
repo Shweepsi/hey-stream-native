@@ -18,6 +18,7 @@ import io.github.shweepsi.heystream.core.StreamKind
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
 import io.github.shweepsi.heystream.ui.detail.visibleItem
@@ -70,6 +71,7 @@ data class PlayerUiState(
 private class Media(
     val kind: PlaybackKind,
     val id: Long,
+    /** Nom tel que le fournisseur l'envoie (enregistré pour la reprise) ; affiché via `Formats.displayName`. */
     val title: String,
     val episode: EpisodeLabel?,
     val image: String?,
@@ -409,7 +411,7 @@ class PlayerViewModel(
                 if (closed) return@launch
                 media = resolved.media
                 _state.update {
-                    it.copy(title = resolved.media.title, episode = resolved.media.episode, resolving = false, error = null)
+                    it.copy(title = Formats.displayName(resolved.media.title), episode = resolved.media.episode, resolving = false, error = null)
                 }
                 if (foreground) open(resolved) else deferred = resolved
             } catch (cancel: CancellationException) {

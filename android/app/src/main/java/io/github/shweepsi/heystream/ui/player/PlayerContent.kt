@@ -995,7 +995,7 @@ private fun FailureCard(message: String?, onRetry: () -> Unit, onBack: () -> Uni
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Lucide.CircleAlert, contentDescription = null, tint = Hs.colors.textSecondary, modifier = Modifier.size(32.dp))
+        Icon(Lucide.CircleAlert, contentDescription = null, tint = HsColors.Alert, modifier = Modifier.size(32.dp))
         Text(
             text = stringResource(if (message != null) R.string.player_error_title else R.string.playback_failed),
             style = Hs.type.itemTitle,

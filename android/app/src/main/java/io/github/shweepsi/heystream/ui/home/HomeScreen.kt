@@ -40,7 +40,9 @@ import io.github.shweepsi.heystream.ui.components.Clock
 import io.github.shweepsi.heystream.ui.components.HsButton
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.Logo
+import io.github.shweepsi.heystream.ui.components.rememberNow
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 
 /** Élément de l'accueil qui reprend le focus au retour. */
@@ -128,11 +130,11 @@ fun HomeContent(
             )
             Spacer(Modifier.weight(1f))
             if (subscription != null) {
-                val expired = subscription is Subscription.Expired
+                val alert = subscription.needsAttention(rememberNow().value / 1000)
                 Text(
                     text = subscription.text(),
-                    style = if (expired) Hs.type.body.copy(fontWeight = FontWeight.Bold) else Hs.type.body,
-                    color = if (expired) Hs.colors.text else Hs.colors.textSecondary,
+                    style = if (alert) Hs.type.body.copy(fontWeight = FontWeight.Bold) else Hs.type.body,
+                    color = if (alert) HsColors.Alert else Hs.colors.textSecondary,
                     maxLines = 1,
                 )
             }

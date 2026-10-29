@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +30,9 @@ enum class ButtonStyle {
 
     /** Sur une surface : fond Surface (« Rechercher », « Réglages » de l'accueil). */
     Surface,
+
+    /** Sans fond (retour de la barre du haut). */
+    Ghost,
 }
 
 @Composable
@@ -46,6 +50,7 @@ fun HsButton(
         ButtonStyle.Primary -> colors.text to colors.background
         ButtonStyle.Secondary -> colors.surface2 to colors.text
         ButtonStyle.Surface -> colors.surface to colors.text
+        ButtonStyle.Ghost -> Color.Transparent to colors.text
     }
     HsSurface(
         onClick = onClick,
@@ -82,6 +87,8 @@ fun HsIconButton(
     selected: Boolean = false,
     /** Petit texte au centre d'une icône plus grande (« 10 » dans la flèche du recul). */
     caption: String? = null,
+    /** Couleur de l'icône, si elle n'est pas celle du texte (cœur rouge d'un favori). */
+    tint: Color? = null,
 ) {
     val colors = Hs.colors
     val dimens = Hs.dimens
@@ -89,6 +96,7 @@ fun HsIconButton(
         ButtonStyle.Primary -> colors.text
         ButtonStyle.Secondary -> colors.surface2
         ButtonStyle.Surface -> colors.surface
+        ButtonStyle.Ghost -> Color.Transparent
     }
     HsSurface(
         onClick = onClick,
@@ -101,7 +109,7 @@ fun HsIconButton(
         contentAlignment = Alignment.Center,
     ) {
         if (caption == null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = LocalContentColor.current)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon), tint = tint ?: LocalContentColor.current)
         } else {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(dimens.icon * 1.6f), tint = LocalContentColor.current)

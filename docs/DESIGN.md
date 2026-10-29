@@ -43,8 +43,11 @@ Piste A retenue : **triangle lecture + deux ondes**.
 | Bleu électrique | `#1F6BFF` | `#1F6BFF` |
 | Rouge vif | `#FF2E3B` | `#FF2E3B` |
 
-- **Bleu et rouge sont réservés au logo.** Seule exception : le **bleu** du
-  contour de focus.
+- **Bleu et rouge viennent du logo** et ne servent d'accents qu'ici
+  (décidé le 2026-10-29) : **bleu** pour le contour de focus, le champ actif
+  et la sélection de texte ; **rouge** pour les alertes (icône d'erreur,
+  abonnement expiré ou expirant sous 7 jours) et le cœur des favoris (trait
+  rouge, jamais plein). Nulle part ailleurs.
 - Contraste du texte ≥ 4,5:1 sur son fond ; tout indicateur d'état (focus,
   sélection) ≥ 3:1 avec ce qui l'entoure.
 - **Sur une image ou une vidéo** (badge « EN DIRECT », barre de progression
@@ -86,16 +89,26 @@ Police **Inter** (licence OFL), embarquée dans l'app. Titres 600–700, texte
 
 ## Focus et sélection
 
-- **Télécommande** : contour **bleu `#1F6BFF`** (2 dp sur Android TV, 4 pt
-  sur tvOS) + agrandissement **×1,04** (tuiles, boutons) ou **×1,06**
-  (affiches). La place du contour est réservée (bordure transparente au
-  repos) : rien ne bouge autour.
-- **Au doigt** (tablette, téléphone), pas de contour : l'élément choisi passe
-  en **couleurs inversées** (fond Texte, texte Fond : blanc sur sombre, noir
-  sur clair).
-- Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone
-  (densité compacte, décidée le 2026-10-29 : barre du haut de 52 dp, marges
-  réduites, texte courant à 14 sp) / 44 pt (Apple).
+Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
+
+- **Télécommande** : contour **bleu `#1F6BFF`** de 2 dp tracé 2 dp autour de
+  l'élément (lisible aussi sur un bouton blanc), ombre douce et
+  agrandissement **×1,05** ; les lignes pleine largeur ne grossissent pas.
+  Rien ne bouge autour.
+- **Élément sélectionné** (catégorie, chaîne en aperçu, saison, réglage),
+  partout : fond **Surface 2**, texte blanc demi-gras. Le blanc plein est
+  réservé au bouton principal (« Lecture »).
+- Barre du haut (au doigt) : 48 dp, sur le fond de l'écran, retour sans fond.
+  Direct, Films et Séries n'en ont pas : retour et titre en tête de la
+  colonne des catégories (maquette C, 2026-10-29).
+- Grille commune : marges d'écran de 16 dp (téléphone), 24 dp (tablette),
+  48 × 27 dp (TV) ; espacements de 8, 16, 24 ou 32 dp ; coins de 12 dp
+  partout.
+- Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone / 44 pt
+  (Apple).
+- Noms de films, séries et chaînes affichés sans la mention du français
+  (« FR - », « |FR| », « _fr »), implicite dans l'app ; les autres langues
+  restent écrites, les catégories gardent leur nom.
 
 ## Animations
 

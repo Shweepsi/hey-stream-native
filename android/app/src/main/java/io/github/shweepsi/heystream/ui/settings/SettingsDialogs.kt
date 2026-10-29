@@ -146,7 +146,7 @@ fun LicensePanel(title: String, subtitle: String, text: String?, onDismiss: () -
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .border(dimens.focusBorder, if (focused && dimens.isTv) HsColors.Focus else Hs.colors.separator, shape)
+                .border(dimens.focusBorder, if (focused) HsColors.Focus else Hs.colors.separator, shape)
                 .onFocusChanged { focused = it.isFocused }
                 .focusRequester(textFocus)
                 .onKeyEvent { event ->

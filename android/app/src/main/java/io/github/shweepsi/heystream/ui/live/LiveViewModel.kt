@@ -17,6 +17,7 @@ import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
 import io.github.shweepsi.heystream.data.countFavorites
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.components.PinPurpose
 import io.github.shweepsi.heystream.ui.detail.visibleItem
@@ -257,7 +258,7 @@ class LiveViewModel(
                     ownUserDataVersion = session.userDataVersion.value + 1
                     session.notifyUserDataChanged()
                     val text = if (favorite) R.string.live_favorite_added else R.string.live_favorite_removed
-                    showMessage(UiText(text, listOf(channel.name)))
+                    showMessage(UiText(text, listOf(Formats.displayName(channel.name))))
                 }
                 .onFailure { showMessage(it.toUiText()) }
         }
@@ -471,7 +472,7 @@ class LiveViewModel(
     }
 }
 
-fun CatalogItem.toPreview() = LivePreview(id = id, name = name, number = number, logo = image)
+fun CatalogItem.toPreview() = LivePreview(id = id, name = Formats.displayName(name), number = number, logo = image)
 
 /** Comme `runCatching`, sans avaler l'annulation de la coroutine. */
 private suspend inline fun <T> attempt(crossinline block: suspend () -> T): Result<T> =

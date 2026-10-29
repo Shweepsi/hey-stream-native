@@ -33,7 +33,7 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 | `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
 | Android : socle (Gradle + cœur Rust, design, session, lecteur Media3), connexion, accueil | ✅ CI (JVM + émulateur) |
 | Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | ✅ CI (JVM + émulateur) |
-| Android mobile (téléphone, tablette) : essayé sur Xiaomi 14 et Xiaomi Pad 7 | ✅ v0.2.0, en pause |
+| Android mobile (téléphone, tablette) : essayé sur Xiaomi 14 et Xiaomi Pad 7 | ✅ v0.3.0, en pause |
 | Android TV : essai sur la Mi Box S 2e gén. (appareil de référence) | à faire |
 | Apple (SwiftUI + AVPlayer) | à faire |
 

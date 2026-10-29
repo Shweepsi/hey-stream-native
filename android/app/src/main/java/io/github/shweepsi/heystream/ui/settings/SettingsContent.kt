@@ -75,10 +75,13 @@ import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.Formats
+import io.github.shweepsi.heystream.ui.components.rememberNow
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.home.Subscription
+import io.github.shweepsi.heystream.ui.home.needsAttention
 import io.github.shweepsi.heystream.ui.home.text
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import java.text.NumberFormat
 
@@ -501,13 +504,13 @@ private fun ParentalPane(ui: ParentalUi, actions: SettingsActions) {
 }
 
 @Composable
-private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true) {
+private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true, alert: Boolean = false) {
     val dimens = Hs.dimens
     Row(
         horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = Hs.colors.text, modifier = Modifier.size(dimens.icon))
+        Icon(icon, contentDescription = null, tint = if (alert) HsColors.Alert else Hs.colors.text, modifier = Modifier.size(dimens.icon))
         Text(
             text = text,
             style = if (bold) Hs.type.itemTitle else Hs.type.body,
@@ -599,7 +602,7 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
         )
         when {
             ui.running -> Paragraph(stringResource(R.string.settings_catalog_running))
-            ui.error != null -> StatusLine(Lucide.CircleAlert, ui.error.resolve(), bold = false)
+            ui.error != null -> StatusLine(Lucide.CircleAlert, ui.error.resolve(), bold = false, alert = true)
             ui.results != null -> Column(verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp)) {
                 ui.results.forEach { result -> ResultLine(result) }
             }
@@ -651,7 +654,7 @@ private fun ResultLine(result: SectionResult) {
                 else -> Lucide.CircleCheck
             },
             contentDescription = null,
-            tint = Hs.colors.text,
+            tint = if (result.outcome == RefreshOutcome.Failed) HsColors.Alert else Hs.colors.text,
             modifier = Modifier.size(dimens.icon),
         )
         Text(
@@ -674,11 +677,11 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
         if (subscription == null) {
             Paragraph(stringResource(R.string.settings_subscription_unknown))
         } else {
-            val expired = subscription is Subscription.Expired
+            val alert = subscription.needsAttention(rememberNow().value / 1000)
             Text(
                 text = subscription.text(),
-                style = if (expired) Hs.type.body.copy(fontWeight = FontWeight.Bold) else Hs.type.body,
-                color = Hs.colors.text,
+                style = if (alert) Hs.type.body.copy(fontWeight = FontWeight.Bold) else Hs.type.body,
+                color = if (alert) HsColors.Alert else Hs.colors.text,
             )
         }
         if (ui.maxConnections != null) {

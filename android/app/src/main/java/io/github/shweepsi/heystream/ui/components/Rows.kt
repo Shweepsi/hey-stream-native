@@ -86,13 +86,13 @@ fun CategoryRow(
                     Lucide.Lock,
                     contentDescription = stringResource(R.string.category_locked),
                     modifier = Modifier.size(dimens.icon * 0.9f),
-                    tint = if (selected && !dimens.isTv) LocalContentColor.current else Hs.colors.textSecondary,
+                    tint = Hs.colors.textSecondary,
                 )
             } else if (count != null) {
                 Text(
                     text = NumberFormat.getIntegerInstance(currentLocale()).format(count),
                     style = Hs.type.small.tabular(),
-                    color = if (selected && !dimens.isTv) LocalContentColor.current else Hs.colors.textSecondary,
+                    color = Hs.colors.textSecondary,
                     maxLines = 1,
                 )
             }

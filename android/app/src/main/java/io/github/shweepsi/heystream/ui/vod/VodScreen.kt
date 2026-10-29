@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,11 +66,10 @@ import androidx.paging.compose.itemContentType
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.appGraph
-import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.CategoryRow
-import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.components.MessageState
+import io.github.shweepsi.heystream.ui.components.PanelBackHeader
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -204,7 +205,7 @@ fun VodContent(
                         .fillMaxHeight(),
                 ) {
                     PanelLabel(title)
-                    categories(Modifier.weight(1f), PaddingValues(bottom = dimens.screenVertical))
+                    categories(Modifier.weight(1f), PaddingValues(top = FOCUS_RING_ROOM, bottom = dimens.screenVertical))
                 }
                 Spacer(Modifier.width(dimens.gapLarge - GRID_EDGE))
                 grid(
@@ -222,19 +223,26 @@ fun VodContent(
                 .fillMaxSize()
                 .background(Hs.colors.background),
         ) {
-            HsTopBar(title = title, onBack = onBack)
+            // Pas de barre du haut (maquette C) : retour et titre en tête des
+            // catégories, grille d'affiches dès le haut de l'écran.
             Row(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .windowInsetsPadding(BelowTopBar),
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
-                categories(
+                Column(
                     Modifier
                         .width(dimens.categoriesPanelWidth)
-                        .fillMaxHeight(),
-                    PaddingValues(horizontal = 12.dp, vertical = dimens.screenVertical),
-                )
+                        .fillMaxHeight()
+                        .padding(start = 8.dp),
+                ) {
+                    PanelBackHeader(title, onBack)
+                    categories(
+                        Modifier.weight(1f),
+                        PaddingValues(start = 4.dp, end = 12.dp, bottom = dimens.screenVertical),
+                    )
+                }
                 Box(
                     Modifier
                         .width(1.dp)
@@ -244,8 +252,7 @@ fun VodContent(
                 grid(
                     Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .padding(top = dimens.screenVertical),
+                        .fillMaxHeight(),
                     dimens.screenHorizontal,
                     dimens.screenVertical,
                 )
@@ -352,6 +359,13 @@ private fun CategoriesPanel(
     }
 }
 
+/** Place du contour de focus, tracé hors de l'élément (HsSurface). */
+private val FOCUS_RING_ROOM = 4.dp
+
+/** Nombre de titres de la catégorie ouverte (« Continuer » : ceux de la liste). */
+private fun categoryCount(state: VodUiState, selected: VodCategory): Long? =
+    if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
+
 @Composable
 private fun VodCategory.label(): String = when (key) {
     CategoryKey.Continue -> stringResource(R.string.continue_watching)
@@ -373,27 +387,30 @@ private fun GridPane(
 ) {
     val selected = state.selectedCategory
     // Sur TV, [edge] laisse la place de l'agrandissement au focus, en haut aussi.
-    val gridPadding = PaddingValues(start = edge, end = edge, top = if (Hs.isTv) edge else 0.dp, bottom = bottom)
+    val gridPadding = PaddingValues(start = edge, end = edge, top = if (Hs.isTv) edge else Hs.dimens.screenVertical, bottom = bottom)
     Column(modifier) {
         when {
             state.loading -> LoadingState()
             state.error != null -> {
                 restore.GiveUp()
                 // Aucune catégorie à focaliser : « Réessayer » prend le focus.
-                RetryMessage(title = state.error.resolve(), message = null, icon = Lucide.CircleAlert, onRetry = onRetry)
+                RetryMessage(title = state.error.resolve(), message = null, icon = Lucide.CircleAlert, onRetry = onRetry, alert = true)
             }
             selected == null -> {
                 restore.GiveUp()
                 CatalogEmpty(state.downloading, onRefreshCatalog)
             }
             else -> {
-                val count = if (selected.key == CategoryKey.Continue) state.continueItems.size.toLong() else selected.count
-                GridHeader(
-                    title = selected.label(),
-                    count = count,
-                    section = state.section,
-                    modifier = Modifier.padding(horizontal = edge),
-                )
+                // Au doigt, pas d'en-tête : la catégorie ouverte et son nombre de
+                // titres sont dans la colonne voisine, la place va aux affiches.
+                if (Hs.isTv) {
+                    GridHeader(
+                        title = selected.label(),
+                        count = categoryCount(state, selected),
+                        section = state.section,
+                        modifier = Modifier.padding(horizontal = edge),
+                    )
+                }
                 // Une grille par catégorie : position et focus propres à chacune.
                 key(selected.key.listKey) {
                     val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
@@ -459,6 +476,7 @@ private fun PagedBody(
             MessageState(
                 title = refresh.error.toUiText().resolve(),
                 icon = Lucide.CircleAlert,
+                alert = true,
                 action = stringResource(R.string.retry),
                 onAction = items::retry,
                 modifier = modifier,
@@ -573,7 +591,7 @@ private fun GridHeader(title: String, count: Long?, section: Section, modifier: 
     Row(
         modifier
             .fillMaxWidth()
-            .padding(bottom = if (dimens.isTv) 15.dp - GRID_EDGE else dimens.gap),
+            .padding(bottom = 15.dp - GRID_EDGE),
         horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 9.dp else 12.dp),
     ) {
         Text(
@@ -649,7 +667,7 @@ private fun CatalogEmpty(downloading: Boolean, onRefreshCatalog: () -> Unit) {
 
 /** Message avec « Réessayer », qui prend le focus à la télécommande. */
 @Composable
-private fun RetryMessage(title: String, message: String?, icon: ImageVector, onRetry: () -> Unit) {
+private fun RetryMessage(title: String, message: String?, icon: ImageVector, onRetry: () -> Unit, alert: Boolean = false) {
     val retry = remember { FocusRequester() }
     if (Hs.isTv) LaunchedEffect(Unit) { retry.requestWhenAttached() }
     Box(
@@ -663,6 +681,7 @@ private fun RetryMessage(title: String, message: String?, icon: ImageVector, onR
             icon = icon,
             action = stringResource(R.string.retry),
             onAction = onRetry,
+            alert = alert,
         )
     }
 }

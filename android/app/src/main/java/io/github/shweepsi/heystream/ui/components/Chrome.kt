@@ -39,6 +39,7 @@ import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
+import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 import kotlinx.coroutines.delay
@@ -95,7 +96,8 @@ fun Clock(modifier: Modifier = Modifier, showDate: Boolean = true) {
 
 /**
  * Barre du haut, au doigt seulement (tablette, téléphone) : retour, titre,
- * actions. Sur TV, la touche Retour de la télécommande suffit.
+ * actions, sur le fond de l'écran (pas de bande grise). Sur TV, la touche
+ * Retour de la télécommande suffit.
  *
  * Son fond va jusqu'aux bords de l'écran (sous la barre d'état et à côté de
  * l'encoche) ; son contenu reste dans la zone sûre. Le contenu en dessous
@@ -111,18 +113,37 @@ fun HsTopBar(
     Row(
         modifier
             .fillMaxWidth()
-            .background(Hs.colors.surface)
+            .background(Hs.colors.background)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .height(Hs.dimens.topBarHeight)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = Hs.dimens.screenHorizontal - 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Surface)
+            HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
         }
         Text(title, style = Hs.type.title, maxLines = 1, modifier = Modifier.weight(1f))
         actions()
+    }
+}
+
+/**
+ * Retour et titre en tête de la colonne des catégories, au doigt (Direct,
+ * Films, Séries) : ces écrans n'ont pas de barre du haut, la place va aux
+ * listes (décidé le 2026-10-29, maquette C).
+ */
+@Composable
+fun PanelBackHeader(title: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(Hs.dimens.topBarHeight),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HsIconButton(Lucide.ChevronLeft, stringResource(R.string.back), onBack, style = ButtonStyle.Ghost)
+        Text(title, style = Hs.type.title, maxLines = 1)
     }
 }
 
@@ -151,6 +172,8 @@ fun MessageState(
     icon: ImageVector? = null,
     action: String? = null,
     onAction: (() -> Unit)? = null,
+    /** Erreur : icône en rouge (docs/DESIGN.md). */
+    alert: Boolean = false,
 ) {
     Box(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(
@@ -159,7 +182,8 @@ fun MessageState(
             modifier = Modifier.widthIn(max = 420.dp),
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = Hs.colors.textSecondary, modifier = Modifier.size(32.dp))
+                val tint = if (alert) HsColors.Alert else Hs.colors.textSecondary
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(32.dp))
             }
             Text(title, style = Hs.type.itemTitle, textAlign = TextAlign.Center)
             if (message != null) {
