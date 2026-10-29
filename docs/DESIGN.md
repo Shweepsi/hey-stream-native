@@ -54,9 +54,9 @@ Piste A retenue : **triangle lecture + deux ondes**.
 
 ## Thème
 
-- Suit le réglage du système (clair / sombre) sur tablette et téléphone.
-- **Toujours sombre sur TV** (Android TV, Apple TV) : le clair éblouit dans le
-  noir.
+- **Toujours sombre** (décidé le 2026-10-29), sur TV comme au doigt : on
+  regarde des vidéos, souvent le soir, et le clair éblouit dans le noir. La
+  palette claire reste décrite ci-dessus pour une éventuelle option.
 
 ## Unités et typographie
 

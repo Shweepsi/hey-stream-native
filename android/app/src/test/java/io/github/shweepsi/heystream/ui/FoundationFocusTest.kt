@@ -26,7 +26,7 @@ class FoundationFocusTest {
     private fun tv(content: @androidx.compose.runtime.Composable () -> Unit) {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) { content() }
+                HeyStreamTheme(isTv = true) { content() }
             }
         }
         compose.waitForIdle()

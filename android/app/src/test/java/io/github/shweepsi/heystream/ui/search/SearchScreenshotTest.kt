@@ -88,7 +88,7 @@ class SearchScreenshotTest {
         )
     }
 
-    @Test fun searchIdleTablet() = compose.capture("search_idle", Device.TabletDark) {
+    @Test fun searchIdleTablet() = compose.capture("search_idle", Device.Tablet) {
         SearchContent(query = "", results = SearchResults.Idle, onQueryChange = {}, onOpen = {}, onBack = {})
     }
 

@@ -1,6 +1,8 @@
 package io.github.shweepsi.heystream
 
+import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -14,7 +16,12 @@ class MainActivity : AppCompatActivity() {
     private val app get() = application as HeyStreamApp
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Toujours sombre : icônes claires des barres système, même si le
+        // téléphone est en thème clair.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
         app.session.ensureStarted()
         val graph = app.graph()

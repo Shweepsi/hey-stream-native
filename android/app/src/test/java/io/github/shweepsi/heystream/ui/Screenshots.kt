@@ -21,18 +21,15 @@ import org.robolectric.RuntimeEnvironment
  * dans `app/build/outputs/roborazzi/`). Hors enregistrement, les tests
  * vérifient seulement que l'écran se compose sans erreur.
  */
-enum class Device(val qualifiers: String, val isTv: Boolean, val dark: Boolean) {
+enum class Device(val qualifiers: String, val isTv: Boolean) {
     /** Mi Box S : 1920 × 1080 px, 960 × 540 dp. */
-    Tv("w960dp-h540dp-land-television-xhdpi", isTv = true, dark = true),
+    Tv("w960dp-h540dp-land-television-xhdpi", isTv = true),
 
-    /** Xiaomi Pad 7 (paysage), thème clair. */
-    Tablet("w1280dp-h800dp-land-xhdpi", isTv = false, dark = false),
-
-    /** Tablette en thème sombre. */
-    TabletDark("w1280dp-h800dp-land-xhdpi", isTv = false, dark = true),
+    /** Xiaomi Pad 7 (paysage). */
+    Tablet("w1280dp-h800dp-land-xhdpi", isTv = false),
 
     /** Téléphone récent en paysage (Pixel 8 Pro, Xiaomi 14 : environ 915 × 412 dp). */
-    Phone("w915dp-h412dp-land-xxhdpi", isTv = false, dark = true),
+    Phone("w915dp-h412dp-land-xxhdpi", isTv = false),
 }
 
 /** Télécommande : Robolectric reste en mode tactile, où rien ne prend le focus. */
@@ -57,7 +54,7 @@ fun ComposeContentTestRule.capture(
     RuntimeEnvironment.setQualifiers(listOfNotNull(locale, device.qualifiers).joinToString("-"))
     setContent {
         val screen = @Composable {
-            HeyStreamTheme(isTv = device.isTv, systemDark = device.dark) {
+            HeyStreamTheme(isTv = device.isTv) {
                 Box(Modifier.fillMaxSize().background(Hs.colors.background)) { content() }
             }
         }

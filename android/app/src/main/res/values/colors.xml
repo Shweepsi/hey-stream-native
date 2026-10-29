@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Fond de fenêtre avant le premier écran (docs/DESIGN.md). -->
-    <color name="window_background">#FAFAFA</color>
+    <!-- Fond de fenêtre avant le premier écran : toujours sombre (docs/DESIGN.md). -->
+    <color name="window_background">#121214</color>
     <color name="launcher_background">#121214</color>
 </resources>

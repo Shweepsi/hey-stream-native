@@ -177,7 +177,7 @@ fun VodContent(
     }
     val categories = @Composable { modifier: Modifier, padding: PaddingValues ->
         CategoriesPanel(
-            categories = state.categories,
+            categories = shownCategories(state.categories, state.selected),
             selected = state.selected,
             onClick = onCategoryClick,
             requester = categoryRequester,

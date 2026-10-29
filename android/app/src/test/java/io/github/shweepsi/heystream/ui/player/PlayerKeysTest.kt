@@ -74,7 +74,7 @@ class PlayerKeysTest {
     private fun show(chrome: PlayerChrome, actions: Recorder, state: PlayerUiState = PlayerUiState(title = "Nord Express", resolving = false)) {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = PlaybackStatus(active = true, playing = true),
@@ -145,7 +145,7 @@ class PlayerKeysTest {
         )
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = PlaybackStatus(active = true, playing = true),
@@ -173,7 +173,7 @@ class PlayerKeysTest {
         val failed = PlaybackStatus(active = true, failed = true)
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides keyboard) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     PlayerContent(
                         state = state,
                         status = failed,
@@ -198,7 +198,7 @@ class PlayerKeysTest {
         val chrome = PlayerChrome(visible = true)
         val actions = Recorder()
         compose.setContent {
-            HeyStreamTheme(isTv = false, systemDark = true) {
+            HeyStreamTheme(isTv = false) {
                 PlayerContent(
                     state = PlayerUiState(title = "Nord Express", resolving = false),
                     status = PlaybackStatus(active = true, playing = true),

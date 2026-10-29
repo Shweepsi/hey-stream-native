@@ -71,7 +71,7 @@ class SettingsFocusTest {
     private fun show() {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     SettingsContent(state, LanguageChoice.System, appVersion = "0.1.0", actions = actions)
                 }
             }
@@ -170,7 +170,7 @@ class SettingsFocusTest {
         state = state.copy(section = SettingsSection.Language)
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     SettingsContent(state, LanguageChoice.English, appVersion = "0.1.0", actions = actions)
                 }
             }
@@ -195,7 +195,7 @@ class SettingsFocusTest {
         state = state.copy(section = SettingsSection.Parental)
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     SettingsContent(state, LanguageChoice.System, appVersion = "0.1.0", actions = remote)
                 }
             }
@@ -212,7 +212,7 @@ class SettingsFocusTest {
     fun licenseTextScrollsThenReachesClose() {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     LicenseDialog(License.Inter, onDismiss = {})
                 }
             }
@@ -238,7 +238,7 @@ class SettingsFocusTest {
     fun signOutConfirmationFocusesCancel() {
         compose.setContent {
             CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-                HeyStreamTheme(isTv = true, systemDark = true) {
+                HeyStreamTheme(isTv = true) {
                     SignOutDialog(busy = false, onConfirm = {}, onDismiss = {})
                 }
             }

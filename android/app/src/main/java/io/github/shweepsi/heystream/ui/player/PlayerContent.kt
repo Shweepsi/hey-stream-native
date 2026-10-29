@@ -13,6 +13,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +103,7 @@ import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
+import kotlin.math.roundToInt
 
 /** Position de lecture, lue sur le lecteur ; [durationMs] vaut 0 si inconnue. */
 data class PlaybackPosition(val positionMs: Long = 0, val durationMs: Long = 0)
@@ -152,6 +155,15 @@ class PlayerChrome(visible: Boolean = true, menu: TrackMenu? = null, focus: Cont
     }
 }
 
+/**
+ * Volume du média et luminosité de l'écran (0 à 1), réglés au doigt par un
+ * glissement vertical : à droite le volume, à gauche la luminosité.
+ */
+interface PlayerLevels {
+    var volume: Float
+    var brightness: Float
+}
+
 /** Ce que l'écran demande au lecteur et à la navigation. */
 interface PlayerActions {
     fun togglePause()
@@ -192,9 +204,11 @@ fun PlayerContent(
     chrome: PlayerChrome,
     actions: PlayerActions,
     modifier: Modifier = Modifier,
+    /** Absent sur TV et dans les tests : pas de glissement vertical. */
+    levels: PlayerLevels? = null,
     video: @Composable () -> Unit = {},
 ) {
-    HeyStreamTheme(isTv = Hs.isTv, systemDark = true) {
+    HeyStreamTheme(isTv = Hs.isTv) {
         val failed = state.error != null || (status.failed && status.reconnectAttempt == 0 && !state.retrying)
         val blocking = failed || state.next != null || chrome.menu != null
         val root = remember { FocusRequester() }
@@ -206,6 +220,9 @@ fun PlayerContent(
         val haptic = LocalHapticFeedback.current
         // Dernier tap d'avance ou de recul au doigt : l'onde part de là.
         var flash by remember { mutableStateOf<TapFlash?>(null) }
+        // Glissement vertical en cours (volume ou luminosité) et niveau affiché.
+        var adjusting by remember { mutableStateOf<LevelKind?>(null) }
+        var level by remember { mutableFloatStateOf(0f) }
         val tapNudge = { forward: Boolean, at: Offset ->
             actions.nudge(forward)
             haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -259,11 +276,50 @@ fun PlayerContent(
                             }
                         },
                     )
-                },
+                }
+                .then(
+                    if (levels == null) {
+                        Modifier
+                    } else {
+                        Modifier.pointerInput(levels) {
+                            var kind: LevelKind? = null
+                            detectVerticalDragGestures(
+                                onDragStart = { start ->
+                                    // Bords haut et bas laissés au système (barres masquées).
+                                    kind = when {
+                                        start.y < size.height * 0.12f || start.y > size.height * 0.88f -> null
+                                        start.x > size.width / 2f -> LevelKind.Volume
+                                        else -> LevelKind.Brightness
+                                    }
+                                    kind?.let {
+                                        level = if (it == LevelKind.Volume) levels.volume else levels.brightness
+                                        adjusting = it
+                                    }
+                                },
+                                onVerticalDrag = { change, dy ->
+                                    val current = kind ?: return@detectVerticalDragGestures
+                                    change.consume()
+                                    // Les trois quarts de la hauteur : de 0 à 100 %.
+                                    level = (level - dy / (size.height * 0.75f)).coerceIn(0f, 1f)
+                                    if (current == LevelKind.Volume) levels.volume = level else levels.brightness = level
+                                },
+                                onDragEnd = {
+                                    kind = null
+                                    adjusting = null
+                                },
+                                onDragCancel = {
+                                    kind = null
+                                    adjusting = null
+                                },
+                            )
+                        }
+                    },
+                ),
         ) {
             video()
             flash?.let { SeekRipple(it) }
             SeekPill(state.pendingSeekMs)
+            LevelIndicator(adjusting, level)
             if (!failed && (state.resolving || (status.buffering && status.reconnectAttempt == 0))) {
                 Text(
                     text = stringResource(R.string.loading),
@@ -414,6 +470,63 @@ private fun BoxScope.SeekPill(offsetMs: Long?) {
     }
 }
 
+/** Réglage en cours au doigt. */
+private enum class LevelKind { Volume, Brightness }
+
+/**
+ * Volume ou luminosité pendant le glissement : icône, jauge et pourcentage,
+ * au centre ; s'efface peu après la fin du geste.
+ */
+@Composable
+private fun BoxScope.LevelIndicator(kind: LevelKind?, level: Float) {
+    // Dernier réglage gardé pendant le fondu de sortie.
+    var shown by remember { mutableStateOf(LevelKind.Volume) }
+    if (kind != null) shown = kind
+    AnimatedVisibility(
+        visible = kind != null,
+        enter = fadeIn(tween(FADE_MS)),
+        exit = fadeOut(tween(FADE_MS, delayMillis = LEVEL_LINGER_MS)),
+        modifier = Modifier.align(Alignment.Center),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(Hs.dimens.radius))
+                .background(HsColors.MediaScrim)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
+            Icon(
+                if (shown == LevelKind.Volume) Lucide.Volume2 else Lucide.Sun,
+                contentDescription = null,
+                tint = HsColors.OnMedia,
+                modifier = Modifier.size(Hs.dimens.icon),
+            )
+            Box(
+                Modifier
+                    .width(120.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(HsColors.OnMedia.copy(alpha = 0.3f)),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(level)
+                        .fillMaxHeight()
+                        .background(HsColors.OnMedia),
+                )
+            }
+            Text(
+                text = "${(level * 100).roundToInt()} %",
+                style = Hs.type.label.tabular(),
+                color = HsColors.OnMedia,
+                modifier = Modifier.widthIn(min = 44.dp),
+            )
+        }
+    }
+}
+
+private const val LEVEL_LINGER_MS = 500
 private const val RIPPLE_MS = 450
 private const val BUMP_MS = 160
 
@@ -521,9 +634,9 @@ private fun Controls(
                 .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
                 .padding(
                     horizontal = dimens.screenHorizontal,
-                    vertical = if (dimens.isTv) 18.dp else 16.dp,
+                    vertical = if (dimens.isTv) 12.dp else 10.dp,
                 ),
-            verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 10.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 6.dp else 8.dp),
         ) {
             TitleBlock(state)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimens.gap)) {

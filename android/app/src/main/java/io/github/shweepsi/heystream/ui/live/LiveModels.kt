@@ -185,6 +185,10 @@ fun liveCategories(
     }
 }
 
+/** Colonne affichée : Favoris et Récents vides sont masqués, sauf s'ils sont ouverts. */
+fun shownCategories(categories: List<LiveCategory>, selected: CategoryKey?): List<LiveCategory> =
+    categories.filter { it.key is CategoryKey.Provider || (it.count ?: 0L) > 0L || it.key == selected }
+
 /**
  * Catégorie ouverte à l'arrivée : celle de [preferred] (chaîne venue de la
  * recherche) si elle est ouverte, sinon Favoris s'il y en a, sinon la

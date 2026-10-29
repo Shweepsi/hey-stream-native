@@ -312,7 +312,7 @@ private fun LivePanels(
         horizontalArrangement = Arrangement.spacedBy(layout.gap),
     ) {
         CategoriesPanel(
-            categories = categories,
+            categories = shownCategories(categories, state.selected),
             selected = state.selected,
             selectedFocus = selectedCategory,
             compact = layout.compact,

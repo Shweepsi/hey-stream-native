@@ -3,6 +3,10 @@ package io.github.shweepsi.heystream.ui.player
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.media.AudioManager
+import android.provider.Settings
+import android.view.Window
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Box
@@ -37,10 +41,11 @@ import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.VideoSurface
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.theme.Hs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 /** Les commandes se masquent après ce délai sans touche (pendant la lecture). */
-private const val CONTROLS_TIMEOUT_MS = 4_000L
+private const val CONTROLS_TIMEOUT_MS = 3_000L
 
 /** Position relue sur le lecteur, commandes affichées. */
 private const val POSITION_REFRESH_MS = 500L
@@ -176,6 +181,7 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         position = position,
         chrome = chrome,
         actions = actions,
+        levels = rememberDeviceLevels(),
         video = {
             Box(Modifier.fillMaxSize()) {
                 VideoSurface(player, Modifier.fillMaxSize(), keepScreenOn = keepsScreenOn(state, status))
@@ -234,6 +240,50 @@ private fun ImmersiveMode() {
         insets?.hide(WindowInsetsCompat.Type.systemBars())
         onDispose { insets?.show(WindowInsetsCompat.Type.systemBars()) }
     }
+}
+
+/** Au doigt : volume du média et luminosité de cet écran ; rien sur TV (télécommande). */
+@Composable
+private fun rememberDeviceLevels(): PlayerLevels? {
+    val view = LocalView.current
+    val isTv = Hs.isTv
+    val levels = remember(view, isTv) { if (isTv) null else DeviceLevels(view.context, view.context.findActivity()?.window) }
+    DisposableEffect(levels) { onDispose { levels?.restoreBrightness() } }
+    return levels
+}
+
+/**
+ * Volume du média (celui du système, sans son panneau) et luminosité de la
+ * fenêtre seulement : en quittant le lecteur, l'écran retrouve celle du
+ * système.
+ */
+private class DeviceLevels(private val context: Context, private val window: Window?) : PlayerLevels {
+    private val audio = context.getSystemService(AudioManager::class.java)
+    private val maxVolume = (audio?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 0).coerceAtLeast(1)
+
+    override var volume: Float
+        get() = (audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0) / maxVolume.toFloat()
+        set(value) {
+            runCatching { audio?.setStreamVolume(AudioManager.STREAM_MUSIC, (value * maxVolume).roundToInt(), 0) }
+        }
+
+    override var brightness: Float
+        get() = window?.attributes?.screenBrightness?.takeIf { it >= 0f } ?: systemBrightness()
+        set(value) {
+            val window = window ?: return
+            // Jamais tout à fait noir : l'écran resterait lisible pour remonter.
+            window.attributes = window.attributes.apply { screenBrightness = value.coerceIn(0.02f, 1f) }
+        }
+
+    fun restoreBrightness() {
+        val window = window ?: return
+        window.attributes = window.attributes.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+    }
+
+    /** Luminosité du système (0 à 255), point de départ du premier glissement. */
+    private fun systemBrightness(): Float =
+        runCatching { Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f }
+            .getOrDefault(0.5f)
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {

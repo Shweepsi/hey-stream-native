@@ -124,7 +124,7 @@ fun ComposeContentTestRule.setTvContent(locale: String? = null, content: @Compos
     RuntimeEnvironment.setQualifiers(if (locale == null) Device.Tv.qualifiers else "$locale-${Device.Tv.qualifiers}")
     setContent {
         CompositionLocalProvider(LocalInputModeManager provides KeyboardInput) {
-            HeyStreamTheme(isTv = true, systemDark = true) {
+            HeyStreamTheme(isTv = true) {
                 Box(
                     Modifier
                         .fillMaxSize()
