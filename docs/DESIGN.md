@@ -21,7 +21,11 @@ décide du contenu des écrans, ce document de leur apparence.
 
 ## Logo
 
-Piste A retenue : **triangle lecture + deux ondes**.
+Piste A retenue : **triangle lecture + deux ondes**. Affinée le 2026-10-29
+en **piste C** (triangle blanc aux coins arrondis, ondes plus épaisses en
+bleu et rouge, sans dégradé) : utilisée par le site (`site/logo.svg`) ;
+l'app passera à C avec les icônes et la bannière TV, une fois le choix
+confirmé face aux pistes D à F (maquette du 2026-10-29). Palette figée.
 
 - Triangle : dégradé linéaire bleu électrique → rouge vif (haut gauche → bas
   droite).

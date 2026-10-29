@@ -92,7 +92,10 @@ Constats :
   versions de test par APK uniquement.
 - **Rapports de plantage : GlitchTip** (compatible avec le SDK Sentry, libre,
   auto-hébergeable). Anonymes : ni identifiants ni URL de flux.
-- **Politique de confidentialité : GitHub Pages** du dépôt.
+- **Politique de confidentialité : GitHub Pages** du dépôt. Faite le
+  2026-10-29 : `site/` (accueil et politique, français et anglais), publié
+  par `.github/workflows/pages.yml` sur https://shweepsi.github.io/hey-stream-native/ ;
+  contact par les issues GitHub ; aucun cookie, script ni ressource externe.
 
 ## Versions (2026-10-29)
 
