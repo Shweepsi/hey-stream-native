@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vod_title_movies">Films</string>
+    <string name="vod_title_series">Séries</string>
+    <plurals name="vod_count_movies">
+        <item quantity="one">%1$s film</item>
+        <item quantity="many">%1$s de films</item>
+        <item quantity="other">%1$s films</item>
+    </plurals>
+    <plurals name="vod_count_series">
+        <item quantity="one">%1$s série</item>
+        <item quantity="many">%1$s de séries</item>
+        <item quantity="other">%1$s séries</item>
+    </plurals>
+    <string name="vod_continue_empty_movies_title">Aucun film en cours</string>
+    <string name="vod_continue_empty_movies">Les films que vous commencez apparaissent ici, pour les reprendre là où vous en étiez.</string>
+    <string name="vod_continue_empty_series_title">Aucune série en cours</string>
+    <string name="vod_continue_empty_series">Les séries que vous commencez apparaissent ici, avec leur dernier épisode.</string>
+    <string name="vod_favorites_empty_title">Aucun favori</string>
+    <string name="vod_favorites_empty_movies">Ajoutez un film à vos favoris depuis sa fiche.</string>
+    <string name="vod_favorites_empty_series">Ajoutez une série à vos favoris depuis sa fiche.</string>
+</resources>
