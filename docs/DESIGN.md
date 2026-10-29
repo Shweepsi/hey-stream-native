@@ -106,8 +106,9 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
   partout.
 - Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone / 44 pt
   (Apple).
-- Noms de films, séries et chaînes affichés sans le préfixe de langue du
-  fournisseur (« FR - », « |FR| ») ; les catégories gardent le leur.
+- Noms de films, séries et chaînes affichés sans la mention du français
+  (« FR - », « |FR| », « _fr »), implicite dans l'app ; les autres langues
+  restent écrites, les catégories gardent leur nom.
 
 ## Animations
 

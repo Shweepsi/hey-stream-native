@@ -14,21 +14,21 @@ import java.util.Locale
  */
 object Formats {
     /**
-     * Nom d'un film, d'une série ou d'une chaîne sans le préfixe de langue que
-     * les fournisseurs ajoutent (« FR - », « |FR| », « VOSTFR: »), ni la
-     * qualité collée derrière (« FR -4K », « FR -4KL »), ni la langue ajoutée
-     * à la fin (« (2016) FR », « (2017)_fr »). Les noms de
-     * catégories ne passent pas par ici. Rien n'est retiré si le nom ne
-     * contient que le préfixe.
+     * Nom d'un film, d'une série ou d'une chaîne sans la mention du français,
+     * implicite dans l'app (« FR - », « |FR| », « VF - », avec la qualité collée
+     * derrière : « FR -4K »), ni « FR » ajouté à la fin (« (2016) FR »,
+     * « (2017)_fr »). Les autres langues restent affichées (« EN - Dune »,
+     * « |BE| BEIN SPORTS 1 ») : deux versions d'un titre ne se confondent pas.
+     * Les noms de catégories ne passent pas par ici. Rien n'est retiré si le
+     * nom ne contient que la mention.
      */
     fun displayName(raw: String): String {
         val stripped = LANGUAGE_SUFFIX.replaceFirst(LANGUAGE_PREFIX.replaceFirst(raw, ""), "").trim()
         return stripped.ifEmpty { raw.trim() }
     }
 
-    // « IT » n'en fait pas partie : « IT - Chapitre 2 » est un titre.
     private val LANGUAGE_PREFIX = Regex(
-        """^\s*(?:\|\s*[A-Za-z]{2,6}\s*\|\s*|(?:FR|EN|UK|US|BE|CH|CA|QC|DE|ES|PT|NL|AR|TR|VF|VO|VOST|VOSTFR|MULTI)\s*[-:|]\s*)""" +
+        """^\s*(?:\|\s*(?:FR|fr)\s*\|\s*|(?:FR|fr|VF)\s*[-:|]\s*)""" +
             """(?:(?:4KL|4K|UHD|FHD|HDR|HD|SD|HEVC)\s+)?""",
     )
 

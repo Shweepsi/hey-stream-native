@@ -87,7 +87,10 @@ class FormatsTest {
         assertEquals("To Philly with Love (2026) FHD", Formats.displayName("FR - To Philly with Love (2026) FHD"))
         assertEquals("canal+ FOOT UHD", Formats.displayName("|FR| canal+ FOOT UHD"))
         assertEquals("CANAL+ SPORT", Formats.displayName("|FR|  CANAL+ SPORT"))
-        assertEquals("Dune", Formats.displayName("VOSTFR: Dune"))
+        // Seul le français, implicite, est retiré : les autres langues distinguent les versions.
+        assertEquals("VOSTFR: Dune", Formats.displayName("VOSTFR: Dune"))
+        assertEquals("EN - Dune (2021)", Formats.displayName("EN - Dune (2021)"))
+        assertEquals("|BE| BEIN SPORTS 1", Formats.displayName("|BE| BEIN SPORTS 1"))
         assertEquals("Gravity (2013)", Formats.displayName("FR -4K Gravity (2013)"))
         assertEquals("Apollo 13", Formats.displayName("FR -4KL Apollo 13"))
         assertEquals("Argo", Formats.displayName("FR - 4K Argo"))

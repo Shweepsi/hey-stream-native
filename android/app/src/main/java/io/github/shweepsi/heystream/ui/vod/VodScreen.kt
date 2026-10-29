@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -45,7 +44,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
@@ -226,7 +224,7 @@ fun VodContent(
                 .background(Hs.colors.background),
         ) {
             // Pas de barre du haut (maquette C) : retour et titre en tête des
-            // catégories, nom de la catégorie en tête de la grille, sur la même ligne.
+            // catégories, grille d'affiches dès le haut de l'écran.
             Row(
                 Modifier
                     .weight(1f)
@@ -389,7 +387,7 @@ private fun GridPane(
 ) {
     val selected = state.selectedCategory
     // Sur TV, [edge] laisse la place de l'agrandissement au focus, en haut aussi.
-    val gridPadding = PaddingValues(start = edge, end = edge, top = if (Hs.isTv) edge else 0.dp, bottom = bottom)
+    val gridPadding = PaddingValues(start = edge, end = edge, top = if (Hs.isTv) edge else Hs.dimens.screenVertical, bottom = bottom)
     Column(modifier) {
         when {
             state.loading -> LoadingState()
@@ -403,26 +401,15 @@ private fun GridPane(
                 CatalogEmpty(state.downloading, onRefreshCatalog)
             }
             else -> {
-                val header = @Composable { modifier: Modifier ->
+                // Au doigt, pas d'en-tête : la catégorie ouverte et son nombre de
+                // titres sont dans la colonne voisine, la place va aux affiches.
+                if (Hs.isTv) {
                     GridHeader(
                         title = selected.label(),
                         count = categoryCount(state, selected),
                         section = state.section,
-                        modifier = modifier,
+                        modifier = Modifier.padding(horizontal = edge),
                     )
-                }
-                if (Hs.isTv) {
-                    header(Modifier.padding(horizontal = edge))
-                } else {
-                    // Au doigt, à la hauteur du retour et du titre de la colonne voisine.
-                    Box(
-                        Modifier
-                            .height(Hs.dimens.topBarHeight)
-                            .padding(horizontal = edge),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        header(Modifier)
-                    }
                 }
                 // Une grille par catégorie : position et focus propres à chacune.
                 key(selected.key.listKey) {
@@ -604,7 +591,7 @@ private fun GridHeader(title: String, count: Long?, section: Section, modifier: 
     Row(
         modifier
             .fillMaxWidth()
-            .padding(bottom = if (dimens.isTv) 15.dp - GRID_EDGE else 0.dp),
+            .padding(bottom = 15.dp - GRID_EDGE),
         horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 9.dp else 12.dp),
     ) {
         Text(

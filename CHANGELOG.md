@@ -17,12 +17,12 @@ Polissage de l'interface, même style sur TV, tablette et téléphone.
 - Barre du haut fondue dans le fond, plus basse (48 dp).
 - Marges et espacements sur une grille commune ; coins de 12 dp partout ;
   lignes de chaînes plus compactes au doigt.
-- Noms sans préfixe de langue (« FR - », « |FR| », « FR -4K ») ni langue
-  en fin de titre (« FR », « _fr ») pour les films, séries et chaînes ; les
-  catégories gardent le leur.
-- Direct, Films, Séries au doigt : plus de barre du haut. Retour et titre en
-  tête des catégories, nom de la catégorie en tête de la grille, heure sur
-  l'aperçu vidéo du direct : 48 dp de plus pour les listes.
+- Le français, implicite, n'est plus écrit dans les noms de films, séries et
+  chaînes (« FR - », « |FR| », « FR -4K », « (2016) FR », « _fr ») ; les
+  autres langues restent (« EN - Dune ») et les catégories gardent leur nom.
+- Direct, Films, Séries au doigt : plus de barre du haut ni d'en-tête de
+  grille. Retour et titre en tête des catégories (la catégorie ouverte et
+  son nombre y restent), heure sur l'aperçu vidéo du direct.
 - Fiche série : onglets de saisons sur tous les appareils ; épisodes sur
   toute la largeur.
 
