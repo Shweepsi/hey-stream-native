@@ -17,14 +17,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,6 +39,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -253,17 +254,19 @@ private fun PrimarySeriesButton(
 private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) -> Unit) {
     val dimens = Hs.dimens
     val selectedFocus = remember { FocusRequester() }
-    // Saison reprise hors de l'écran (série longue, téléphone) : la faire défiler en vue.
-    val selectedInView = remember { BringIntoViewRequester() }
-    LaunchedEffect(selected) {
-        withFrameNanos { }
-        selectedInView.bringIntoView()
+    // Saison reprise hors de l'écran (série longue, téléphone) : ne faire défiler
+    // que la rangée (pas la page) jusqu'à elle.
+    val scroll = rememberScrollState()
+    val tabStarts = remember { mutableStateMapOf<Long, Int>() }
+    LaunchedEffect(selected, tabStarts[selected]) {
+        val start = tabStarts[selected] ?: return@LaunchedEffect
+        if (start < scroll.value || start > scroll.value + scroll.viewportSize / 2) scroll.scrollTo(start)
     }
     Row(
         Modifier
             .fillMaxWidth()
             .focusRestorer(selectedFocus)
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(scroll)
             // Place du contour de focus, tracé hors de l'onglet.
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .padding(bottom = if (dimens.isTv) 10.dp else 12.dp),
@@ -274,7 +277,8 @@ private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) ->
             HsSurface(
                 onClick = { onSelect(season) },
                 selected = isSelected,
-                modifier = (if (isSelected) Modifier.focusRequester(selectedFocus).bringIntoViewRequester(selectedInView) else Modifier)
+                modifier = (if (isSelected) Modifier.focusRequester(selectedFocus) else Modifier)
+                    .onPlaced { tabStarts[season] = it.positionInParent().x.toInt() }
                     .heightIn(min = dimens.minTouch),
                 contentPadding = PaddingValues(horizontal = if (dimens.isTv) 14.dp else 16.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,

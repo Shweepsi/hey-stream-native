@@ -192,7 +192,7 @@ fun PosterCard(
         HsSurface(
             onClick = onClick,
             onLongClick = onLongClick,
-            focusScale = FocusScale.POSTER,
+            focusScale = FocusScale.DEFAULT,
             color = Hs.colors.surface2,
             onClickLabel = title,
             modifier = Modifier

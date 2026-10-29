@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.core.AccountInfo
 import io.github.shweepsi.heystream.ui.components.initials
 import io.github.shweepsi.heystream.ui.home.Subscription
+import io.github.shweepsi.heystream.ui.home.needsAttention
 import io.github.shweepsi.heystream.ui.home.subscriptionOf
 import java.time.ZoneId
 import java.util.Locale
@@ -91,9 +92,11 @@ class FormatsTest {
         assertEquals("VOSTFR: Dune", Formats.displayName("VOSTFR: Dune"))
         assertEquals("EN - Dune (2021)", Formats.displayName("EN - Dune (2021)"))
         assertEquals("|BE| BEIN SPORTS 1", Formats.displayName("|BE| BEIN SPORTS 1"))
-        assertEquals("Gravity (2013)", Formats.displayName("FR -4K Gravity (2013)"))
-        assertEquals("Apollo 13", Formats.displayName("FR -4KL Apollo 13"))
-        assertEquals("Argo", Formats.displayName("FR - 4K Argo"))
+        // La qualité reste : « Gravity » et « 4K Gravity » ne se confondent pas.
+        assertEquals("4K Gravity (2013)", Formats.displayName("FR -4K Gravity (2013)"))
+        assertEquals("4KL Apollo 13", Formats.displayName("FR -4KL Apollo 13"))
+        assertEquals("Dune", Formats.displayName("Fr - Dune"))
+        assertEquals("Canal+", Formats.displayName("|VF| Canal+"))
         assertEquals("IT - Chapitre 2", Formats.displayName("IT - Chapitre 2"))
         assertEquals("The Crown (2016)", Formats.displayName("The Crown (2016) FR"))
         assertEquals("Bad Blood (2017)", Formats.displayName("Bad Blood (2017)_fr"))
@@ -103,5 +106,14 @@ class FormatsTest {
         assertEquals("OSS 117 - Le Caire", Formats.displayName("OSS 117 - Le Caire"))
         assertEquals("France 2", Formats.displayName("France 2"))
         assertEquals("FR -", Formats.displayName("FR -"))
+    }
+
+    @Test
+    fun subscriptionNeedsAttentionWhenExpiredOrWithinAWeek() {
+        val now = 1_800_000_000L
+        assertEquals(false, Subscription.Unlimited.needsAttention(now))
+        assertEquals(true, Subscription.Expired(now - 1).needsAttention(now))
+        assertEquals(true, Subscription.ValidUntil(now + 6 * 86_400).needsAttention(now))
+        assertEquals(false, Subscription.ValidUntil(now + 8 * 86_400).needsAttention(now))
     }
 }

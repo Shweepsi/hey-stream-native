@@ -75,6 +75,7 @@ import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.Formats
+import io.github.shweepsi.heystream.ui.components.rememberNow
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.home.Subscription
 import io.github.shweepsi.heystream.ui.home.needsAttention
@@ -676,7 +677,7 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
         if (subscription == null) {
             Paragraph(stringResource(R.string.settings_subscription_unknown))
         } else {
-            val alert = subscription.needsAttention()
+            val alert = subscription.needsAttention(rememberNow().value / 1000)
             Text(
                 text = subscription.text(),
                 style = if (alert) Hs.type.body.copy(fontWeight = FontWeight.Bold) else Hs.type.body,

@@ -15,9 +15,9 @@ import java.util.Locale
 object Formats {
     /**
      * Nom d'un film, d'une série ou d'une chaîne sans la mention du français,
-     * implicite dans l'app (« FR - », « |FR| », « VF - », avec la qualité collée
-     * derrière : « FR -4K »), ni « FR » ajouté à la fin (« (2016) FR »,
-     * « (2017)_fr »). Les autres langues restent affichées (« EN - Dune »,
+     * implicite dans l'app (« FR - », « |FR| », « VF - » ; « FR -4K Gravity »
+     * devient « 4K Gravity »), ni « FR » ajouté à la fin (« (2016) FR »,
+     * « (2017)_fr »). La qualité reste : deux versions ne se confondent pas. Les autres langues restent affichées (« EN - Dune »,
      * « |BE| BEIN SPORTS 1 ») : deux versions d'un titre ne se confondent pas.
      * Les noms de catégories ne passent pas par ici. Rien n'est retiré si le
      * nom ne contient que la mention.
@@ -28,11 +28,11 @@ object Formats {
     }
 
     private val LANGUAGE_PREFIX = Regex(
-        """^\s*(?:\|\s*(?:FR|fr)\s*\|\s*|(?:FR|fr|VF)\s*[-:|]\s*)""" +
-            """(?:(?:4KL|4K|UHD|FHD|HDR|HD|SD|HEVC)\s+)?""",
+        """^\s*(?:\|\s*(?:FR|VF)\s*\|\s*|(?:FR|VF)\s*[-:|]\s*)""",
+        RegexOption.IGNORE_CASE,
     )
 
-    private val LANGUAGE_SUFFIX = Regex("""(?<=\S)[\s_-]+(?:FR|fr|Fr|VF|vf)\s*$""")
+    private val LANGUAGE_SUFFIX = Regex("""(?<=\S)[\s_-]+(?:FR|VF)\s*$""", RegexOption.IGNORE_CASE)
 
     /** Heure (« 21:47 », « 9:47 PM »). */
     fun time(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =

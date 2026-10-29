@@ -19,7 +19,8 @@ Polissage de l'interface, même style sur TV, tablette et téléphone.
   lignes de chaînes plus compactes au doigt.
 - Le français, implicite, n'est plus écrit dans les noms de films, séries et
   chaînes (« FR - », « |FR| », « FR -4K », « (2016) FR », « _fr ») ; les
-  autres langues restent (« EN - Dune ») et les catégories gardent leur nom.
+  autres langues et la qualité restent (« EN - Dune », « 4K Gravity ») et
+  les catégories gardent leur nom.
 - Direct, Films, Séries au doigt : plus de barre du haut ni d'en-tête de
   grille. Retour et titre en tête des catégories (la catégorie ouverte et
   son nombre y restent), heure sur l'aperçu vidéo du direct.

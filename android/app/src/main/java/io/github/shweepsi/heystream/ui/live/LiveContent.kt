@@ -143,6 +143,9 @@ fun LiveContent(
                 height = maxHeight - top - bottom,
                 categories = dimens.categoriesPanelWidth,
                 channels = dimens.channelsPanelWidth,
+                margin = dimens.screenHorizontal,
+                marginVertical = dimens.screenVertical,
+                gap = dimens.gap,
             )
         }
         val categories = state.categories

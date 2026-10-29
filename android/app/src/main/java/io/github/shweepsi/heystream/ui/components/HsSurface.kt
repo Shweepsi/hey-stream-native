@@ -46,11 +46,8 @@ import io.github.shweepsi.heystream.ui.theme.HsColors
 
 /** Agrandissement au focus (docs/DESIGN.md). */
 object FocusScale {
-    /** Tuiles, boutons, lignes. */
+    /** Tuiles, boutons, affiches. */
     const val DEFAULT = 1.05f
-
-    /** Affiches. */
-    const val POSTER = 1.05f
 
     /** Lignes de liste pleine largeur : pas d'agrandissement (déborderait du panneau). */
     const val NONE = 1f
@@ -113,15 +110,15 @@ fun HsSurface(
         label = "focusBorder",
     )
     val background = if (selected) colors.surface2 else color
-    val foreground = contentColor
     Box(
         modifier = modifier
             .zIndex(if (focused) 1f else 0f)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                // Ombre douce sous l'élément focalisé, seulement là où il dépasse (agrandi).
-                if (focused && focusScale > 1f) {
+                // Ombre douce sous l'élément focalisé et agrandi, s'il a un fond :
+                // sous un fond transparent, l'ombre dessinerait une tache grise.
+                if (focused && focusScale > 1f && background.alpha > 0f) {
                     this.shape = shape
                     shadowElevation = FOCUS_SHADOW.toPx()
                 }
@@ -143,7 +140,7 @@ fun HsSurface(
             .padding(contentPadding),
         contentAlignment = contentAlignment,
     ) {
-        CompositionLocalProvider(LocalContentColor provides foreground, LocalSurfaceFocused provides focused) {
+        CompositionLocalProvider(LocalContentColor provides contentColor, LocalSurfaceFocused provides focused) {
             content()
         }
     }

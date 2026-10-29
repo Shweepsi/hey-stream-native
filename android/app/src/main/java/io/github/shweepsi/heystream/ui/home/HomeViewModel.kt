@@ -35,7 +35,7 @@ fun subscriptionOf(info: AccountInfo?, nowSecs: Long): Subscription? {
 }
 
 /** Expiré, ou expire dans moins de [ALERT_DAYS] jours : affiché en rouge. */
-fun Subscription.needsAttention(nowSecs: Long = System.currentTimeMillis() / 1000): Boolean = when (this) {
+fun Subscription.needsAttention(nowSecs: Long): Boolean = when (this) {
     Subscription.Unlimited -> false
     is Subscription.Expired -> true
     is Subscription.ValidUntil -> epochSecs - nowSecs < ALERT_DAYS * 86_400

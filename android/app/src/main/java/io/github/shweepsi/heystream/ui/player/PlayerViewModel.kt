@@ -71,6 +71,7 @@ data class PlayerUiState(
 private class Media(
     val kind: PlaybackKind,
     val id: Long,
+    /** Nom tel que le fournisseur l'envoie (enregistré pour la reprise) ; affiché via `Formats.displayName`. */
     val title: String,
     val episode: EpisodeLabel?,
     val image: String?,
@@ -410,7 +411,7 @@ class PlayerViewModel(
                 if (closed) return@launch
                 media = resolved.media
                 _state.update {
-                    it.copy(title = resolved.media.title, episode = resolved.media.episode, resolving = false, error = null)
+                    it.copy(title = Formats.displayName(resolved.media.title), episode = resolved.media.episode, resolving = false, error = null)
                 }
                 if (foreground) open(resolved) else deferred = resolved
             } catch (cancel: CancellationException) {
@@ -461,7 +462,7 @@ class PlayerViewModel(
         return Media(
             kind = PlaybackKind.MOVIE,
             id = id,
-            title = Formats.displayName(item?.name?.takeIf { it.isNotBlank() } ?: info?.name.orEmpty()),
+            title = item?.name?.takeIf { it.isNotBlank() } ?: info?.name.orEmpty(),
             episode = null,
             image = item?.image ?: info?.image,
             extension = item?.extension?.takeIf { it.isNotBlank() } ?: info?.extension,
@@ -470,7 +471,7 @@ class PlayerViewModel(
     }
 
     private fun episodeMedia(core: HeyStreamCore, episodeId: Long, seriesId: Long): Media {
-        val seriesName = core.visibleItem(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }?.let(Formats::displayName)
+        val seriesName = core.visibleItem(Section.SERIES, seriesId)?.name?.takeIf { it.isNotBlank() }
         val info: SeriesInfo = try {
             SeriesInfoMemory.load(core, seriesId)
         } catch (failure: HeyStreamException) {
@@ -481,7 +482,7 @@ class PlayerViewModel(
             return Media(
                 kind = PlaybackKind.EPISODE,
                 id = episodeId,
-                title = seriesName ?: Formats.displayName(resume.title),
+                title = seriesName ?: resume.title,
                 episode = null,
                 image = resume.image,
                 extension = resume.extension,
@@ -496,7 +497,7 @@ class PlayerViewModel(
         return Media(
             kind = PlaybackKind.EPISODE,
             id = episodeId,
-            title = seriesName ?: Formats.displayName(info.name.orEmpty()),
+            title = seriesName ?: info.name.orEmpty(),
             episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episode.title?.takeIf { it.isNotBlank() }),
             image = info.cover ?: episode.image,
             extension = episode.extension,

@@ -42,11 +42,14 @@ fun liveLayout(
     height: Dp,
     categories: Dp,
     channels: Dp,
+    /** TV : marges sûres et espace entre panneaux (`HsDimens`). */
+    margin: Dp = 0.dp,
+    marginVertical: Dp = 0.dp,
+    gap: Dp = 0.dp,
 ): LiveLayout {
     if (isTv) {
-        val horizontal = 48.dp
-        val vertical = 27.dp
-        val gap = 16.dp
+        val horizontal = margin
+        val vertical = marginVertical
         val x = horizontal + categories + gap + channels + gap
         val (videoWidth, videoHeight) = video((width - x - horizontal).coerceAtLeast(0.dp), height - vertical)
         return LiveLayout(
