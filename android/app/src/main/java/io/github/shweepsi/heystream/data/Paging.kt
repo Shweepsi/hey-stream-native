@@ -65,8 +65,10 @@ class OffsetPagingSource<T : Any>(
         val size = params.loadSize
         val offset = (params.key ?: 0).coerceAtLeast(0) / size * size
         val items = load(offset, size)
-        val known = count ?: total().also { count = it }
         val end = offset + items.size
+        // Une page courte termine la liste ; le total lu à part (liste qui
+        // change entre deux lectures) ne laisse ni trou ni entrée perdue.
+        val known = (if (items.size < size) end else maxOf(count ?: total(), end)).also { count = it }
         LoadResult.Page(
             data = items,
             prevKey = if (offset == 0) null else offset - size,
