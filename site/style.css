@@ -62,6 +62,8 @@ nav.lang a { color: var(--text-secondary); font-size: 15px; }
 .hero h1 { margin: 20px 0 8px; font-size: 44px; line-height: 1.15; letter-spacing: -0.02em; }
 .hero p { margin: 0; max-width: 620px; color: var(--text-secondary); font-size: 19px; }
 
+.disclaimer { max-width: 620px; margin: 20px 0 0; font-size: 15px; }
+
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .button {
   display: inline-block;

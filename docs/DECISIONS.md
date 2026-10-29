@@ -112,3 +112,21 @@ Constats :
 - **Chaque PR qui change l'app monte la version** et ajoute son entrée en
   tête de `CHANGELOG.md`. Une PR sans effet sur l'app (CI, docs) ne la monte pas.
 - Le nom de l'APK de la CI porte la version (`hey-stream-0.2.0-<commit>`).
+
+## Image publique et listes M3U (réflexion, 2026-10-29)
+
+Constat : les lecteurs reconnus (TiviMate, OTT Navigator) se présentent comme
+de simples **lecteurs** (« ne fournit aucun contenu, n'est lié à aucun
+fournisseur »), l'utilisateur apportant sa source. IPTV Smarters a été retiré
+de Google Play en 2019 sur plainte d'ayants droit, puis réintégré en faisant
+valoir qu'il n'est qu'un lecteur. Le nom « Xtream Codes » reste associé à
+l'opération antipiratage européenne de 2019. Le site présente donc Hey Stream
+comme un lecteur, avec l'avertissement près du téléchargement, et ne cite
+Xtream Codes qu'une fois, comme compatibilité technique.
+
+Limite : un lecteur qui ne lit que l'API Xtream sert surtout à des
+abonnements de provenance douteuse ; les sources légales (box des
+opérateurs, chaînes gratuites) passent plutôt par des **listes M3U**
+(hors périmètre v1, `SPEC_V1.md`). Ajouter M3U (avec guide XMLTV) serait le
+signal de légitimité le plus fort, notamment pour l'examen Google Play.
+**Non décidé** : à trancher avant la publication 1.0.
