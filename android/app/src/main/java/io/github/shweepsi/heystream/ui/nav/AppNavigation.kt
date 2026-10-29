@@ -4,7 +4,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -35,6 +39,16 @@ import io.github.shweepsi.heystream.ui.vod.VodScreen
 /** Changement d'écran : fondu court (docs/DESIGN.md). */
 private const val FADE_MS = 180
 
+/**
+ * L'app s'affiche bord à bord : les écrans qui ne gèrent pas eux-mêmes les
+ * barres système (le Direct, les fiches et le lecteur le font) restent dans
+ * la zone sûre. Sans effet sur TV.
+ */
+@Composable
+private fun SafeArea(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) { content() }
+}
+
 @Composable
 fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val session = appGraph().session
@@ -58,20 +72,20 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
         popExitTransition = { fadeOut(tween(FADE_MS)) },
     ) {
         composable(Routes.LOGIN) {
-            LoginScreen(
+            SafeArea { LoginScreen(
                 onSignedIn = {
                     navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } }
                 },
-            )
+            ) }
         }
         composable(Routes.HOME) {
-            HomeScreen(
+            SafeArea { HomeScreen(
                 onOpenLive = { navController.navigate(Routes.live()) },
                 onOpenMovies = { navController.navigate(Routes.vod(Section.MOVIES)) },
                 onOpenSeries = { navController.navigate(Routes.vod(Section.SERIES)) },
                 onOpenSearch = { navController.navigate(Routes.SEARCH) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-            )
+            ) }
         }
         composable(
             Routes.LIVE,
@@ -87,13 +101,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument("section") { type = NavType.StringType }),
         ) { entry ->
             val section = Section.valueOf(entry.arguments?.getString("section") ?: Section.MOVIES.name)
-            VodScreen(
+            SafeArea { VodScreen(
                 section = section,
                 onOpenItem = { id ->
                     navController.navigate(if (section == Section.SERIES) Routes.series(id) else Routes.movie(id))
                 },
                 onBack = { navController.popBackStack() },
-            )
+            ) }
         }
         composable(
             Routes.MOVIE,
@@ -138,20 +152,20 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         }
         composable(Routes.SEARCH) {
-            SearchScreen(
+            SafeArea { SearchScreen(
                 onOpenChannel = { id -> navController.navigate(Routes.live(id)) },
                 onOpenMovie = { id -> navController.navigate(Routes.movie(id)) },
                 onOpenSeries = { id -> navController.navigate(Routes.series(id)) },
                 onBack = { navController.popBackStack() },
-            )
+            ) }
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(
+            SafeArea { SettingsScreen(
                 onSignedOut = {
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
                 onBack = { navController.popBackStack() },
-            )
+            ) }
         }
     }
 }

@@ -104,12 +104,14 @@ abstract class UniffiBindingsTask : DefaultTask() {
             commandLine("cargo", "build", "-q", "-p", "heystream-ffi")
         }
         val lib = if (System.getProperty("os.name").startsWith("Mac")) "libheystream.dylib" else "libheystream.so"
+        // cargo écrit dans CARGO_TARGET_DIR s'il est défini.
+        val target = System.getenv("CARGO_TARGET_DIR")?.let(::File) ?: root.resolve("target")
         exec.exec {
             workingDir = root
             commandLine(
                 "cargo", "run", "-q", "-p", "heystream-ffi", "--features", "bindgen",
                 "--bin", "uniffi-bindgen", "--", "generate",
-                "--library", root.resolve("target/debug/$lib").absolutePath,
+                "--library", target.resolve("debug/$lib").absolutePath,
                 "--language", "kotlin", "--out-dir", out.absolutePath, "--no-format",
             )
         }

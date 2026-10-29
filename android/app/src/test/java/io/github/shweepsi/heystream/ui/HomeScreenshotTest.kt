@@ -23,6 +23,10 @@ class HomeScreenshotTest {
 
     @Test fun homeTv() = home(Device.Tv, Subscription.ValidUntil(1_805_000_000))
 
+    @Test fun homeTvFrench() = compose.capture("home", Device.Tv, locale = "fr") {
+        HomeContent(Subscription.ValidUntil(1_805_000_000), {}, {}, {}, {}, {})
+    }
+
     @Test fun homeTablet() = home(Device.Tablet, Subscription.Expired(1_760_000_000))
 
     @Test fun homePhone() = home(Device.Phone, Subscription.Unlimited)

@@ -36,19 +36,25 @@ enum class Device(val qualifiers: String, val isTv: Boolean, val dark: Boolean) 
 }
 
 /** Télécommande : Robolectric reste en mode tactile, où rien ne prend le focus. */
-private val KeyboardInput = object : InputModeManager {
+val KeyboardInput = object : InputModeManager {
     override val inputMode = InputMode.Keyboard
 
     override fun requestInputMode(inputMode: InputMode) = inputMode == InputMode.Keyboard
 }
 
 /**
- * Compose [content] dans le thème de [device] et enregistre `name_device.png`.
- * Sur TV, l'écran est piloté à la télécommande : le focus demandé par
- * l'écran (`FocusRequester`) est visible.
+ * Compose [content] dans le thème de [device] et enregistre `name_device.png`
+ * (`name_device_fr.png` en français si [locale] vaut `"fr"`). Sur TV, l'écran
+ * est piloté à la télécommande : le focus demandé par l'écran
+ * (`FocusRequester`) est visible.
  */
-fun ComposeContentTestRule.capture(name: String, device: Device, content: @Composable () -> Unit) {
-    RuntimeEnvironment.setQualifiers(device.qualifiers)
+fun ComposeContentTestRule.capture(
+    name: String,
+    device: Device,
+    locale: String? = null,
+    content: @Composable () -> Unit,
+) {
+    RuntimeEnvironment.setQualifiers(listOfNotNull(locale, device.qualifiers).joinToString("-"))
     setContent {
         val screen = @Composable {
             HeyStreamTheme(isTv = device.isTv, systemDark = device.dark) {
@@ -62,5 +68,6 @@ fun ComposeContentTestRule.capture(name: String, device: Device, content: @Compo
         }
     }
     waitForIdle()
-    onRoot().captureRoboImage("build/outputs/roborazzi/${name}_${device.name.lowercase()}.png")
+    val suffix = listOfNotNull(device.name.lowercase(), locale).joinToString("_")
+    onRoot().captureRoboImage("build/outputs/roborazzi/${name}_$suffix.png")
 }
