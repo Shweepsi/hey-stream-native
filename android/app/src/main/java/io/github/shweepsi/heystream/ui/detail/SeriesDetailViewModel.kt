@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.shweepsi.heystream.core.CatalogItem
 import io.github.shweepsi.heystream.core.HeyStreamCore
+import io.github.shweepsi.heystream.core.HeyStreamException
 import io.github.shweepsi.heystream.core.PlaybackKind
 import io.github.shweepsi.heystream.core.Resume
 import io.github.shweepsi.heystream.core.Section
@@ -15,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -46,6 +48,8 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
         val favorite: Boolean,
         val rows: List<EpisodeRow>,
         val resume: Resume?,
+        /** Série cachée par le contrôle parental (même règle que [visibleItem]). */
+        val lockedOut: Boolean = false,
     )
 
     /** Versions du cache déjà lues : un changement relit favori, vus et reprise. */
@@ -54,6 +58,11 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
     init {
         reloadUserData()
         fetchInfo(fresh = false)
+        viewModelScope.launch {
+            // Reverrouillage (l'app quittée), même sous le lecteur : relue tout
+            // de suite, la fiche d'une série désormais cachée ne se montre plus au retour.
+            session.relocks.drop(1).collect { reloadUserData() }
+        }
     }
 
     /** Appelé par l'écran visible quand le cache change (pas pendant la lecture). */
@@ -76,6 +85,11 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
                 throw cancel
             } catch (_: Throwable) {
                 UserData(item, favorite = _state.value.favorite, rows = rows, resume = null)
+            }
+            if (data.lockedOut) {
+                lockOut()
+                publish()
+                return@launch
             }
             item = data.item
             itemLoaded = true
@@ -159,6 +173,9 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
 
     private fun readUserData(core: HeyStreamCore, known: SeriesInfo?): UserData {
         val cachedItem = core.item(Section.SERIES, id)
+        if (lockedOut(cachedItem, core.isParentalUnlocked())) {
+            return UserData(null, favorite = false, rows = emptyList(), resume = null, lockedOut = true)
+        }
         val favorite = core.isFavorite(Section.SERIES, id)
         val resume = core.continueWatching(PlaybackKind.EPISODE, CONTINUE_LIMIT)
             .firstOrNull { it.resume.seriesId == id }?.resume
@@ -172,6 +189,20 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
             episodeRows(known, watched, positions, resume)
         }
         return UserData(cachedItem, favorite, rows, resume)
+    }
+
+    /**
+     * Série verrouillée : fiche, saisons et épisodes oubliés, une demande en
+     * cours ne les ramènera pas, et l'écran montre le verrouillage.
+     */
+    private fun lockOut() {
+        infoJob?.cancel()
+        info = null
+        infoFailure = HeyStreamException.ParentalLock()
+        item = null
+        itemLoaded = true
+        rows = emptyList()
+        resumeEpisodeId = null
     }
 
     private fun publish() {

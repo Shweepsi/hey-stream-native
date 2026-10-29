@@ -65,6 +65,19 @@ class PlayerController(private val context: Context) {
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
 
+    /**
+     * Reprise retenue ([hold]) : numéro de la retenue en cours, 0 sans
+     * retenue. L'écran du flux vérifie d'abord qu'il peut encore le montrer
+     * (contrôle parental reverrouillé entre-temps), puis appelle
+     * [releaseHold], ou [stop] puis [releaseHold] s'il est désormais caché.
+     * Chaque retenue a son numéro : l'app quittée de nouveau avant la fin de
+     * la vérification la relance, après le dernier reverrouillage.
+     */
+    private val _held = MutableStateFlow(0L)
+    val held: StateFlow<Long> = _held.asStateFlow()
+    private var holds = 0L
+    private val isHeld get() = _held.value != 0L
+
     /** Le lecteur, créé au premier usage. */
     val player: ExoPlayer
         get() = exoPlayer ?: create().also { exoPlayer = it }
@@ -75,7 +88,10 @@ class PlayerController(private val context: Context) {
     /** Film ou épisode, à partir de [startMs]. */
     fun playVod(url: String, startMs: Long) = start(MediaItem.fromUri(url), live = false, startMs = startMs)
 
-    /** Arrête et ferme le flux. */
+    /**
+     * Arrête et ferme le flux. Une retenue reste : un écran ouvert ensuite
+     * (même titre relancé avant la fin du reverrouillage) vérifie d'abord.
+     */
     fun stop() {
         cancelRetry()
         current = null
@@ -92,18 +108,42 @@ class PlayerController(private val context: Context) {
         inBackground = true
         val player = exoPlayer ?: return
         cancelRetry()
-        resumeOnForeground = current != null && player.playWhenReady
-        if (!live && current != null) resumeMs = player.currentPosition
+        // Flux pas encore rouvert (retenu) : sa reprise et sa position restent.
+        if (!resumeOnForeground) {
+            resumeOnForeground = current != null && player.playWhenReady
+            if (!live && current != null) resumeMs = player.currentPosition
+        }
         player.stop()
     }
 
     /**
      * Retour au premier plan : le flux reprend s'il jouait ; un film ou un
      * épisode en pause est rouvert en pause, à sa position (sinon « Lecture »
-     * ne ferait plus rien sur un lecteur arrêté).
+     * ne ferait plus rien sur un lecteur arrêté). Retenu ([hold]), il attend
+     * [releaseHold].
      */
     fun onForeground() {
         inBackground = false
+        if (!isHeld) resume()
+    }
+
+    /**
+     * L'app quitte l'écran et le contrôle parental se reverrouille : ni ce
+     * flux ni un flux demandé d'ici là ne s'ouvre avant [releaseHold], même
+     * si l'app revient avant la fin du reverrouillage.
+     */
+    fun hold() {
+        _held.value = ++holds
+    }
+
+    /** Le contenu reste visible : la reprise a lieu (aussitôt si l'app est déjà revenue). */
+    fun releaseHold() {
+        if (!isHeld) return
+        _held.value = 0
+        if (!inBackground) resume()
+    }
+
+    private fun resume() {
         val item = current ?: return
         when {
             resumeOnForeground -> {
@@ -115,9 +155,10 @@ class PlayerController(private val context: Context) {
         }
     }
 
-    /** Nouvel essai après un échec définitif (bouton « Réessayer »). */
+    /** Nouvel essai après un échec définitif (bouton « Réessayer »), pas pendant une reprise retenue. */
     fun retry() {
         val item = current ?: return
+        if (isHeld) return
         attempt = 0
         if (!live) resumeMs = exoPlayer?.currentPosition ?: resumeMs
         open(item, if (live) 0 else resumeMs)
@@ -136,9 +177,10 @@ class PlayerController(private val context: Context) {
         current = item
         resumeMs = startMs.coerceAtLeast(0)
         _status.value = PlaybackStatus(active = true, live = live, buffering = true)
-        if (inBackground) {
+        if (inBackground || isHeld) {
             // Chaîne ou titre choisi juste avant la mise en arrière-plan : le
-            // flux s'ouvrira au retour, pas en cachette.
+            // flux s'ouvrira au retour, pas en cachette ; retenu, après la
+            // vérification de son écran.
             exoPlayer?.stop()
             resumeOnForeground = true
             return
@@ -232,7 +274,10 @@ class PlayerController(private val context: Context) {
         if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
         val retry = Runnable {
             pendingRetry = null
-            if (current === item) open(item, if (live) 0 else resumeMs)
+            // Un film en pause le reste (état lu maintenant : « Lecture » a pu
+            // être appuyé entre-temps) ; le direct joue toujours.
+            val play = live || (exoPlayer?.playWhenReady ?: true)
+            if (current === item) open(item, if (live) 0 else resumeMs, playWhenReady = play)
         }
         pendingRetry = retry
         handler.postDelayed(retry, (1000L shl (attempt - 1)).coerceAtMost(8_000))

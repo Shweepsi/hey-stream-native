@@ -20,11 +20,11 @@
     <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement (marquage du fournisseur, ou nom contenant « XXX », « Adult », « +18 »…) et verrouillées par défaut. Verrouillées, elles restent listées mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
     <string name="settings_parental_no_pin">Aucun code parental pour l’instant</string>
     <string name="settings_parental_locked">Catégories adultes verrouillées</string>
-    <string name="settings_parental_unlocked">Catégories adultes déverrouillées jusqu’à ce que vous quittiez l’app</string>
+    <string name="settings_parental_unlocked">Catégories adultes déverrouillées tant que l’app reste à l’écran</string>
     <string name="settings_parental_create">Créer un code</string>
     <string name="settings_parental_change">Changer le code</string>
     <string name="settings_parental_lock_now">Verrouiller maintenant</string>
-    <string name="settings_parental_note">Le déverrouillage par le code vaut jusqu’à ce que vous quittiez l’app. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
+    <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
 
     <string name="settings_language_intro">Langue des textes de l’app.</string>
     <string name="settings_language_system">Langue du système</string>

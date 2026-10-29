@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -46,6 +47,11 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
     init {
         reloadUserData()
         fetchInfo()
+        viewModelScope.launch {
+            // Reverrouillage (l'app quittée), même sous le lecteur : relue tout
+            // de suite, la fiche d'un titre désormais caché ne se montre plus au retour.
+            session.relocks.drop(1).collect { reloadUserData() }
+        }
     }
 
     /** Appelé par l'écran visible quand le cache change (pas pendant la lecture). */
@@ -61,10 +67,13 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
     fun reloadUserData() {
         userDataJob?.cancel()
         userDataJob = viewModelScope.launch {
+            var hidden = false
             cached = try {
                 session.withCore { core ->
+                    val item = core.item(Section.MOVIES, id)
+                    hidden = lockedOut(item, core.isParentalUnlocked())
                     CachedMovie(
-                        item = core.item(Section.MOVIES, id),
+                        item = item,
                         favorite = core.isFavorite(Section.MOVIES, id),
                         watched = core.isWatched(PlaybackKind.MOVIE, id),
                         positionMs = core.progress(PlaybackKind.MOVIE, id),
@@ -76,6 +85,7 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
                 // Cache illisible : la fiche du fournisseur suffit.
                 CachedMovie(null, favorite = false, watched = false, positionMs = null)
             }
+            if (hidden) lockOut()
             publish()
         }
     }
@@ -124,6 +134,17 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
             }
             publish()
         }
+    }
+
+    /**
+     * Contenu verrouillé (même règle que [visibleItem]) : la fiche du
+     * fournisseur est oubliée, une demande en cours ne la ramènera pas, et
+     * l'écran montre le verrouillage.
+     */
+    private fun lockOut() {
+        infoJob?.cancel()
+        info = null
+        infoFailure = HeyStreamException.ParentalLock()
     }
 
     private fun publish() {

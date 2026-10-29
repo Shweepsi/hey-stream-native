@@ -8,6 +8,7 @@ import io.github.shweepsi.heystream.core.SectionRefresh
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -172,17 +173,41 @@ class CoreSession(
     /** Identifiants enregistrés, pour préremplir « Modifier l'adresse du serveur ». Jamais journalisés. */
     suspend fun savedCredentials(): Credentials? = withContext(Dispatchers.IO) { credentials.load() }
 
+    /** Dernier reverrouillage lancé (fil principal) ; chacun attend le précédent. */
+    private var relock: Job? = null
+
+    /**
+     * Nombre de reverrouillages effectifs (le cœur était déverrouillé) : un
+     * écran qui montre un contenu le revérifie, même caché sous un autre.
+     */
+    private val _relocks = MutableStateFlow(0L)
+    val relocks: StateFlow<Long> = _relocks.asStateFlow()
+
     /**
      * Quitter l'app reverrouille les catégories adultes (spec : le
      * déverrouillage vaut pour la session).
      */
     fun lockParental() {
-        scope.launch {
+        val previous = relock
+        relock = scope.launch {
+            // Les uns après les autres : attendre le dernier suffit (awaitRelock).
+            previous?.join()
             val wasUnlocked = runCatching {
                 withCore { core -> core.isParentalUnlocked().also { if (it) core.lockParental() } }
             }.getOrDefault(false)
-            if (wasUnlocked) notifyUserDataChanged()
+            if (wasUnlocked) {
+                _relocks.update { it + 1 }
+                notifyUserDataChanged()
+            }
         }
+    }
+
+    /**
+     * Attend la fin des reverrouillages lancés ([lockParental]) : ce qui est
+     * lu ensuite dans le cœur tient compte du verrou.
+     */
+    suspend fun awaitRelock() {
+        relock?.join()
     }
 
     /** À appeler après un changement de favoris, vus, reprise, masquage ou code PIN. */

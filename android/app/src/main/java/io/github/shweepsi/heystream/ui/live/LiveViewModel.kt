@@ -8,6 +8,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.CatalogItem
+import io.github.shweepsi.heystream.core.HeyStreamException
 import io.github.shweepsi.heystream.core.LiveFormat
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.CatalogPaging
@@ -17,6 +18,7 @@ import io.github.shweepsi.heystream.data.RefreshState
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.components.PinPurpose
+import io.github.shweepsi.heystream.ui.detail.visibleItem
 import io.github.shweepsi.heystream.ui.toUiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -83,6 +85,12 @@ class LiveViewModel(
     private var overlayJob: Job? = null
     private var messageJob: Job? = null
 
+    /** Reverrouillages du contrôle parental déjà pris en compte ([CoreSession.relocks]). */
+    private var seenRelocks = session.relocks.value
+
+    /** Vérification du contrôle parental avant la reprise ([checkHeld]). */
+    private var holdJob: Job? = null
+
     init {
         viewModelScope.launch {
             val initial = initialChannelId?.let { id -> attempt { session.withCore { it.item(Section.LIVE, id) } }.getOrNull() }
@@ -114,6 +122,9 @@ class LiveViewModel(
         }
         viewModelScope.launch {
             player.status.collect { updatePlayback() }
+        }
+        viewModelScope.launch {
+            player.held.collect { hold -> if (hold != 0L) checkHeld() }
         }
         viewModelScope.launch {
             combine(visibleIds.debounce(VISIBLE_DEBOUNCE_MS), epgChanges, minuteTicks()) { ids, _, _ -> ids }
@@ -298,6 +309,41 @@ class LiveViewModel(
         player.stop()
     }
 
+    /**
+     * L'app a quitté l'écran ([PlayerController.hold]) : une fois le
+     * reverrouillage posé, une chaîne d'aperçu désormais cachée par le
+     * contrôle parental disparaît sans être rouverte ([dropPreview]) ; sinon
+     * le flux reprend comme avant.
+     */
+    private fun checkHeld() {
+        holdJob?.cancel()
+        holdJob = viewModelScope.launch {
+            session.awaitRelock()
+            val relocks = session.relocks.value
+            val id = _state.value.preview?.id
+            val hidden = relocks != seenRelocks && id != null && hiddenByLock(id)
+            seenRelocks = relocks
+            if (hidden && _state.value.preview?.id == id) dropPreview()
+            // Vérifié : la chaîne reprend, ou plus rien n'est à reprendre (flux fermé).
+            player.releaseHold()
+        }
+    }
+
+    /** Même règle que les fiches ([visibleItem]) : la chaîne n'est plus visible, verrou fermé. */
+    private suspend fun hiddenByLock(id: Long): Boolean =
+        attempt { session.withCore { it.visibleItem(Section.LIVE, id) } }.exceptionOrNull() is HeyStreamException.ParentalLock
+
+    /** Chaîne verrouillée : ni nom, ni logo, ni programme, ni vidéo, ni plein écran. */
+    private fun dropPreview() {
+        startJob?.cancel()
+        nowNextJob?.cancel()
+        overlayJob?.cancel()
+        previewError = null
+        player.stop()
+        _state.update { it.copy(preview = null, fullscreen = false, overlayVisible = false) }
+        updatePlayback()
+    }
+
     /** L'écran revient (recréation de l'activité) : l'aperçu reprend s'il a été arrêté. */
     fun resumeIfStopped() {
         val preview = _state.value.preview ?: return
@@ -318,9 +364,22 @@ class LiveViewModel(
             // L'URL d'abord, l'écriture des récents ensuite : pendant un
             // rafraîchissement du catalogue, une écriture attendrait sa fin et
             // retarderait le zapping.
-            val url = attempt { session.withCore { core -> core.liveUrl(id, LiveFormat.TS) } }
-            // Une autre chaîne a été choisie entre-temps : celle-ci n'est pas ouverte.
+            val url = attempt {
+                session.withCore { core ->
+                    // Liste pas encore relue après un reverrouillage : une chaîne
+                    // désormais cachée ne s'ouvre pas (règle du cœur).
+                    core.visibleItem(Section.LIVE, id)
+                    core.liveUrl(id, LiveFormat.TS)
+                }
+            }
+            // Vérification du contrôle parental en cours (retour dans l'app) : elle passe d'abord.
+            holdJob?.join()
+            // Une autre chaîne a été choisie entre-temps (ou celle-ci est verrouillée) : pas ouverte.
             if (_state.value.preview?.id != id) return@launch
+            if (url.exceptionOrNull() is HeyStreamException.ParentalLock) {
+                dropPreview()
+                return@launch
+            }
             url.onSuccess { player.playLive(it) }
                 .onFailure { error ->
                     previewError = error.toUiText()
