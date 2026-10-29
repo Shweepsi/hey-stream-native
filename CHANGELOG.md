@@ -18,6 +18,7 @@ Retours du Xiaomi Pad 7.
 - Accueil sur tablette : tuiles plus basses, centrées.
 - Lecteur : commandes sur un dégradé posé sur l'image.
 - Consignes d'appui long uniformisées.
+- Direct et recherche : numéro de chaîne retiré (le logo et le nom suffisent).
 - Réglages › Catalogue : date de la dernière mise à jour (« aujourd’hui à
   14:02 », « hier à … », « le 27 octobre 2026 à … »).
 
