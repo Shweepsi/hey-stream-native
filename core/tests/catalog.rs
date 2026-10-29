@@ -141,6 +141,29 @@ fn search_ignores_case_and_accents() {
 }
 
 #[test]
+fn search_puts_the_whole_query_first() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 1, "name": "FR - Le Retour du roi (version longue)"},
+        {"stream_id": 2, "name": "FR - Retour vers le futur"},
+        {"stream_id": 3, "name": "FR - Au-delà : retour vers"},
+        {"stream_id": 4, "name": "FR - Détour vers l'ouest"},
+        {"stream_id": 5, "name": "FR - Retour vers le futur II"}
+    ]))
+    .unwrap();
+    catalog.store_movies(&[], &movies, 1_000).unwrap();
+
+    let hits: Vec<_> = catalog
+        .search(Section::Movies, "retour  VERS", 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    // Requête en début de mot (ordre alphabétique), puis tous les mots ailleurs.
+    assert_eq!(hits, [3, 2, 5, 1]);
+}
+
+#[test]
 fn refresh_is_due_after_24_hours() {
     let mut catalog = Catalog::open_in_memory().unwrap();
     assert!(catalog.needs_refresh(Section::Series, 0).unwrap());

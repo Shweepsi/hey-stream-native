@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -66,12 +67,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.ui.appGraph
+import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.ChannelLogo
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.HsTopBar
 import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PosterCard
+import io.github.shweepsi.heystream.ui.components.SafeSides
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -147,6 +150,7 @@ fun SearchContent(
             onSubmit = { keyboard?.hide() },
             results = firstFocus,
             modifier = Modifier
+                .windowInsetsPadding(SafeSides)
                 .padding(
                     start = dimens.screenHorizontal,
                     end = dimens.screenHorizontal,
@@ -157,7 +161,8 @@ fun SearchContent(
         Box(
             Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .windowInsetsPadding(BelowTopBar),
         ) {
             when (results) {
                 SearchResults.Idle -> MessageState(

@@ -46,8 +46,10 @@ private const val FADE_MS = 180
 
 /**
  * L'app s'affiche bord à bord : les écrans qui ne gèrent pas eux-mêmes les
- * barres système (le Direct, les fiches et le lecteur le font) restent dans
- * la zone sûre. Sans effet sur TV.
+ * barres système restent dans la zone sûre. Ceux qui ont une barre du haut
+ * (Direct, Films, Séries, fiches, recherche, réglages) et le lecteur la
+ * gèrent eux-mêmes, pour que le fond de la barre aille jusqu'aux bords. Sans
+ * effet sur TV.
  */
 @Composable
 private fun SafeArea(content: @Composable () -> Unit) {
@@ -130,15 +132,13 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument("section") { type = NavType.StringType }),
         ) { entry ->
             val section = Section.valueOf(entry.arguments?.getString("section") ?: Section.MOVIES.name)
-            SafeArea {
-                VodScreen(
-                    section = section,
-                    onOpenItem = { id ->
-                        navController.go(entry, if (section == Section.SERIES) Routes.series(id) else Routes.movie(id))
-                    },
-                    onBack = { navController.popBackStack() },
-                )
-            }
+            VodScreen(
+                section = section,
+                onOpenItem = { id ->
+                    navController.go(entry, if (section == Section.SERIES) Routes.series(id) else Routes.movie(id))
+                },
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(
             Routes.MOVIE,
@@ -183,23 +183,19 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             )
         }
         composable(Routes.SEARCH) { entry ->
-            SafeArea {
-                SearchScreen(
-                    onOpenChannel = { id -> navController.go(entry, Routes.live(id)) },
-                    onOpenMovie = { id -> navController.go(entry, Routes.movie(id)) },
-                    onOpenSeries = { id -> navController.go(entry, Routes.series(id)) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
+            SearchScreen(
+                onOpenChannel = { id -> navController.go(entry, Routes.live(id)) },
+                onOpenMovie = { id -> navController.go(entry, Routes.movie(id)) },
+                onOpenSeries = { id -> navController.go(entry, Routes.series(id)) },
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.SETTINGS) { entry ->
-            SafeArea {
-                SettingsScreen(
-                    onSignedOut = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
-                    onChangeServer = { navController.go(entry, Routes.CHANGE_SERVER) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
+            SettingsScreen(
+                onSignedOut = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
+                onChangeServer = { navController.go(entry, Routes.CHANGE_SERVER) },
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

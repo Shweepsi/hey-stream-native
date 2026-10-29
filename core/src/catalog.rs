@@ -304,8 +304,15 @@ impl Catalog {
     /// Recherche par nom, insensible à la casse et aux accents. Chaque mot de
     /// la requête doit apparaître dans le nom. Les catégories masquées et
     /// verrouillées sont exclues.
+    ///
+    /// Les plus pertinents d'abord : la requête entière en début de mot
+    /// (« retour vers » trouve « Retour vers le futur » avant « Le Retour du
+    /// roi … version longue »), puis la requête entière ailleurs, puis le
+    /// reste ; dans chaque groupe, l'ordre alphabétique.
     pub fn search(&self, section: Section, query: &str, limit: usize) -> Result<Vec<CatalogItem>> {
-        let words: Vec<String> = fold(query).split_whitespace().map(like_pattern).collect();
+        let folded = fold(query);
+        let phrase = folded.split_whitespace().collect::<Vec<_>>().join(" ");
+        let words: Vec<String> = folded.split_whitespace().map(like_pattern).collect();
         if words.is_empty() {
             return Ok(Vec::new());
         }
@@ -315,13 +322,19 @@ impl Catalog {
             sql.push_str(&format!(" AND i.search_key LIKE ?{} ESCAPE '\\'", i + 2));
         }
         sql.push_str(&self.visibility("i", true));
-        sql.push_str(&format!(" ORDER BY i.sort_key, i.id LIMIT {limit}"));
+        let p = words.len() + 2;
+        sql.push_str(&format!(
+            " ORDER BY CASE WHEN instr(' ' || i.search_key, ' ' || ?{p}) > 0 THEN 0 \
+               WHEN instr(i.search_key, ?{p}) > 0 THEN 1 ELSE 2 END, \
+             i.sort_key, i.id LIMIT {limit}"
+        ));
         let mut stmt = self.conn.prepare(&sql)?;
         let key = section.key();
         let mut values: Vec<&dyn rusqlite::ToSql> = vec![&key];
         for word in &words {
             values.push(word);
         }
+        values.push(&phrase);
         let rows = stmt.query_map(values.as_slice(), |r| row_to_item(section, r))?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }

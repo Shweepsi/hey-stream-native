@@ -155,21 +155,8 @@ fun LiveContent(
             runCatching { rootAction.requestFocus() }
         }
 
-        // Au doigt : la barre d'état prend la couleur de la barre du haut.
-        if (!isTv && top > 0.dp) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(top)
-                    .background(Hs.colors.surface),
-            )
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(insets),
-        ) {
+        Column(Modifier.fillMaxSize()) {
+            // Au doigt, le fond de la barre va jusqu'aux bords (barre d'état, encoche).
             if (!isTv) {
                 HsTopBar(
                     title = stringResource(R.string.live_title),
@@ -186,7 +173,8 @@ fun LiveContent(
             Box(
                 Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(start = start, end = end, top = if (isTv) top else 0.dp, bottom = bottom),
             ) {
                 when {
                     categories is CategoriesUi.Loading -> LoadingState()

@@ -7,12 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,6 +96,10 @@ fun Clock(modifier: Modifier = Modifier, showDate: Boolean = true) {
 /**
  * Barre du haut, au doigt seulement (tablette, téléphone) : retour, titre,
  * actions. Sur TV, la touche Retour de la télécommande suffit.
+ *
+ * Son fond va jusqu'aux bords de l'écran (sous la barre d'état et à côté de
+ * l'encoche) ; son contenu reste dans la zone sûre. Le contenu en dessous
+ * s'écarte des côtés et du bas avec [BelowTopBar].
  */
 @Composable
 fun HsTopBar(
@@ -102,8 +111,9 @@ fun HsTopBar(
     Row(
         modifier
             .fillMaxWidth()
-            .height(64.dp)
             .background(Hs.colors.surface)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .height(64.dp)
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -115,6 +125,14 @@ fun HsTopBar(
         actions()
     }
 }
+
+/** Contenu sous [HsTopBar] : hors des barres système et de l'encoche, sur les côtés et en bas. */
+val BelowTopBar: WindowInsets
+    @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+
+/** Hors de l'encoche et des barres système, sur les côtés seulement. */
+val SafeSides: WindowInsets
+    @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
 
 /** Chargement : rien de plus qu'un texte discret (pas d'animation coûteuse). */
 @Composable

@@ -64,8 +64,8 @@ fun liveLayout(isTv: Boolean, width: Dp, height: Dp, categories: Dp, channels: D
         )
     }
     val compact = width < 960.dp
-    val categoriesWidth = if (compact) min(categories, width * 0.22f) else categories
-    val channelsWidth = if (compact) min(channels, width * 0.34f) else channels
+    val categoriesWidth = if (compact) min(categories, width * 0.27f) else categories
+    val channelsWidth = if (compact) min(channels, width * 0.32f) else channels
     val padding = if (compact) 12.dp else 24.dp
     val x = categoriesWidth + channelsWidth + padding
     val y = LiveTopBarHeight + padding

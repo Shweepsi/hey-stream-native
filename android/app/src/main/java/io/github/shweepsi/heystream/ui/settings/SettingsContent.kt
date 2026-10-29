@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.Section
+import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.CategoryRow
 import io.github.shweepsi.heystream.ui.components.FocusScale
@@ -168,6 +170,7 @@ fun SettingsContent(state: SettingsState, language: LanguageChoice, appVersion: 
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .windowInsetsPadding(BelowTopBar)
                 .padding(start = dimens.screenHorizontal, end = dimens.screenHorizontal, top = dimens.screenVertical),
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 30.dp else dimens.gapLarge),
         ) {
