@@ -2,13 +2,13 @@ package io.github.shweepsi.heystream
 
 import android.content.Intent
 import android.os.SystemClock
-import android.widget.EditText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
+import io.github.shweepsi.heystream.ui.login.LoginTags
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -56,9 +56,10 @@ class SmokeTest {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         )
         // Sur un téléphone en paysage, le formulaire défile : champ par champ.
-        fill("adresse du serveur", server.url("/").toString().trimEnd('/'))
-        fill("identifiant", "utilisateur")
-        fill("mot de passe", "motdepasse")
+        val address = server.url("/").toString().trimEnd('/')
+        fill(LoginTags.SERVER, address)
+        fill(LoginTags.USERNAME, "utilisateur")
+        fill(LoginTags.PASSWORD, "motdepasse", secret = true)
         hideKeyboard()
         step("bouton de connexion") {
             device.findObject(By.text(context.getString(R.string.login_submit))) ?: scrollDown()
@@ -76,12 +77,17 @@ class SmokeTest {
         assertTrue(io.github.shweepsi.heystream.core.coreVersion().isNotBlank())
     }
 
-    /** Remplit le premier champ encore vide, en faisant défiler le formulaire s'il le faut. */
-    private fun fill(name: String, value: String) {
-        val field = step("champ « $name »") {
-            device.findObjects(By.clazz(EditText::class.java)).firstOrNull { it.text.isNullOrEmpty() } ?: scrollDown()
-        }
+    /**
+     * Remplit un champ désigné par son repère, en faisant défiler le formulaire
+     * s'il le faut, puis attend de relire la valeur : l'arbre d'accessibilité
+     * de Compose se met à jour avec un léger retard. Un mot de passe, masqué,
+     * n'est pas relu.
+     */
+    private fun fill(tag: String, value: String, secret: Boolean = false) {
+        val field = step("champ $tag") { device.findObject(By.res(tag)) ?: scrollDown() }
         field.text = value
+        if (secret) return
+        step("valeur du champ $tag") { device.findObject(By.res(tag))?.takeIf { it.text == value } }
     }
 
     private fun scrollDown(): Nothing? {

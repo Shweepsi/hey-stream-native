@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -67,6 +69,8 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val modifier = Modifier
         .fillMaxSize()
         .background(Hs.colors.background)
+        // Repères visibles par UiAutomator (test de bout en bout).
+        .semantics { testTagsAsResourceId = true }
     if (state == SessionState.Starting) {
         LoadingState(modifier)
         return

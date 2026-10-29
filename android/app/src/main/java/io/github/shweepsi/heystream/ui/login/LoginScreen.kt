@@ -34,6 +34,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,6 +58,13 @@ import io.github.shweepsi.heystream.ui.theme.HsColors
  * reprises, « vus » et code sont gardés, et rien n'est effacé si la
  * vérification échoue.
  */
+/** Repères des champs, pour le test de bout en bout (UiAutomator). */
+object LoginTags {
+    const val SERVER = "login_server"
+    const val USERNAME = "login_username"
+    const val PASSWORD = "login_password"
+}
+
 @Composable
 fun LoginScreen(onSignedIn: () -> Unit, editing: Boolean = false, onBack: (() -> Unit)? = null) {
     val session = appGraph().session
@@ -117,7 +125,7 @@ fun LoginContent(
                 onValueChange = onServerChange,
                 placeholder = stringResource(R.string.login_server_hint),
                 keyboardType = KeyboardType.Uri,
-                modifier = Modifier.focusRequester(first),
+                modifier = Modifier.focusRequester(first).testTag(LoginTags.SERVER),
                 onNext = { focus.moveFocus(FocusDirection.Down) },
             )
             LoginField(
@@ -125,6 +133,7 @@ fun LoginContent(
                 value = state.username,
                 onValueChange = onUsernameChange,
                 keyboardType = KeyboardType.Text,
+                modifier = Modifier.testTag(LoginTags.USERNAME),
                 onNext = { focus.moveFocus(FocusDirection.Down) },
             )
             LoginField(
@@ -134,6 +143,7 @@ fun LoginContent(
                 keyboardType = KeyboardType.Password,
                 password = true,
                 imeAction = ImeAction.Done,
+                modifier = Modifier.testTag(LoginTags.PASSWORD),
                 onNext = onSubmit,
             )
             Text(
