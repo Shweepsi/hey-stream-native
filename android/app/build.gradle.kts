@@ -156,6 +156,11 @@ androidComponents {
 
 // Application ----------------------------------------------------------------
 
+// Clé des rapports de plantage (secret de la CI, jamais dans le dépôt). Sans
+// clé, l'app n'envoie rien.
+val glitchtipDsn: String = providers.environmentVariable("GLITCHTIP_DSN").orNull?.trim().orEmpty()
+    .also { require(it.none { c -> c == '"' || c == '\\' }) { "GLITCHTIP_DSN invalide" } }
+
 android {
     namespace = "io.github.shweepsi.heystream"
     compileSdk = 37
@@ -187,8 +192,10 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("test")
+            buildConfigField("String", "GLITCHTIP_DSN", "\"\"")
         }
         release {
+            buildConfigField("String", "GLITCHTIP_DSN", "\"$glitchtipDsn\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -246,6 +253,7 @@ dependencies {
     // Version Android de JNA (libjnidispatch.so), utilisée par les liaisons UniFFI.
     implementation(libs.jna) { artifact { type = "aar" } }
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.sentry.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

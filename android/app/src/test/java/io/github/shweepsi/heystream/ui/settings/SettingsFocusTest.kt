@@ -154,6 +154,8 @@ class SettingsFocusTest {
         press(Key.DirectionDown)
         clickable("About").assertIsFocused()
         press(Key.DirectionRight)
+        clickable("Send anonymous crash reports").assertIsFocused()
+        press(Key.DirectionDown)
         clickable("Inter (typeface)").assertIsFocused()
 
         // Retour aux catégories masquées : l'onglet ouvert reste Films.

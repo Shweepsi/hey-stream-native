@@ -8,6 +8,7 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import io.github.shweepsi.heystream.data.CoreSession
+import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.CredentialStore
 import io.github.shweepsi.heystream.data.RefreshWorker
 import io.github.shweepsi.heystream.player.PlayerController
@@ -28,6 +29,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReports.start(this)
         RefreshWorker.schedule(this)
     }
 

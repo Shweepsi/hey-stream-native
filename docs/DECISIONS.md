@@ -91,7 +91,11 @@ Constats :
 - **Comptes développeur (Google Play, Apple) : pas encore.** Distribution des
   versions de test par APK uniquement.
 - **Rapports de plantage : GlitchTip** (compatible avec le SDK Sentry, libre,
-  auto-hébergeable). Anonymes : ni identifiants ni URL de flux.
+  auto-hébergeable). Anonymes : ni identifiants ni URL de flux. Précisé le
+  2026-10-29 : offre gratuite de glitchtip.com ; activés par défaut,
+  interrupteur dans Réglages ; plantages Kotlin, paniques Rust, gels (ANR),
+  lectures abandonnées ; release seulement ; clé dans le secret
+  `GLITCHTIP_DSN` de la CI, jamais dans le dépôt.
 - **Politique de confidentialité : GitHub Pages** du dépôt.
 
 ## Versions (2026-10-29)
