@@ -5,5 +5,6 @@
 # La CI vérifie que le fichier est à jour.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+cargo fetch --locked -q
 cargo about generate --offline --fail -m ffi/Cargo.toml scripts/third_party.hbs \
   -o android/app/src/main/assets/licenses/rust.txt
