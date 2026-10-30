@@ -7,6 +7,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import io.github.shweepsi.heystream.data.AppUpdater
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.CredentialStore
@@ -26,6 +27,9 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
 
     /** Le lecteur vidéo (un seul pour toute l'app : jamais deux flux). */
     val player: PlayerController by lazy { PlayerController(this) }
+
+    /** Mises à jour de l'app depuis les releases GitHub. */
+    val updater: AppUpdater by lazy { AppUpdater(this, scope) }
 
     override fun onCreate() {
         super.onCreate()

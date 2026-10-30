@@ -60,7 +60,51 @@ dans le dépôt : variables `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, voir
 | Séries | 33 | 8 637 | ~2 s |
 
 Règle : **aucun appel automatique** au panneau (CI, cloud, scripts) ; essais
-réels uniquement à la main par le propriétaire, depuis son réseau.
+réels uniquement à la main par le propriétaire, depuis son réseau. Le risque
+qui compte (propriétaire, 2026-10-30) : un **blocage de l'IP** par le
+fournisseur, plus gênant que la perte du compte. D'où peu de requêtes,
+espacées, jamais en rafale.
+
+**Enregistrement des réponses** (2026-10-30) : plutôt qu'une capture qui
+envoie ses propres requêtes, l'app enregistre les réponses pendant l'usage
+normal du propriétaire (Xiaomi 14, Xiaomi Pad 7), sans **aucune** requête en
+plus (cœur `recording.rs`). Dans l'APK normal, derrière des outils de test
+cachés (sept appuis sur la version dans Réglages › À propos), désactivés par
+défaut : un APK debug sur une longue période n'aurait ni rapports de
+plantage, ni les performances de l'APK publié. Chaque réponse est nettoyée
+avant d'être écrite (identifiants, adresse du serveur, hôtes et jetons des
+URL, adresses IP), les listes sont échantillonnées (300 entrées) et le nombre
+de fichiers est plafonné par type. Le propriétaire partage le fichier
+(Drive) ; il devient une réponse simulée des tests dans
+`core/tests/fixtures/`, relue avant d'être versionnée.
+
+## Mises à jour de l'app (2026-10-30)
+
+Décision du propriétaire, pour réduire son implication : l'app se met à jour
+elle-même depuis les **releases GitHub** du dépôt (workflow `release`).
+
+- Le cœur (`update.rs`) lit `/repos/…/releases` (pas `/releases/latest`, qui
+  ignore les pre-releases), garde la plus haute version qui a un APK,
+  télécharge et vérifie l'APK (taille, `digest` SHA-256 fourni par GitHub).
+- L'app le confie à l'installateur d'Android (`PackageInstaller`). La
+  première fois, Android demande d'autoriser l'app à installer des
+  applications (l'installation reprend d'elle-même au retour) et une
+  confirmation. Ensuite, l'app ayant installé la version en place, Android
+  12+ ne demande plus de confirmation (`USER_ACTION_NOT_REQUIRED`, décision
+  du propriétaire) : « Installer » suffit, l'app se ferme et il faut la
+  rouvrir. Si le système l'exige quand même (surcouche du fabricant), sa
+  confirmation s'affiche. Même clé de signature : l'app est remplacée sans
+  rien effacer.
+- Vérification à chaque retour au premier plan, une fois par jour au plus
+  (APK release seulement : ni les tests ni l'émulateur n'interrogent
+  GitHub), plus un bouton dans Réglages › À propos. « Plus tard » ferme la
+  boîte : la version est reproposée le lendemain (décision du
+  propriétaire).
+- Limite connue : la clé de signature de test est publique ; la mise à jour
+  ne vaut que ce que vaut le dépôt. À revoir avec la clé privée de la 1.0.
+- Un magasin d'applications (Play Store) interdit qu'une app se mette à jour
+  elle-même : à retirer ou désactiver dans la version publiée sur un
+  magasin (`TODO.md`).
 
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux
@@ -112,9 +156,12 @@ Constats :
 - **Chaque PR qui change l'app monte la version** et ajoute son entrée en
   tête de `CHANGELOG.md`. Une PR sans effet sur l'app (CI, docs) ne la monte pas.
 - Le nom de l'APK de la CI porte la version (`hey-stream-0.2.0-<commit>`).
-- **Publication** (2026-10-30) : workflow `release`, déclenché **à la main
-  uniquement**, par Claude, après la fusion d'une PR qui monte la version.
-  Il crée l'étiquette `vX.Y.Z` et la release GitHub avec l'APK.
+- **Publication** (2026-10-30) : workflow `release`, déclenché **de
+  lui-même** par la fusion dans main d'une PR qui monte la version
+  (décision du propriétaire : les appareils se mettent à jour sans qu'il
+  ait à le demander). Il crée l'étiquette `vX.Y.Z` et la release GitHub avec
+  l'APK. Une version déjà publiée n'est pas republiée ; lancement à la main
+  encore possible.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 

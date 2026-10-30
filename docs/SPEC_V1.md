@@ -111,6 +111,17 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - **Rapports de plantage anonymes** (sans identifiants ni URL), mentionnés
   dans la politique de confidentialité.
 
+## Mises à jour (2026-10-30)
+
+- L'app cherche une nouvelle version parmi les releases GitHub du projet à
+  l'ouverture (une fois par jour au plus) et la propose, de nouveau le
+  lendemain après « Plus tard » ; aussi à la demande dans Réglages › À
+  propos. Données gardées ; confirmation d'Android la première fois
+  seulement (Android 12+).
+- Outils de test cachés (sept appuis sur la version) : enregistrement des
+  réponses du fournisseur pendant l'usage, pour les tests automatiques
+  (`DECISIONS.md`, « Panneau de référence »).
+
 ## Hors périmètre v1
 
 Multi-écran · plusieurs abonnements · replay · guide en grille · Chromecast /

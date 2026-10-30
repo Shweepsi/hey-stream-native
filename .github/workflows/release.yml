@@ -2,19 +2,33 @@ name: release
 
 # Publie la version de Cargo.toml : étiquette vX.Y.Z, release GitHub avec
 # l'APK (clé de test, rapports de plantage actifs) et l'entrée du CHANGELOG.
-# Lancé à la main : Actions › release › Run workflow (branche main).
+# De lui-même quand une fusion dans main monte la version (les appareils la
+# proposent alors au lancement, voir AppUpdater) ; aussi à la main : Actions ›
+# release › Run workflow (branche main). Une version déjà publiée n'est pas
+# republiée.
 on:
+  push:
+    branches: [main]
+    paths: [Cargo.toml]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Deux fusions rapprochées : une publication après l'autre.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   NDK_VERSION: "28.2.13676358"
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+      publish: ${{ steps.version.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
       - name: Version
@@ -23,8 +37,25 @@ jobs:
           v=$(sed -nE 's/^version = "([0-9.]+)"/\1/p' Cargo.toml | head -1)
           echo "name=$v" >> "$GITHUB_OUTPUT"
           if git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null; then
-            echo "La version v$v est déjà publiée : monter la version d'abord."; exit 1
+            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+              echo "La version v$v est déjà publiée : monter la version d'abord."; exit 1
+            fi
+            # Cargo.toml changé sans nouvelle version : rien à publier.
+            echo "v$v déjà publiée, rien à faire."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+
+  release:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Notes
+        run: |
+          v="${{ needs.version.outputs.name }}"
           # Entrée du CHANGELOG de cette version (jusqu'à la suivante).
           awk -v v="$v" '$0 ~ "^## "v" " {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
           printf '\n---\nHey Stream est uniquement un lecteur : il ne fournit aucun contenu. APK signé avec la clé de test publique (voir android/README.md).\n' >> notes.md
@@ -47,11 +78,11 @@ jobs:
           GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
         run: |
           ./gradlew --console=plain :app:assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk "../hey-stream-${{ steps.version.outputs.name }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "../hey-stream-${{ needs.version.outputs.name }}.apk"
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.name }}" "hey-stream-${{ steps.version.outputs.name }}.apk" \
-            --target "$GITHUB_SHA" --title "Hey Stream ${{ steps.version.outputs.name }}" \
+          gh release create "v${{ needs.version.outputs.name }}" "hey-stream-${{ needs.version.outputs.name }}.apk" \
+            --target "$GITHUB_SHA" --title "Hey Stream ${{ needs.version.outputs.name }}" \
             --notes-file notes.md --prerelease

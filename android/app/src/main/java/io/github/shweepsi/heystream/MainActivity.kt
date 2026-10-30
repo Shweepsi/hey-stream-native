@@ -10,6 +10,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import io.github.shweepsi.heystream.ui.LocalAppGraph
 import io.github.shweepsi.heystream.ui.graph
 import io.github.shweepsi.heystream.ui.nav.AppNavigation
+import io.github.shweepsi.heystream.ui.update.UpdatePrompt
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 
 class MainActivity : AppCompatActivity() {
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
             CompositionLocalProvider(LocalAppGraph provides graph) {
                 HeyStreamTheme {
                     AppNavigation()
+                    UpdatePrompt(app.updater)
                 }
             }
         }
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         app.player.onForeground()
+        app.updater.onForeground()
     }
 
     /**

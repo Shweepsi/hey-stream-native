@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mises à jour de l'app (releases GitHub). -->
+    <string name="update_prompt_title">Hey Stream %1$s est disponible</string>
+    <string name="update_later">Plus tard</string>
+    <string name="update_install">Installer</string>
+    <string name="update_downloading">Téléchargement…</string>
+    <string name="update_downloading_percent">Téléchargement… %1$d&#160;%%</string>
+    <string name="update_installing">Installation… Hey Stream va se fermer : rouvrez-le ensuite.</string>
+    <string name="update_needs_permission">Autorisez Hey Stream à installer des applications dans l’écran qui s’est ouvert. La mise à jour continuera ensuite d’elle-même.</string>
+    <string name="update_failed_check">Impossible de vérifier les mises à jour. Vérifiez la connexion et réessayez.</string>
+    <string name="update_failed_download">Le téléchargement a échoué ou le fichier est abîmé. Réessayez.</string>
+    <string name="update_failed_install">Android n’a pas pu installer la mise à jour.</string>
+
+    <string name="settings_updates">Mises à jour</string>
+    <string name="settings_update_source">Les mises à jour viennent des versions publiées sur la page GitHub du projet.</string>
+    <string name="settings_update_check">Rechercher une mise à jour</string>
+    <string name="settings_update_checking">Recherche…</string>
+    <string name="settings_update_up_to_date">Hey Stream est à jour.</string>
+    <string name="settings_update_available">La version %1$s est disponible.</string>
+    <string name="settings_update_install">Installer la version %1$s</string>
+
+    <!-- Outils de test (cachés : sept appuis sur la version). -->
+    <string name="settings_dev_title">Outils de test</string>
+    <string name="settings_dev_recording">Enregistrer les réponses du fournisseur</string>
+    <string name="settings_dev_recording_detail">Pendant que vous utilisez l’app, ses réponses sont gardées sur cet appareil pour les tests automatiques, sans identifiant, mot de passe, adresse du serveur ni adresse IP. Aucune requête en plus ; rien ne quitte l’appareil avant que vous le partagiez.</string>
+    <plurals name="settings_dev_recorded">
+        <item quantity="one">%1$d réponse enregistrée (%2$s)</item>
+        <item quantity="many">%1$d réponses enregistrées (%2$s)</item>
+        <item quantity="other">%1$d réponses enregistrées (%2$s)</item>
+    </plurals>
+    <string name="settings_dev_share">Partager l’enregistrement</string>
+    <string name="settings_dev_clear">Effacer</string>
+    <string name="settings_dev_failed">L’action a échoué.</string>
+</resources>

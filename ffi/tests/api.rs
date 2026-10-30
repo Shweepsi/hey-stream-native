@@ -607,3 +607,35 @@ fn account_info_and_live_format_work_offline() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn recording_follows_the_requests() {
+    let listings = json!({"epg_listings": []});
+    let panel = counting_panel("get_short_epg", listings, 2);
+    let dir = temp_dir("recording");
+    let recording = dir.join("recording");
+    let core = open(&panel, &dir);
+    assert!(!core.is_recording());
+    core.set_recording(Some(recording.to_string_lossy().into()))
+        .unwrap();
+    assert!(core.is_recording());
+    core.now_next(7).unwrap();
+    let dir_text: String = recording.to_string_lossy().into();
+    assert_eq!(heystream::recording_summary(dir_text.clone()).responses, 1);
+    core.set_recording(None).unwrap();
+    core.now_next(8).unwrap();
+    let out = dir.join("export.json");
+    let summary =
+        heystream::export_recording(dir_text.clone(), out.to_string_lossy().into()).unwrap();
+    assert_eq!(summary.responses, 1);
+    assert!(
+        std::fs::read_to_string(&out)
+            .unwrap()
+            .contains("get_short_epg")
+    );
+    heystream::clear_recording(dir_text.clone()).unwrap();
+    assert_eq!(heystream::recording_summary(dir_text).responses, 0);
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

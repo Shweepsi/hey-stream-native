@@ -1,4 +1,6 @@
-use std::time::Duration;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -6,6 +8,7 @@ use serde_json::Value;
 use crate::error::{Error, Result};
 use crate::lenient::{parse_list, text};
 use crate::model::{AccountInfo, Category, Credentials, LiveStream, Movie, RawAuth, Series};
+use crate::recording::Recorder;
 use crate::url::{StreamKind, normalize_server_url};
 
 /// Identifiant honnête envoyé aux serveurs : certains panneaux refusent les
@@ -19,6 +22,8 @@ pub struct XtreamClient {
     username: String,
     password: String,
     http: reqwest::Client,
+    /// Enregistrement des réponses (outils de test), partagé par les clones.
+    recorder: Arc<Mutex<Option<Recorder>>>,
 }
 
 /// Sans identifiants : un `{:?}` ne doit jamais les journaliser.
@@ -35,19 +40,39 @@ impl XtreamClient {
         if username.is_empty() || password.is_empty() {
             return Err(Error::MissingCredentials);
         }
-        let builder = reqwest::Client::builder()
-            .user_agent(USER_AGENT)
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(60));
-        #[cfg(target_os = "android")]
-        let builder = builder.tls_certs_only(android_roots());
-        let http = builder.build().map_err(Error::network)?;
+        let http = http_builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .map_err(Error::network)?;
         Ok(Self {
             base: normalize_server_url(&credentials.server_url)?,
             username: username.to_owned(),
             password: password.to_owned(),
             http,
+            recorder: Arc::default(),
         })
+    }
+
+    /// Enregistre désormais chaque réponse du panneau, nettoyée, dans `dir`
+    /// (voir [`crate::recording`]). Ne fait aucune requête.
+    pub fn start_recording(&self, dir: impl Into<PathBuf>) -> Result<()> {
+        let recorder = Recorder::new(dir.into(), self)?;
+        *self.recorder_lock() = Some(recorder);
+        Ok(())
+    }
+
+    pub fn stop_recording(&self) {
+        *self.recorder_lock() = None;
+    }
+
+    pub fn is_recording(&self) -> bool {
+        self.recorder_lock().is_some()
+    }
+
+    fn recorder_lock(&self) -> std::sync::MutexGuard<'_, Option<Recorder>> {
+        self.recorder
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// Vérifie les identifiants et renvoie l'état du compte.
@@ -104,6 +129,10 @@ impl XtreamClient {
         &self.username
     }
 
+    pub(crate) fn password(&self) -> &str {
+        &self.password
+    }
+
     /// URL de lecture d'un flux : `{serveur}/{live|movie|series}/{u}/{p}/{id}.{ext}`.
     /// L'extension par défaut est `ts` pour le direct, `mp4` sinon.
     pub fn stream_url(&self, kind: StreamKind, id: i64, extension: Option<&str>) -> url::Url {
@@ -154,6 +183,22 @@ impl XtreamClient {
     }
 
     async fn fetch(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<bytes::Bytes> {
+        let started = Instant::now();
+        let response = self.fetch_raw(action, extra).await;
+        if let Some(recorder) = self.recorder_lock().as_ref() {
+            recorder.record(action, extra, &response, started.elapsed());
+        }
+        let (status, body) = response?;
+        check_status(status)?;
+        Ok(body)
+    }
+
+    /// Réponse brute et son statut HTTP, quel qu'il soit.
+    async fn fetch_raw(
+        &self,
+        action: Option<&str>,
+        extra: &[(&str, &str)],
+    ) -> Result<(u16, bytes::Bytes)> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("URL http(s) validée")
@@ -178,14 +223,30 @@ impl XtreamClient {
             .await
             .map_err(Error::network)?;
         let status = response.status().as_u16();
-        match status {
-            200..=299 => {}
-            401 | 403 => return Err(Error::Unauthorized),
-            404 => return Err(Error::NotFound),
-            500..=599 => return Err(Error::Server(status)),
-            _ => return Err(Error::UnexpectedStatus(status)),
-        }
-        response.bytes().await.map_err(Error::network)
+        let body = response.bytes().await.map_err(Error::network)?;
+        Ok((status, body))
+    }
+}
+
+/// Client HTTP commun (panneau, mises à jour) : User-Agent honnête et, sur
+/// Android, racines de confiance embarquées.
+pub(crate) fn http_builder() -> reqwest::ClientBuilder {
+    let builder = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .connect_timeout(Duration::from_secs(10));
+    #[cfg(target_os = "android")]
+    let builder = builder.tls_certs_only(android_roots());
+    builder
+}
+
+/// Statut HTTP d'une réponse → erreur typée.
+pub(crate) fn check_status(status: u16) -> Result<()> {
+    match status {
+        200..=299 => Ok(()),
+        401 | 403 => Err(Error::Unauthorized),
+        404 => Err(Error::NotFound),
+        500..=599 => Err(Error::Server(status)),
+        _ => Err(Error::UnexpectedStatus(status)),
     }
 }
 

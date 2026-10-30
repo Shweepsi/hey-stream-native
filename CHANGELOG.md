@@ -4,6 +4,27 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.6.0 — 2026-10-30
+
+- Mise à jour intégrée : à l'ouverture (une fois par jour au plus), l'app
+  cherche une nouvelle version parmi les releases GitHub du projet et la
+  propose (« Installer » ou « Plus tard », reproposée le lendemain) ; aussi
+  dans Réglages › À propos › Rechercher une mise à jour. L'APK est vérifié
+  (taille, empreinte SHA-256) puis confié à l'installateur d'Android ;
+  favoris, reprise et abonnement sont gardés. La première fois, Android
+  demande l'autorisation d'installer des applications et une confirmation ;
+  ensuite (Android 12+), « Installer » suffit.
+- Publication automatique : fusionner une PR qui monte la version publie la
+  release.
+- Outils de test cachés (sept appuis sur la version, dans Réglages › À
+  propos) : « Enregistrer les réponses du fournisseur » pendant l'usage
+  normal, sans requête en plus. Réponses nettoyées avant d'être écrites
+  (identifiant, mot de passe, adresse du serveur, hôtes et jetons des URL,
+  adresses IP), listes réduites à 300 entrées réparties, nombre de réponses
+  plafonné par type. « Partager l'enregistrement » réunit tout en un fichier.
+- Politique de confidentialité : vérification des mises à jour auprès de
+  GitHub et outils de test.
+
 ## 0.5.1 — 2026-10-30
 
 - Licence précisée : GPL-3.0 ou ultérieure, avec une exception pour les
