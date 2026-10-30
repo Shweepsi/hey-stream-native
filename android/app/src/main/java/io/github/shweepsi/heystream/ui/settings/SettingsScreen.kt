@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.shweepsi.heystream.BuildConfig
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.CrashReports
+import io.github.shweepsi.heystream.debug.DebugTools
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
@@ -93,6 +94,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
         appVersion = BuildConfig.VERSION_NAME,
         actions = actions,
         crashReports = crashReports,
+        catalogExtra = DebugTools.catalogSettings,
     )
 
     pinPurpose?.let { purpose ->

@@ -285,6 +285,15 @@ pub struct Season {
     pub episodes: Vec<Episode>,
 }
 
+/// Capture des réponses du panneau (APK debug) : requêtes faites et
+/// échouées, taille du fichier écrit.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct CaptureSummary {
+    pub requests: u32,
+    pub failed: u32,
+    pub bytes: u64,
+}
+
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct SeriesInfo {
     pub name: Option<String>,
@@ -694,6 +703,26 @@ impl HeyStreamCore {
                 .cloned(),
         };
         Ok(next.map(Into::into))
+    }
+
+    /// Capture les réponses du panneau (catalogue et guide des programmes),
+    /// nettoyées de tout ce qui identifie le compte, dans le fichier `path`
+    /// (voir `xtream_core::capture`). Réservée à l'APK debug, lancée à la
+    /// main : une quinzaine de requêtes espacées, quelques dizaines de
+    /// secondes. Ne touche pas au cache.
+    pub fn capture(&self, path: String) -> Result<CaptureSummary> {
+        self.check_signed_in()?;
+        let capture = self.runtime.block_on(xc::capture(
+            &self.client,
+            &xc::CaptureOptions::default(),
+            now(),
+        ))?;
+        std::fs::write(&path, &capture.json).map_err(|_| HeyStreamError::Storage)?;
+        Ok(CaptureSummary {
+            requests: capture.requests,
+            failed: capture.failed,
+            bytes: capture.json.len() as u64,
+        })
     }
 
     /// Déconnexion : efface catalogue, favoris, reprise, code PIN et EPG de

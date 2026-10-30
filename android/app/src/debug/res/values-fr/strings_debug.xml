@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- APK debug seulement (src/debug). -->
+<resources>
+    <string name="debug_capture_title">Capture pour les tests (debug)</string>
+    <string name="debug_capture_intro">Enregistre les réponses du fournisseur (catalogue et guide des programmes) pour les tests automatiques&#160;: une quinzaine de requêtes espacées, moins d’une minute. Identifiant, mot de passe, adresse du serveur et adresses IP sont retirés&#160;; les longues listes sont réduites à un échantillon.</string>
+    <string name="debug_capture_start">Capturer</string>
+    <string name="debug_capture_running">Capture en cours…</string>
+    <string name="debug_capture_share">Partager la capture</string>
+    <string name="debug_capture_done">%1$d requêtes, %2$d en échec, %3$s. Aussi enregistrée dans Téléchargements&#160;: %4$s</string>
+    <string name="debug_capture_failed">Échec de la capture&#160;: %1$s</string>
+</resources>

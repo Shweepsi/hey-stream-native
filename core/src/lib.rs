@@ -18,6 +18,7 @@ macro_rules! not_superseded {
 }
 
 mod account;
+mod capture;
 mod catalog;
 mod client;
 mod details;
@@ -31,6 +32,7 @@ mod url;
 mod user_data;
 
 pub use account::{AccountKey, AccountMatch, CachedAccount};
+pub use capture::{CAPTURE_HOST, Capture, CaptureOptions, capture};
 pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, Progress, RefreshOutcome, Section,
     SectionData, fetch_section, refresh_section,

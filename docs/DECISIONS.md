@@ -60,7 +60,17 @@ dans le dépôt : variables `XTREAM_URL`, `XTREAM_USER`, `XTREAM_PASS`, voir
 | Séries | 33 | 8 637 | ~2 s |
 
 Règle : **aucun appel automatique** au panneau (CI, cloud, scripts) ; essais
-réels uniquement à la main par le propriétaire, depuis son réseau.
+réels uniquement à la main par le propriétaire, depuis son réseau. Le risque
+qui compte (propriétaire, 2026-10-30) : un **blocage de l'IP** par le
+fournisseur, plus gênant que la perte du compte. D'où peu de requêtes,
+espacées, jamais en rafale.
+
+**Captures** (2026-10-30) : l'APK debug enregistre les réponses du panneau
+(Réglages › Catalogue › Capture, cœur `capture.rs`) — une quinzaine de
+requêtes espacées de 1,5 s, nettoyées (identifiants, adresse du serveur,
+hôtes des URL, adresses IP) et échantillonnées. Le propriétaire partage le
+fichier (Drive) ; il devient une réponse simulée des tests dans
+`core/tests/fixtures/`, relue avant d'être versionnée.
 
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux

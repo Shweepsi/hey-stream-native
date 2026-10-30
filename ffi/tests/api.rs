@@ -607,3 +607,20 @@ fn account_info_and_live_format_work_offline() {
     );
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn capture_with_refused_credentials_writes_nothing() {
+    let panel = panel(vec![]);
+    panel.accept_with("u", json!({"auth": 0}));
+    let dir = temp_dir("capture");
+    let core = open(&panel, &dir);
+    let file = dir.join("capture.json");
+    assert!(matches!(
+        core.capture(file.to_string_lossy().into()),
+        Err(HeyStreamError::Unauthorized)
+    ));
+    assert!(!file.exists());
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

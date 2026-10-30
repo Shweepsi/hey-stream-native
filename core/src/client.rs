@@ -104,6 +104,10 @@ impl XtreamClient {
         &self.username
     }
 
+    pub(crate) fn password(&self) -> &str {
+        &self.password
+    }
+
     /// URL de lecture d'un flux : `{serveur}/{live|movie|series}/{u}/{p}/{id}.{ext}`.
     /// L'extension par défaut est `ts` pour le direct, `mp4` sinon.
     pub fn stream_url(&self, kind: StreamKind, id: i64, extension: Option<&str>) -> url::Url {
@@ -154,6 +158,22 @@ impl XtreamClient {
     }
 
     async fn fetch(&self, action: Option<&str>, extra: &[(&str, &str)]) -> Result<bytes::Bytes> {
+        let (status, body) = self.fetch_raw(action, extra).await?;
+        match status {
+            200..=299 => Ok(body),
+            401 | 403 => Err(Error::Unauthorized),
+            404 => Err(Error::NotFound),
+            500..=599 => Err(Error::Server(status)),
+            _ => Err(Error::UnexpectedStatus(status)),
+        }
+    }
+
+    /// Réponse brute et son statut HTTP, quel qu'il soit (capture).
+    pub(crate) async fn fetch_raw(
+        &self,
+        action: Option<&str>,
+        extra: &[(&str, &str)],
+    ) -> Result<(u16, bytes::Bytes)> {
         let mut url = self.base.clone();
         url.path_segments_mut()
             .expect("URL http(s) validée")
@@ -178,14 +198,8 @@ impl XtreamClient {
             .await
             .map_err(Error::network)?;
         let status = response.status().as_u16();
-        match status {
-            200..=299 => {}
-            401 | 403 => return Err(Error::Unauthorized),
-            404 => return Err(Error::NotFound),
-            500..=599 => return Err(Error::Server(status)),
-            _ => return Err(Error::UnexpectedStatus(status)),
-        }
-        response.bytes().await.map_err(Error::network)
+        let body = response.bytes().await.map_err(Error::network)?;
+        Ok((status, body))
     }
 }
 

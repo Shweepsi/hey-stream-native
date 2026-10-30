@@ -167,6 +167,8 @@ fun SettingsContent(
     appVersion: String,
     actions: SettingsActions,
     crashReports: Boolean = true,
+    /** Bloc ajouté en bas de la rubrique Catalogue (outils de l'APK debug). */
+    catalogExtra: (@Composable () -> Unit)? = null,
 ) {
     val dimens = Hs.dimens
     val isTv = dimens.isTv
@@ -206,7 +208,7 @@ fun SettingsContent(
                     SettingsSection.HiddenCategories -> HiddenCategoriesPane(state.categories, actions)
                     SettingsSection.Parental -> ParentalPane(state.parental, actions)
                     SettingsSection.Language -> LanguagePane(language, actions)
-                    SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
+                    SettingsSection.Catalog -> CatalogPane(state.catalog, actions, catalogExtra)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
                     SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, actions)
                 }
@@ -630,7 +632,7 @@ private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit, mod
 // Catalogue ---------------------------------------------------------------------
 
 @Composable
-private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
+private fun CatalogPane(ui: CatalogUi, actions: SettingsActions, extra: (@Composable () -> Unit)?) {
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_catalog)) {
         Paragraph(stringResource(R.string.settings_catalog_intro))
@@ -649,6 +651,7 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
                 ui.results.forEach { result -> ResultLine(result) }
             }
         }
+        extra?.invoke()
     }
 }
 

@@ -18,7 +18,7 @@ use crate::lenient::{opt_i64, opt_string};
 /// Délai minimal entre deux demandes d'EPG pour une même chaîne.
 pub const EPG_MIN_INTERVAL_SECS: i64 = 15 * 60;
 /// Nombre de programmes demandés : le cours, le suivant et une marge.
-const EPG_LIMIT: &str = "4";
+pub(crate) const EPG_LIMIT: &str = "4";
 
 /// Un programme TV.
 #[derive(Debug, Clone, PartialEq)]
