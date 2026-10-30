@@ -112,6 +112,9 @@ Constats :
 - **Chaque PR qui change l'app monte la version** et ajoute son entrée en
   tête de `CHANGELOG.md`. Une PR sans effet sur l'app (CI, docs) ne la monte pas.
 - Le nom de l'APK de la CI porte la version (`hey-stream-0.2.0-<commit>`).
+- **Publication** (2026-10-30) : workflow `release`, déclenché **à la main
+  uniquement**, par Claude, après la fusion d'une PR qui monte la version.
+  Il crée l'étiquette `vX.Y.Z` et la release GitHub avec l'APK.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 

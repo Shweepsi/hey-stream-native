@@ -11,6 +11,7 @@ on:
       - LICENSE
       - .github/ISSUE_TEMPLATE/**
       - .github/workflows/pages.yml
+      - .github/workflows/release.yml
   pull_request:
     paths-ignore:
       - "**.md"
@@ -19,6 +20,7 @@ on:
       - LICENSE
       - .github/ISSUE_TEMPLATE/**
       - .github/workflows/pages.yml
+      - .github/workflows/release.yml
 
 # Un nouveau push sur une PR annule la CI devenue inutile.
 concurrency:

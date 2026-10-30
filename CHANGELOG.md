@@ -11,13 +11,6 @@ Une entrée par version, la plus récente en haut. La version vient de
   bannière Google TV et logo de l'accueil.
 - Le nom s'écrit « Hey Stream » partout, logo compris.
 
-## 0.5.0 — 2026-10-29
-
-- Nouveau logo (piste C) : triangle blanc aux coins arrondis, ondes bleu
-  électrique et rouge vif, sans dégradé. Icône d'app, icône thématique,
-  bannière Google TV et logo de l'accueil.
-- Le nom s'écrit « Hey Stream » partout, logo compris.
-
 ## 0.4.0 — 2026-10-29
 
 - Rapports de plantage anonymes (GlitchTip) : plantages, gels (ANR),
