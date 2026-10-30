@@ -1,0 +1,57 @@
+name: release
+
+# Publie la version de Cargo.toml : étiquette vX.Y.Z, release GitHub avec
+# l'APK (clé de test, rapports de plantage actifs) et l'entrée du CHANGELOG.
+# Lancé à la main : Actions › release › Run workflow (branche main).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NDK_VERSION: "28.2.13676358"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: version
+        run: |
+          v=$(sed -nE 's/^version = "([0-9.]+)"/\1/p' Cargo.toml | head -1)
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null; then
+            echo "La version v$v est déjà publiée : monter la version d'abord."; exit 1
+          fi
+          # Entrée du CHANGELOG de cette version (jusqu'à la suivante).
+          awk -v v="$v" '$0 ~ "^## "v" " {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
+          printf '\n---\nHey Stream est uniquement un lecteur : il ne fournit aucun contenu. APK signé avec la clé de test publique (voir android/README.md).\n' >> notes.md
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - run: cargo install cargo-ndk --version 4.1.2 --locked
+      - name: APK
+        working-directory: android
+        env:
+          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
+        run: |
+          ./gradlew --console=plain :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "../hey-stream-${{ steps.version.outputs.name }}.apk"
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.name }}" "hey-stream-${{ steps.version.outputs.name }}.apk" \
+            --target "$GITHUB_SHA" --title "Hey Stream ${{ steps.version.outputs.name }}" \
+            --notes-file notes.md --prerelease
