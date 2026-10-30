@@ -97,13 +97,13 @@ fun SignOutPanel(busy: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit, mo
     }
 }
 
-/** Texte d'une licence (`assets/licenses/`), à faire défiler. */
+/** Texte d'une licence ou liste de licences, à faire défiler. */
 @Composable
 fun LicenseDialog(license: License, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val text by produceState<String?>(initialValue = null, license) {
         value = withContext(Dispatchers.IO) {
-            runCatching { context.assets.open(license.asset).bufferedReader().use { it.readText() } }.getOrNull()
+            runCatching { license.read(context) }.getOrNull()
         } ?: ""
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {

@@ -15,6 +15,20 @@ don't need to write French, a maintainer will help.
 - Read [`docs/DECISIONS.md`](docs/DECISIONS.md) for the choices already made,
   and [`docs/DESIGN.md`](docs/DESIGN.md) before touching the UI.
 
+## Developer Certificate of Origin (DCO)
+
+Every commit must be signed off, to certify that you wrote the code or have
+the right to submit it under the project's license (see
+[developercertificate.org](https://developercertificate.org/)):
+
+```sh
+git commit -s -m "Your message"
+```
+
+This adds `Signed-off-by: Your Name <your@email>` to the commit. Your
+contribution is licensed under GPL-3.0-or-later with the app store permission
+of [`LICENSE-EXCEPTION.md`](LICENSE-EXCEPTION.md); you keep your copyright.
+
 ## Ground rules
 
 - **All logic goes in `core/` (Rust).** Native UIs only display. The core
@@ -27,6 +41,10 @@ don't need to write French, a maintainer will help.
 - **Never log credentials or stream URLs.**
 - **No code, images or text from IPTV Smarters** or any other proprietary app,
   and no decompiling.
+- **Dependencies**: only licenses compatible with GPL-3.0-or-later (listed in
+  `about.toml` for Rust). After changing Rust dependencies, run
+  `scripts/third_party_licenses.sh` (needs `cargo install cargo-about --locked
+  --features cli`); CI checks the list is up to date.
 - **Version**: a PR that changes the app bumps `[workspace.package] version` in
   the root `Cargo.toml` and adds an entry at the top of `CHANGELOG.md`
   (a maintainer can do it for you).

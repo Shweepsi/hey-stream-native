@@ -85,10 +85,15 @@ import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import java.text.NumberFormat
 
-/** Licences dont le texte est fourni dans `assets/licenses/`. */
+/**
+ * Licences affichées dans « À propos » : texte fourni dans `assets/licenses/`,
+ * ou liste générée à la compilation (bibliothèques Android, crates Rust).
+ */
 enum class License(val asset: String, @StringRes val title: Int, @StringRes val licenseName: Int) {
     Inter("licenses/Inter-OFL.txt", R.string.settings_credit_inter, R.string.settings_credit_inter_license),
     Lucide("licenses/Lucide-ISC.txt", R.string.settings_credit_lucide, R.string.settings_credit_lucide_license),
+    AndroidLibraries("", R.string.settings_credit_android, R.string.settings_credit_android_license),
+    RustLibraries("licenses/rust.txt", R.string.settings_credit_rust, R.string.settings_credit_rust_license),
 }
 
 /** Actions des réglages ; par défaut, rien (captures d'écran). */
@@ -788,9 +793,7 @@ private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Bo
                     onClick = { actions.showLicense(license) },
                 )
             }
-            CreditRow(stringResource(R.string.settings_credit_androidx), stringResource(R.string.settings_credit_androidx_license))
-            CreditRow(stringResource(R.string.settings_credit_ffmpeg), stringResource(R.string.settings_credit_ffmpeg_license))
-            CreditRow(stringResource(R.string.settings_credit_sentry), stringResource(R.string.settings_credit_sentry_license))
+            CreditRow(stringResource(R.string.settings_credit_ffmpeg), stringResource(R.string.settings_credit_ffmpeg_source))
         }
     }
 }

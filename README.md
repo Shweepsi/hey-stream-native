@@ -5,7 +5,7 @@
 A clean, fast TV player for **Android TV, tablets and phones**: live channels
 with preview, movies and series with resume, favorites, parental control.
 Designed for the remote first, for current Android devices (Android 11+), and
-kept smooth down to an entry-level 2 GB box. Free software (GPL-3.0), no account, no ads, no server: credentials stay on
+kept smooth down to an entry-level 2 GB box. Free software (GPL-3.0-or-later), no account, no ads, no server: credentials stay on
 the device.
 
 > Hey Stream is only a player. It does not provide, sell or recommend any
@@ -55,4 +55,6 @@ in French; issues and pull requests in English or French are both fine.
 
 ## License
 
-GPL-3.0, see [`LICENSE`](LICENSE).
+GPL-3.0-or-later (see [`LICENSE`](LICENSE)), with an additional permission for
+app store distribution ([`LICENSE-EXCEPTION.md`](LICENSE-EXCEPTION.md)).
+Third-party licenses are listed in the app (Settings › About).

@@ -1,0 +1,21 @@
+# Licences des crates Rust livrées dans l'app (cargo about, voir
+# scripts/third_party_licenses.sh). Toute nouvelle licence doit être
+# compatible avec la GPL-3.0-or-later avant d'être ajoutée ici.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "Unlicense",
+    "GPL-3.0-or-later",
+]
+targets = ["aarch64-linux-android", "armv7-linux-androideabi"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+# Les crates du projet (non publiées) ne sont pas des tiers.
+private = { ignore = true }
