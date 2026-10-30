@@ -1,0 +1,35 @@
+name: Bug / Bogue
+description: Something doesn't work as expected. / Quelque chose ne marche pas.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste your server address, username, password or a stream link.
+        Ne collez jamais l'adresse du serveur, vos identifiants ni un lien de flux.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / Que s'est-il passé ?
+      description: Steps to reproduce, what you expected, what you saw.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version / Version de l'app
+      description: Settings › About / Réglages › À propos
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version / Appareil et version d'Android
+      placeholder: "Xiaomi Mi Box S 2nd gen, Android 11"
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs / Captures, journaux

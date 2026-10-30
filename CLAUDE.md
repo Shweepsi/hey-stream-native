@@ -1,6 +1,6 @@
 # CLAUDE.md — hey-stream (natif)
 
-Lire d’abord `README.md`, `docs/SPEC_V1.md` (périmètre v1 : rien d’autre), `docs/DECISIONS.md`, `docs/MATERIEL.md`, `docs/TODO.md` (travail restant) et, avant toute interface, `docs/DESIGN.md`.
+Lire d’abord `README.fr.md`, `CONTRIBUTING.md`, `docs/SPEC_V1.md` (périmètre v1 : rien d’autre), `docs/DECISIONS.md`, `docs/MATERIEL.md`, `docs/TODO.md` (travail restant) et, avant toute interface, `docs/DESIGN.md`.
 
 ## Règles
 

@@ -1,60 +1,57 @@
-# hey-stream (natif)
+# Hey Stream
 
-Client IPTV **Xtream Codes** libre et gratuit, pour **téléphone, tablette et TV**,
-sur **Android** et **Apple**. Sans publicité, sans compte, sans serveur : vos
-identifiants restent sur votre appareil.
+*[Français](README.fr.md)*
 
-> hey-stream ne fournit aucun contenu. L'app lit uniquement les sources que
-> l'utilisateur ajoute lui-même avec son propre abonnement.
+A clean, fast TV player for **Android TV, tablets and phones**: live channels
+with preview, movies and series with resume, favorites, parental control.
+Designed for the remote first, and tuned for a 2 GB, 32-bit Android TV box.
+Free software (GPL-3.0), no account, no ads, no server: credentials stay on
+the device.
 
-## Architecture
+> Hey Stream is only a player. It does not provide, sell or recommend any
+> channel, stream or subscription, and is not affiliated with any provider.
+
+![Live channels on a TV](site/captures/tv.png)
+
+## Why it's interesting to hack on
+
+- **One Rust core, thin native UIs.** All logic (API client, SQLite catalog
+  cache, search, parental control, resume) lives in `core/`, tested once and
+  exposed to Kotlin and Swift through [UniFFI](https://mozilla.github.io/uniffi-rs/).
+- **Low-end hardware as the target.** Reference device: Xiaomi Mi Box S 2nd gen
+  (Cortex-A55, 2 GB RAM, 32-bit userspace). Catalogs of 100,000 entries stay in
+  SQLite and are paged, never loaded whole.
+- **Tolerant by design.** Provider APIs are messy; one unreadable entry is
+  skipped, never fatal to a whole list.
+- **No real server needed.** Every test runs against mocked responses
+  (wiremock, MockWebServer), in CI and on your machine.
 
 ```
-core/      Rust — API Xtream, cache, recherche, contrôle parental, logique de lecture
-android/   Kotlin + Jetpack Compose — téléphone, tablette, TV (un seul APK)   voir android/README.md
-apple/     SwiftUI — iPhone, iPad, Apple TV                                    [à venir]
+core/      Rust: API client, cache, search, parental control, playback logic
+ffi/       UniFFI bindings (Kotlin, Swift)
+android/   Kotlin + Jetpack Compose + Media3: phone, tablet, TV (one APK)
+apple/     SwiftUI: iPhone, iPad, Apple TV            [help wanted]
+site/      Public website (GitHub Pages)
+docs/      Spec, decisions, design, hardware notes (French)
 ```
 
-Le cœur Rust est exposé aux interfaces par [UniFFI](https://mozilla.github.io/uniffi-rs/).
-Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois, en Rust.
-
-## État
-
-| Partie | État |
-|---|---|
-| `core` : client Xtream tolérant (auth, catégories, direct, films, séries, URL de lecture) | ✅ testé |
-| `core` : cache SQLite du catalogue, recherche, détection adulte | ✅ testé |
-| `core` : favoris, récents, reprise de lecture | ✅ testé |
-| `core` : contrôle parental (PIN), catégories masquées, EPG court | ✅ testé |
-| `core` : User-Agent `HeyStream`, fiches film et série (saisons, épisodes) | ✅ testé |
-| `core` : infos abonnement hors ligne, format du direct selon le fournisseur (TS / HLS) | ✅ testé |
-| `core` : numéro de chaîne, progression dans les listes, « Continuer » par section, programme en cours lu dans le cache, éléments vus | ✅ testé |
-| Liaisons UniFFI (Kotlin, Swift) : `ffi/`, `scripts/bindings.sh` | ✅ testé |
-| `core` compilé pour Android (arm64-v8a, armeabi-v7a), TLS sans JNI | ✅ CI |
-| Android : socle (Gradle + cœur Rust, design, session, lecteur Media3), connexion, accueil | ✅ CI (JVM + émulateur) |
-| Android : Direct, Films, Séries, fiches, lecteur, recherche, réglages | ✅ CI (JVM + émulateur) |
-| Android mobile (téléphone, tablette) : essayé sur Xiaomi 14 et Xiaomi Pad 7 | ✅ v0.3.0, en pause |
-| Android TV : essai sur la Mi Box S 2e gén. (appareil de référence) | à faire |
-| Apple (SwiftUI + AVPlayer) | à faire |
-
-Version courante et historique : `CHANGELOG.md`. Reste à faire côté Android :
-essai sur la Mi Box S, Baseline Profiles, rapports de plantage (GlitchTip),
-fiches et guide des programmes réels relevés par `examples/smoke.rs` depuis le
-réseau du propriétaire (le panneau refuse les requêtes d'une IP de datacenter).
-
-## Développer
+## Build and test
 
 ```sh
 cargo test
 cargo clippy --all-targets -- -D warnings
-scripts/bindings.sh          # liaisons Kotlin et Swift dans bindings/
+cd android && ./gradlew :app:testDebugUnitTest :app:assembleRelease
 ```
 
-Les interfaces n'utilisent que `ffi/` (classe `HeyStreamCore`) : ses méthodes
-sont bloquantes et s'appellent hors du fil principal.
+Android prerequisites (JDK 17+, NDK, Rust Android targets, `cargo-ndk`) are in
+[`android/README.md`](android/README.md). Test APKs are attached to every CI run.
 
-Voir [`docs/SPEC_V1.md`](docs/SPEC_V1.md), [`docs/DECISIONS.md`](docs/DECISIONS.md) et [`docs/MATERIEL.md`](docs/MATERIEL.md).
+## Contributing
 
-## Licence
+Pull requests are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and
+the issues labelled **good first issue**. Project docs and commit messages are
+in French; issues and pull requests in English or French are both fine.
 
-GPL-3.0. Voir [`LICENSE`](LICENSE).
+## License
+
+GPL-3.0, see [`LICENSE`](LICENSE).

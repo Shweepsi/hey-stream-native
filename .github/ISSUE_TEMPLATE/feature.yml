@@ -1,0 +1,16 @@
+name: Idea / Idée
+description: Suggest a change. / Proposer un changement.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The scope of v1 is fixed (docs/SPEC_V1.md). Ideas are welcome and may land after v1.
+        Le périmètre de la v1 est fixé (docs/SPEC_V1.md) ; les idées sont les bienvenues pour la suite.
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need? / De quoi avez-vous besoin ?
+      description: The problem first, then your idea of a solution.
+    validations:
+      required: true
