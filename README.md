@@ -4,8 +4,8 @@
 
 A clean, fast TV player for **Android TV, tablets and phones**: live channels
 with preview, movies and series with resume, favorites, parental control.
-Designed for the remote first, and tuned for a 2 GB, 32-bit Android TV box.
-Free software (GPL-3.0), no account, no ads, no server: credentials stay on
+Designed for the remote first, for current Android devices (Android 11+), and
+kept smooth down to an entry-level 2 GB box. Free software (GPL-3.0), no account, no ads, no server: credentials stay on
 the device.
 
 > Hey Stream is only a player. It does not provide, sell or recommend any
@@ -18,9 +18,10 @@ the device.
 - **One Rust core, thin native UIs.** All logic (API client, SQLite catalog
   cache, search, parental control, resume) lives in `core/`, tested once and
   exposed to Kotlin and Swift through [UniFFI](https://mozilla.github.io/uniffi-rs/).
-- **Low-end hardware as the target.** Reference device: Xiaomi Mi Box S 2nd gen
-  (Cortex-A55, 2 GB RAM, 32-bit userspace). Catalogs of 100,000 entries stay in
-  SQLite and are paged, never loaded whole.
+- **Recent devices, with a low floor.** Made for current Android TV boxes,
+  tablets and phones; the minimum it must stay smooth on is a Xiaomi Mi Box S
+  2nd gen (Cortex-A55, 2 GB RAM, 32-bit userspace). Catalogs of 100,000
+  entries stay in SQLite and are paged, never loaded whole.
 - **Tolerant by design.** Provider APIs are messy; one unreadable entry is
   skipped, never fatal to a whole list.
 - **No real server needed.** Every test runs against mocked responses
