@@ -43,7 +43,11 @@ sealed interface UpdateState {
     /** [progress] de 0 à 1, `null` si la taille est inconnue. */
     data class Downloading(val update: AppUpdate, val progress: Float?) : UpdateState
 
-    /** L'installateur d'Android a la main (confirmation, puis installation). */
+    /**
+     * APK confié à l'installateur d'Android, qui remplace l'app (après sa
+     * confirmation, s'il la demande). « Installer » le lui confie de nouveau
+     * si rien ne s'est passé (confirmation bloquée en arrière-plan).
+     */
     data class Installing(val update: AppUpdate) : UpdateState
 
     /** Android doit d'abord autoriser l'app à installer des applications. */
@@ -55,12 +59,15 @@ sealed interface UpdateState {
 /**
  * Mise à jour depuis les releases GitHub du projet. Le cœur trouve la
  * version la plus récente, télécharge et vérifie l'APK (taille, SHA-256) ;
- * ici, on le confie à l'installateur d'Android, qui demande confirmation.
+ * ici, on le confie à l'installateur d'Android.
  * L'APK étant signé par la même clé, Android le pose par-dessus l'app sans
- * rien effacer (abonnement, favoris, reprise).
+ * rien effacer (abonnement, favoris, reprise). Dès que l'app a elle-même
+ * installé la version en place (Android 12+), Android ne redemande plus de
+ * confirmation : « Installer » suffit.
  *
- * Au lancement (APK release seulement), une vérification par jour au plus ;
- * une version écartée par « Plus tard » n'est plus proposée d'elle-même.
+ * À chaque retour au premier plan (APK release seulement), une vérification
+ * par jour au plus : une version remise à plus tard est reproposée le
+ * lendemain.
  */
 class AppUpdater(private val context: Context, private val scope: CoroutineScope) {
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
@@ -72,10 +79,26 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
 
     private var job: Job? = null
 
+    /** APK déjà téléchargé et vérifié, pour un nouvel essai d'installation. */
+    private var downloaded: Pair<String, File>? = null
+
     private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Au lancement. Jamais en debug : ni les tests ni l'émulateur n'interrogent GitHub. */
-    fun checkIfDue() {
+    /**
+     * À chaque retour au premier plan : reprend une installation qui
+     * attendait l'autorisation d'Android, et vérifie s'il y a une mise à jour
+     * une fois par jour au plus.
+     */
+    fun onForeground() {
+        val state = _state.value
+        if (state is UpdateState.NeedsPermission && context.packageManager.canRequestPackageInstalls()) {
+            install(state.update)
+        }
+        checkIfDue()
+    }
+
+    /** Jamais en debug : ni les tests ni l'émulateur n'interrogent GitHub. */
+    private fun checkIfDue() {
         if (BuildConfig.DEBUG) return
         val elapsed = System.currentTimeMillis() - prefs().getLong(KEY_CHECKED_AT, 0)
         if (elapsed in 0 until CHECK_INTERVAL_MS) return
@@ -96,7 +119,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
                 if (update == null) {
                     UpdateState.UpToDate
                 } else {
-                    if (automatic && prefs().getString(KEY_DISMISSED, null) != update.version) _prompt.value = update
+                    if (automatic) _prompt.value = update
                     UpdateState.Available(update)
                 }
             } catch (cancelled: CancellationException) {
@@ -108,30 +131,32 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
         }
     }
 
-    /** « Plus tard » : cette version n'est plus proposée d'elle-même. */
+    /** « Plus tard » : la boîte se ferme, la version sera reproposée le lendemain. */
     fun dismiss() {
-        _prompt.value?.let { prefs().edit { putString(KEY_DISMISSED, it.version) } }
         _prompt.value = null
         val state = _state.value
-        if (state is UpdateState.Failed || state is UpdateState.NeedsPermission) {
+        if (state is UpdateState.Failed || state is UpdateState.NeedsPermission || state is UpdateState.Installing) {
             _state.value = state.pendingUpdate()?.let { UpdateState.Available(it) } ?: UpdateState.Idle
         }
     }
 
-    /** Télécharge puis installe [update]. */
+    /** Télécharge (sauf si c'est déjà fait) puis installe [update]. */
     fun install(update: AppUpdate) {
         if (job?.isActive == true) return
         if (!context.packageManager.canRequestPackageInstalls()) {
             _state.value = UpdateState.NeedsPermission(update)
+            // Si Android relance l'app après l'autorisation, la boîte revient
+            // à l'ouverture suivante.
+            prefs().edit { remove(KEY_CHECKED_AT) }
             val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(settings) }
             return
         }
         job = scope.launch {
-            _state.value = UpdateState.Downloading(update, 0f)
             val apk = try {
-                download(update)
+                downloaded?.takeIf { (version, file) -> version == update.version && file.isFile }?.second
+                    ?: download(update).also { downloaded = update.version to it }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Throwable) {
@@ -160,6 +185,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     }
 
     private suspend fun download(update: AppUpdate): File = withContext(Dispatchers.IO) {
+        _state.value = UpdateState.Downloading(update, 0f)
         CoreSession.loadNativeLibrary()
         val dir = File(context.cacheDir, "update").apply {
             deleteRecursively()
@@ -182,9 +208,17 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     /** Confie l'APK à l'installateur d'Android ; sa réponse arrive à [InstallReceiver]. */
     private fun commit(apk: File) {
         val installer = context.packageManager.packageInstaller
+        // Un essai précédent resté en suspens ne sert plus.
+        installer.mySessions.forEach { runCatching { installer.abandonSession(it.sessionId) } }
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
             setSize(apk.length())
+            // Sans confirmation quand l'app a installé la version en place
+            // (UPDATE_PACKAGES_WITHOUT_USER_ACTION) ; sinon Android la
+            // demande quand même (STATUS_PENDING_USER_ACTION).
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            }
         }
         val id = installer.createSession(params)
         installer.openSession(id).use { session ->
@@ -204,7 +238,6 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     private companion object {
         const val PREFS = "app_update"
         const val KEY_CHECKED_AT = "checked_at"
-        const val KEY_DISMISSED = "dismissed_version"
         const val CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000
     }
 }

@@ -6,8 +6,8 @@
     <string name="update_install">Install</string>
     <string name="update_downloading">Downloading…</string>
     <string name="update_downloading_percent">Downloading… %1$d%%</string>
-    <string name="update_installing">Installing…</string>
-    <string name="update_needs_permission">Allow Hey Stream to install apps in the screen that opened, then choose Install again.</string>
+    <string name="update_installing">Installing… Hey Stream will close: open it again afterwards.</string>
+    <string name="update_needs_permission">Allow Hey Stream to install apps in the screen that opened. The update will then continue on its own.</string>
     <string name="update_failed_check">Couldn’t check for updates. Check your connection and try again.</string>
     <string name="update_failed_download">The download failed or the file is damaged. Try again.</string>
     <string name="update_failed_install">Android couldn’t install the update.</string>

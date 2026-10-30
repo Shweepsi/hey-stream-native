@@ -6,12 +6,16 @@ Une entrée par version, la plus récente en haut. La version vient de
 
 ## 0.6.0 — 2026-10-30
 
-- Mise à jour intégrée : au lancement (une fois par jour au plus), l'app
+- Mise à jour intégrée : à l'ouverture (une fois par jour au plus), l'app
   cherche une nouvelle version parmi les releases GitHub du projet et la
-  propose (« Installer » ou « Plus tard ») ; aussi dans Réglages › À propos ›
-  Rechercher une mise à jour. L'APK est vérifié (taille, empreinte SHA-256)
-  puis confié à l'installateur d'Android, qui demande confirmation ; favoris,
-  reprise et abonnement sont gardés.
+  propose (« Installer » ou « Plus tard », reproposée le lendemain) ; aussi
+  dans Réglages › À propos › Rechercher une mise à jour. L'APK est vérifié
+  (taille, empreinte SHA-256) puis confié à l'installateur d'Android ;
+  favoris, reprise et abonnement sont gardés. La première fois, Android
+  demande l'autorisation d'installer des applications et une confirmation ;
+  ensuite (Android 12+), « Installer » suffit.
+- Publication automatique : fusionner une PR qui monte la version publie la
+  release.
 - Outils de test cachés (sept appuis sur la version, dans Réglages › À
   propos) : « Enregistrer les réponses du fournisseur » pendant l'usage
   normal, sans requête en plus. Réponses nettoyées avant d'être écrites

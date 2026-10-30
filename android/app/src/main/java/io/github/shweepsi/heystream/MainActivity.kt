@@ -25,8 +25,6 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         app.session.ensureStarted()
-        // Pas lors d'une recréation (changement de langue).
-        if (savedInstanceState == null) app.updater.checkIfDue()
         val graph = app.graph()
         setContent {
             CompositionLocalProvider(LocalAppGraph provides graph) {
@@ -41,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         app.player.onForeground()
+        app.updater.onForeground()
     }
 
     /**

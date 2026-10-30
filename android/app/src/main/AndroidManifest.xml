@@ -3,8 +3,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Mise à jour depuis les releases GitHub (AppUpdater) ; Android demande confirmation. -->
+    <!-- Mise à jour depuis les releases GitHub (AppUpdater). Android demande
+         confirmation, sauf (Android 12+) quand l'app a installé la version en place. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- Un seul APK pour téléphone, tablette et TV. -->
     <uses-feature

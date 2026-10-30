@@ -76,6 +76,19 @@ class UpdateUiTest {
     }
 
     @Test
+    fun installCanBeRetriedWhileAndroidIsSilent() {
+        var installed = 0
+        compose.setContent {
+            HeyStreamTheme {
+                UpdatePanel(update, UpdateState.Installing(update), onInstall = { installed++ }, onLater = {})
+            }
+        }
+        compose.onNodeWithText("Installing… Hey Stream will close: open it again afterwards.").assertIsDisplayed()
+        compose.onNodeWithText("Install").performClick()
+        assertEquals(1, installed)
+    }
+
+    @Test
     fun aboutOffersTheNewVersion() {
         var installing: AppUpdate? = null
         val actions = object : SettingsActions {

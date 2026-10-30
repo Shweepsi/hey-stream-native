@@ -43,7 +43,7 @@ fun UpdatePrompt(updater: AppUpdater) {
     val prompt by updater.prompt.collectAsStateWithLifecycle()
     val state by updater.state.collectAsStateWithLifecycle()
     val update = prompt ?: return
-    val busy = state is UpdateState.Downloading || state is UpdateState.Installing
+    val busy = state is UpdateState.Downloading
     Dialog(onDismissRequest = { if (!busy) updater.dismiss() }) {
         UpdatePanel(
             update = update,
@@ -59,7 +59,9 @@ fun UpdatePrompt(updater: AppUpdater) {
 fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, onLater: () -> Unit, modifier: Modifier = Modifier) {
     val dimens = Hs.dimens
     val install = remember { FocusRequester() }
-    val busy = state is UpdateState.Downloading || state is UpdateState.Installing
+    // Pendant l'installation, les boutons restent actifs : si la confirmation
+    // d'Android n'a pas pu s'afficher, « Installer » la redemande.
+    val busy = state is UpdateState.Downloading
     LaunchedEffect(Unit) { runCatching { install.requestFocus() } }
     Column(
         modifier
