@@ -1,9 +1,29 @@
 name: android
 
+# Docs, site et modèles GitHub seuls ne relancent pas la CI du code.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - docs/**
+      - site/**
+      - LICENSE
+      - .github/ISSUE_TEMPLATE/**
+      - .github/workflows/pages.yml
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - docs/**
+      - site/**
+      - LICENSE
+      - .github/ISSUE_TEMPLATE/**
+      - .github/workflows/pages.yml
+
+# Un nouveau push sur une PR annule la CI devenue inutile.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NDK_VERSION: "28.2.13676358"
