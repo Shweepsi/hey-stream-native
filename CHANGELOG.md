@@ -4,15 +4,22 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
-## 0.5.2 — 2026-10-30
+## 0.6.0 — 2026-10-30
 
-- APK debug seulement : « Capture pour les tests » dans Réglages › Catalogue.
-  Enregistre les réponses du fournisseur (authentification, six listes du
-  catalogue, guide des programmes de 8 chaînes ; requêtes espacées de 1,5 s),
-  sans identifiant, mot de passe, adresse du serveur ni adresse IP ; longues
-  listes réduites à 300 entrées réparties. Fichier partagé (Drive, e-mail…)
-  et copié dans Téléchargements. Rien de changé dans l'APK release.
-- La CI publie aussi l'APK debug (`hey-stream-<version>-debug-<commit>`).
+- Mise à jour intégrée : au lancement (une fois par jour au plus), l'app
+  cherche une nouvelle version parmi les releases GitHub du projet et la
+  propose (« Installer » ou « Plus tard ») ; aussi dans Réglages › À propos ›
+  Rechercher une mise à jour. L'APK est vérifié (taille, empreinte SHA-256)
+  puis confié à l'installateur d'Android, qui demande confirmation ; favoris,
+  reprise et abonnement sont gardés.
+- Outils de test cachés (sept appuis sur la version, dans Réglages › À
+  propos) : « Enregistrer les réponses du fournisseur » pendant l'usage
+  normal, sans requête en plus. Réponses nettoyées avant d'être écrites
+  (identifiant, mot de passe, adresse du serveur, hôtes et jetons des URL,
+  adresses IP), listes réduites à 300 entrées réparties, nombre de réponses
+  plafonné par type. « Partager l'enregistrement » réunit tout en un fichier.
+- Politique de confidentialité : vérification des mises à jour auprès de
+  GitHub et outils de test.
 
 ## 0.5.1 — 2026-10-30
 

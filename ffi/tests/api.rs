@@ -609,17 +609,32 @@ fn account_info_and_live_format_work_offline() {
 }
 
 #[test]
-fn capture_with_refused_credentials_writes_nothing() {
-    let panel = panel(vec![]);
-    panel.accept_with("u", json!({"auth": 0}));
-    let dir = temp_dir("capture");
+fn recording_follows_the_requests() {
+    let listings = json!({"epg_listings": []});
+    let panel = counting_panel("get_short_epg", listings, 2);
+    let dir = temp_dir("recording");
+    let recording = dir.join("recording");
     let core = open(&panel, &dir);
-    let file = dir.join("capture.json");
-    assert!(matches!(
-        core.capture(file.to_string_lossy().into()),
-        Err(HeyStreamError::Unauthorized)
-    ));
-    assert!(!file.exists());
+    assert!(!core.is_recording());
+    core.set_recording(Some(recording.to_string_lossy().into()))
+        .unwrap();
+    assert!(core.is_recording());
+    core.now_next(7).unwrap();
+    let dir_text: String = recording.to_string_lossy().into();
+    assert_eq!(heystream::recording_summary(dir_text.clone()).responses, 1);
+    core.set_recording(None).unwrap();
+    core.now_next(8).unwrap();
+    let out = dir.join("export.json");
+    let summary =
+        heystream::export_recording(dir_text.clone(), out.to_string_lossy().into()).unwrap();
+    assert_eq!(summary.responses, 1);
+    assert!(
+        std::fs::read_to_string(&out)
+            .unwrap()
+            .contains("get_short_epg")
+    );
+    heystream::clear_recording(dir_text.clone()).unwrap();
+    assert_eq!(heystream::recording_summary(dir_text).responses, 0);
     drop(core);
     drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();

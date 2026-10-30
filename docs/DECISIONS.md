@@ -65,12 +65,40 @@ qui compte (propriétaire, 2026-10-30) : un **blocage de l'IP** par le
 fournisseur, plus gênant que la perte du compte. D'où peu de requêtes,
 espacées, jamais en rafale.
 
-**Captures** (2026-10-30) : l'APK debug enregistre les réponses du panneau
-(Réglages › Catalogue › Capture, cœur `capture.rs`) — une quinzaine de
-requêtes espacées de 1,5 s, nettoyées (identifiants, adresse du serveur,
-hôtes des URL, adresses IP) et échantillonnées. Le propriétaire partage le
-fichier (Drive) ; il devient une réponse simulée des tests dans
+**Enregistrement des réponses** (2026-10-30) : plutôt qu'une capture qui
+envoie ses propres requêtes, l'app enregistre les réponses pendant l'usage
+normal du propriétaire (Xiaomi 14, Xiaomi Pad 7), sans **aucune** requête en
+plus (cœur `recording.rs`). Dans l'APK normal, derrière des outils de test
+cachés (sept appuis sur la version dans Réglages › À propos), désactivés par
+défaut : un APK debug sur une longue période n'aurait ni rapports de
+plantage, ni les performances de l'APK publié. Chaque réponse est nettoyée
+avant d'être écrite (identifiants, adresse du serveur, hôtes et jetons des
+URL, adresses IP), les listes sont échantillonnées (300 entrées) et le nombre
+de fichiers est plafonné par type. Le propriétaire partage le fichier
+(Drive) ; il devient une réponse simulée des tests dans
 `core/tests/fixtures/`, relue avant d'être versionnée.
+
+## Mises à jour de l'app (2026-10-30)
+
+Décision du propriétaire, pour réduire son implication : l'app se met à jour
+elle-même depuis les **releases GitHub** du dépôt (workflow `release`).
+
+- Le cœur (`update.rs`) lit `/repos/…/releases` (pas `/releases/latest`, qui
+  ignore les pre-releases), garde la plus haute version qui a un APK,
+  télécharge et vérifie l'APK (taille, `digest` SHA-256 fourni par GitHub).
+- L'app le confie à l'installateur d'Android (`PackageInstaller`), qui
+  demande confirmation ; la première fois, Android demande d'autoriser
+  l'app à installer des applications. Même clé de signature : l'app est
+  remplacée sans rien effacer.
+- Vérification au lancement une fois par jour au plus (APK release
+  seulement : ni les tests ni l'émulateur n'interrogent GitHub), plus un
+  bouton dans Réglages › À propos. « Plus tard » écarte cette version jusqu'à
+  la suivante.
+- Limite connue : la clé de signature de test est publique ; la mise à jour
+  ne vaut que ce que vaut le dépôt. À revoir avec la clé privée de la 1.0.
+- Un magasin d'applications (Play Store) interdit qu'une app se mette à jour
+  elle-même : à retirer ou désactiver dans la version publiée sur un
+  magasin (`TODO.md`).
 
 Constats :
 - 1 connexion simultanée maximum : l'app ne doit **jamais** ouvrir deux flux

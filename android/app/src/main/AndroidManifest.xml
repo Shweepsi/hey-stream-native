@@ -3,6 +3,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Mise à jour depuis les releases GitHub (AppUpdater) ; Android demande confirmation. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Un seul APK pour téléphone, tablette et TV. -->
     <uses-feature
@@ -41,6 +43,22 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Réponse de l'installateur d'Android à une mise à jour. -->
+        <receiver
+            android:name=".data.InstallReceiver"
+            android:exported="false" />
+
+        <!-- Fichiers partagés (enregistrement des outils de test). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
 
         <!-- Rapports de plantage : démarrés par l'app (CrashReports), selon le réglage. -->
         <meta-data

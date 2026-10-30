@@ -10,10 +10,13 @@ ligne quand sa PR est fusionnée.
    changement de chaîne < 1,5 s, < 300 Mo en lecture, 0 plantage sur 4 h).
 2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo C
    appliqué (site et app, 0.5.0) ; reste la fiche Play Store.
-3. **Captures réelles** : le propriétaire lance la capture de l'APK debug et
-   partage le fichier ; en faire les réponses simulées des tests
+3. **Réponses réelles** : le propriétaire active l'enregistrement (outils de
+   test cachés, sept appuis sur la version), utilise l'app, puis partage le
+   fichier ; en faire les réponses simulées des tests
    (`core/tests/fixtures/`) et corriger ce qu'elles révèlent.
-4. **1.0.0** : APK signé pour la publication ; comptes développeur à décider.
+4. **1.0.0** : APK signé pour la publication ; comptes développeur à
+   décider ; sort des outils de test et de la mise à jour intégrée
+   (interdite par le Play Store) dans la version des magasins.
 
 ## Cœur (acceptables pour l'instant)
 

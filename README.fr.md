@@ -45,9 +45,9 @@ Les interfaces ne font qu'afficher ; toute la logique est testée une seule fois
 
 Version courante et historique : `CHANGELOG.md`. Reste à faire côté Android :
 essai sur la Mi Box S, Baseline Profiles,
-fiches et guide des programmes réels relevés par la capture de l'APK debug
-(Réglages › Catalogue) depuis le réseau du propriétaire (le panneau refuse
-les requêtes d'une IP de datacenter).
+fiches et guide des programmes réels enregistrés par l'app pendant l'usage
+du propriétaire (outils de test cachés de Réglages › À propos ; le panneau
+refuse les requêtes d'une IP de datacenter).
 
 ## Développer
 

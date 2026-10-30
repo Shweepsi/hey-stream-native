@@ -285,13 +285,55 @@ pub struct Season {
     pub episodes: Vec<Episode>,
 }
 
-/// Capture des réponses du panneau (APK debug) : requêtes faites et
-/// échouées, taille du fichier écrit.
+/// Réponses du panneau enregistrées (outils de test) et place occupée.
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct CaptureSummary {
-    pub requests: u32,
-    pub failed: u32,
+pub struct RecordingSummary {
+    pub responses: u32,
     pub bytes: u64,
+}
+
+impl From<xc::RecordingSummary> for RecordingSummary {
+    fn from(s: xc::RecordingSummary) -> Self {
+        Self {
+            responses: s.responses,
+            bytes: s.bytes,
+        }
+    }
+}
+
+/// Version de l'app publiée sur GitHub, plus récente que celle installée.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct AppUpdate {
+    pub version: String,
+    /// Notes de la release (Markdown).
+    pub notes: String,
+    pub apk_url: String,
+    pub size: u64,
+    pub sha256: Option<String>,
+}
+
+impl From<xc::AppUpdate> for AppUpdate {
+    fn from(u: xc::AppUpdate) -> Self {
+        Self {
+            version: u.version,
+            notes: u.notes,
+            apk_url: u.apk_url,
+            size: u.size,
+            sha256: u.sha256,
+        }
+    }
+}
+
+impl From<AppUpdate> for xc::AppUpdate {
+    fn from(u: AppUpdate) -> Self {
+        Self {
+            version: u.version,
+            notes: u.notes,
+            apk_url: u.apk_url,
+            size: u.size,
+            sha256: u.sha256,
+        }
+    }
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -705,24 +747,21 @@ impl HeyStreamCore {
         Ok(next.map(Into::into))
     }
 
-    /// Capture les réponses du panneau (catalogue et guide des programmes),
-    /// nettoyées de tout ce qui identifie le compte, dans le fichier `path`
-    /// (voir `xtream_core::capture`). Réservée à l'APK debug, lancée à la
-    /// main : une quinzaine de requêtes espacées, quelques dizaines de
-    /// secondes. Ne touche pas au cache.
-    pub fn capture(&self, path: String) -> Result<CaptureSummary> {
-        self.check_signed_in()?;
-        let capture = self.runtime.block_on(xc::capture(
-            &self.client,
-            &xc::CaptureOptions::default(),
-            now(),
-        ))?;
-        std::fs::write(&path, &capture.json).map_err(|_| HeyStreamError::Storage)?;
-        Ok(CaptureSummary {
-            requests: capture.requests,
-            failed: capture.failed,
-            bytes: capture.json.len() as u64,
-        })
+    // Outils de test -------------------------------------------------------
+
+    /// Enregistre (`Some(dossier)`) ou non (`None`) chaque réponse du panneau,
+    /// nettoyée, pendant l'usage normal (voir `recording_summary`,
+    /// `export_recording`). Aucune requête en plus.
+    pub fn set_recording(&self, dir: Option<String>) -> Result<()> {
+        match dir {
+            Some(dir) => self.client.start_recording(dir)?,
+            None => self.client.stop_recording(),
+        }
+        Ok(())
+    }
+
+    pub fn is_recording(&self) -> bool {
+        self.client.is_recording()
     }
 
     /// Déconnexion : efface catalogue, favoris, reprise, code PIN et EPG de
@@ -1042,6 +1081,81 @@ impl From<StreamKind> for xc::StreamKind {
 #[uniffi::export]
 pub fn core_version() -> String {
     env!("CARGO_PKG_VERSION").to_owned()
+}
+
+// --- Enregistrement des réponses (outils de test) ----------------------------
+
+/// Réponses enregistrées dans `dir` (rien s'il n'existe pas).
+#[uniffi::export]
+pub fn recording_summary(dir: String) -> RecordingSummary {
+    xc::recording_summary(dir).into()
+}
+
+/// Réunit les réponses enregistrées dans `dir` en un fichier JSON `path`, à
+/// partager.
+#[uniffi::export]
+pub fn export_recording(dir: String, path: String) -> Result<RecordingSummary> {
+    Ok(xc::export_recording(dir, path, now())?.into())
+}
+
+#[uniffi::export]
+pub fn clear_recording(dir: String) -> Result<()> {
+    Ok(xc::clear_recording(dir)?)
+}
+
+// --- Mise à jour de l'app ------------------------------------------------------
+
+/// Plus haute version publiée sur GitHub, si elle dépasse `current_version`.
+/// Bloquant (une requête, 20 s au plus).
+#[uniffi::export]
+pub fn check_app_update(current_version: String) -> Result<Option<AppUpdate>> {
+    let update = block_on(xc::check_update(
+        xc::GITHUB_API,
+        xc::UPDATE_REPO,
+        &current_version,
+    ))?;
+    Ok(update.map(Into::into))
+}
+
+/// Avancement d'un téléchargement : `total` à 0 s'il est inconnu. Appelé
+/// depuis le fil du téléchargement ; ne doit jamais lever d'exception.
+#[uniffi::export(with_foreign)]
+pub trait UpdateProgress: Send + Sync {
+    fn on_progress(&self, received: u64, total: u64);
+}
+
+/// Télécharge et vérifie l'APK de `update` dans `path`. Bloquant. En cas
+/// d'erreur, rien n'est laissé dans `path`.
+#[uniffi::export]
+pub fn download_app_update(
+    update: AppUpdate,
+    path: String,
+    progress: std::sync::Arc<dyn UpdateProgress>,
+) -> Result<()> {
+    let update: xc::AppUpdate = update.into();
+    // Au plus un appel par pour cent : pas un appel Kotlin par paquet reçu.
+    let mut reported = None;
+    block_on(xc::download_update(
+        &update,
+        std::path::Path::new(&path),
+        |received, total| {
+            let step = (received * 100).checked_div(total);
+            if step.is_none() || step != reported || received == total {
+                reported = step;
+                progress.on_progress(received, total);
+            }
+        },
+    ))?;
+    Ok(())
+}
+
+/// Exécute une tâche réseau hors de tout objet `HeyStreamCore`.
+fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime tokio")
+        .block_on(future)
 }
 
 // --- Paniques ----------------------------------------------------------------

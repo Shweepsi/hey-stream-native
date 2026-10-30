@@ -1,39 +1,48 @@
-//! Capture des réponses d'un vrai panneau, pour en faire des réponses
-//! simulées dans les tests (`core/tests/fixtures/`).
+//! Enregistrement des réponses du panneau pendant l'usage normal de l'app,
+//! pour en faire des réponses simulées dans les tests
+//! (`core/tests/fixtures/`).
 //!
-//! Lancée à la main depuis l'APK debug, sur le réseau du propriétaire :
-//! authentification, les six listes du catalogue, puis le guide des
-//! programmes de quelques chaînes, avec une pause entre chaque requête. Les
-//! réponses gardent leur forme exacte (nombres en texte, `null`, champs
-//! manquants…) mais sont nettoyées avant d'être écrites :
+//! Activé à la main dans les outils de test cachés de l'app : aucune requête
+//! en plus, seulement celles que l'app fait déjà. Chaque réponse est nettoyée
+//! **avant** d'être écrite sur le disque, un fichier par réponse :
 //!
 //! - identifiant, mot de passe et adresse du panneau remplacés partout ;
-//! - hôte de chaque URL remplacé par `example.invalid` ;
+//! - hôte de chaque URL remplacé par `example.invalid`, jetons d'URL
+//!   (`token=…`) retirés ;
 //! - adresses IP remplacées par `192.0.2.1` (plage de documentation) ;
-//! - longues listes réduites à un échantillon réparti sur toute la liste,
-//!   avec leur nombre total d'entrées.
+//! - listes du catalogue réduites à un échantillon réparti sur toute la
+//!   liste, avec leur nombre total d'entrées.
+//!
+//! Le nombre de fichiers est plafonné par type de requête : les plus anciens
+//! sont effacés.
 
 use std::collections::BTreeMap;
-use std::time::Duration;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
 
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
-use crate::lenient::{opt_i64, opt_string, text};
+use crate::lenient::text;
 
 /// Hôte écrit à la place de celui de toute URL.
-pub const CAPTURE_HOST: &str = "example.invalid";
+pub const SCRUBBED_HOST: &str = "example.invalid";
 /// Adresse écrite à la place de toute adresse IP.
-const CAPTURE_IP: &str = "192.0.2.1";
-/// Version du format du fichier de capture.
-const CAPTURE_FORMAT: u32 = 1;
+const SCRUBBED_IP: &str = "192.0.2.1";
+/// Version du format du fichier exporté.
+const EXPORT_FORMAT: u32 = 2;
+/// Entrées gardées par liste du catalogue, réparties sur toute la liste.
+const LIST_LIMIT: usize = 300;
 /// Longueur gardée d'une réponse qui n'est pas du JSON (page d'erreur…).
 const TEXT_LIMIT: usize = 2000;
+/// Paramètres d'URL retirés : jetons d'accès de certains panneaux.
+const SECRET_PARAMS: [&str; 3] = ["token", "auth", "key"];
 
-/// Listes du catalogue, dans l'ordre des requêtes.
+/// Listes du catalogue : échantillonnées.
 const LIST_ACTIONS: [&str; 6] = [
     "get_live_categories",
     "get_live_streams",
@@ -43,116 +52,160 @@ const LIST_ACTIONS: [&str; 6] = [
     "get_series",
 ];
 
-#[derive(Debug, Clone)]
-pub struct CaptureOptions {
-    /// Entrées gardées par liste, réparties sur toute la liste.
-    pub list_limit: usize,
-    /// Chaînes dont le guide des programmes est demandé.
-    pub epg_channels: usize,
-    /// Pause entre deux requêtes : un usage normal de l'app, pas une rafale.
-    pub pause: Duration,
+/// Fichiers gardés par type de requête (`auth` : authentification).
+fn keep(action: &str) -> usize {
+    match action {
+        "get_short_epg" => 40,
+        "get_vod_info" | "get_series_info" => 25,
+        "auth" => 5,
+        a if LIST_ACTIONS.contains(&a) => 3,
+        _ => 10,
+    }
 }
 
-impl Default for CaptureOptions {
-    fn default() -> Self {
-        Self {
-            list_limit: 300,
-            epg_channels: 8,
-            pause: Duration::from_millis(1500),
+/// Réponses enregistrées et place occupée.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecordingSummary {
+    pub responses: u32,
+    pub bytes: u64,
+}
+
+/// Enregistreur d'un client : nettoie et écrit chaque réponse.
+pub(crate) struct Recorder {
+    dir: PathBuf,
+    scrubber: Scrubber,
+    seq: AtomicU64,
+}
+
+impl Recorder {
+    pub(crate) fn new(dir: PathBuf, client: &XtreamClient) -> Result<Self> {
+        fs::create_dir_all(&dir).map_err(storage)?;
+        Ok(Self {
+            dir,
+            scrubber: Scrubber::new(client),
+            seq: AtomicU64::new(0),
+        })
+    }
+
+    /// Enregistre une réponse. Ne fait jamais échouer la requête : une erreur
+    /// d'écriture est ignorée.
+    pub(crate) fn record(
+        &self,
+        action: Option<&str>,
+        params: &[(&str, &str)],
+        response: &Result<(u16, bytes::Bytes)>,
+        elapsed: Duration,
+    ) {
+        let name = action.unwrap_or("auth");
+        if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+            return;
+        }
+        let limit = LIST_ACTIONS.contains(&name).then_some(LIST_LIMIT);
+        let mut record = self.scrubber.record(action, params, response, limit);
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+        if let Value::Object(map) = &mut record {
+            map.insert("at".into(), now.as_secs().into());
+            map.insert("elapsed_ms".into(), (elapsed.as_millis() as u64).into());
+        }
+        let Ok(json) = serde_json::to_vec(&record) else {
+            return;
+        };
+        // Horodatage puis numéro : l'ordre des noms est celui des requêtes.
+        let seq = self.seq.fetch_add(1, Ordering::Relaxed);
+        let file = format!("{:013}-{seq:06}-{name}.json", now.as_millis());
+        if fs::write(self.dir.join(file), json).is_ok() {
+            prune(&self.dir, name, keep(name));
         }
     }
 }
 
-/// Fichier de capture (JSON) et nombre de requêtes faites et échouées.
-#[derive(Debug)]
-pub struct Capture {
-    pub json: Vec<u8>,
-    pub requests: u32,
-    pub failed: u32,
+/// Efface les plus anciens fichiers de `action` au-delà de `keep`.
+fn prune(dir: &Path, action: &str, keep: usize) {
+    let suffix = format!("-{action}.json");
+    let mut files: Vec<PathBuf> = recorded_files(dir)
+        .into_iter()
+        .filter(|p| file_name(p).ends_with(&suffix))
+        .collect();
+    if files.len() > keep {
+        files.truncate(files.len() - keep);
+        for old in files {
+            let _ = fs::remove_file(old);
+        }
+    }
 }
 
-/// Capture les réponses du panneau. S'arrête dès l'authentification si les
-/// identifiants sont refusés ; ensuite, une requête qui échoue est notée
-/// dans le fichier et la capture continue.
-pub async fn capture(
-    client: &XtreamClient,
-    options: &CaptureOptions,
-    captured_at: i64,
-) -> Result<Capture> {
-    let scrubber = Scrubber::new(client);
-    let mut responses = Vec::new();
-    let mut failed = 0;
+/// Fichiers enregistrés, du plus ancien au plus récent.
+fn recorded_files(dir: &Path) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "json"))
+        .collect();
+    files.sort_by(|a, b| file_name(a).cmp(file_name(b)));
+    files
+}
 
-    let auth = client.fetch_raw(None, &[]).await?;
-    let accepted = auth.0 < 300
-        && serde_json::from_str::<Value>(&text(&auth.1))
-            .ok()
-            .and_then(|v| v.pointer("/user_info/auth").cloned())
-            .is_some_and(|a| a == json!(1) || a == json!("1") || a == json!(true));
-    if !accepted {
-        return Err(Error::Unauthorized);
+fn file_name(path: &Path) -> &str {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+}
+
+fn storage(error: std::io::Error) -> Error {
+    Error::Storage(error.kind().to_string())
+}
+
+/// Réponses enregistrées dans `dir` (vide s'il n'existe pas).
+pub fn recording_summary(dir: impl AsRef<Path>) -> RecordingSummary {
+    let files = recorded_files(dir.as_ref());
+    RecordingSummary {
+        responses: files.len() as u32,
+        bytes: files
+            .iter()
+            .filter_map(|p| fs::metadata(p).ok())
+            .map(|m| m.len())
+            .sum(),
     }
-    responses.push(scrubber.record(None, &[], Ok(auth), None));
+}
 
-    let mut channels = Vec::new();
-    for action in LIST_ACTIONS {
-        tokio::time::sleep(options.pause).await;
-        let response = client.fetch_raw(Some(action), &[]).await;
-        if let (Ok((200..=299, body)), "get_live_streams") = (&response, action) {
-            channels = epg_channels(body, options.epg_channels);
-        }
-        let record = scrubber.record(Some(action), &[], response, Some(options.list_limit));
-        failed += u32::from(record.get("error").is_some());
-        responses.push(record);
-    }
-
-    for id in channels {
-        tokio::time::sleep(options.pause).await;
-        let id = id.to_string();
-        let params = [("stream_id", id.as_str()), ("limit", crate::epg::EPG_LIMIT)];
-        let response = client.fetch_raw(Some("get_short_epg"), &params).await;
-        let record = scrubber.record(Some("get_short_epg"), &params, response, None);
-        failed += u32::from(record.get("error").is_some());
-        responses.push(record);
-    }
-
-    let requests = responses.len() as u32;
+/// Réunit les réponses de `dir` en un seul fichier JSON `out`, dans l'ordre
+/// des requêtes. Un fichier illisible est ignoré.
+pub fn export_recording(
+    dir: impl AsRef<Path>,
+    out: impl AsRef<Path>,
+    exported_at: i64,
+) -> Result<RecordingSummary> {
+    let responses: Vec<Value> = recorded_files(dir.as_ref())
+        .iter()
+        .filter_map(|p| fs::read(p).ok())
+        .filter_map(|bytes| serde_json::from_slice(&bytes).ok())
+        .collect();
+    let count = responses.len() as u32;
     let file = json!({
-        "format": CAPTURE_FORMAT,
+        "format": EXPORT_FORMAT,
         "app": crate::USER_AGENT,
-        "captured_at": captured_at,
-        "list_limit": options.list_limit,
+        "exported_at": exported_at,
+        "list_limit": LIST_LIMIT,
         "responses": responses,
     });
     let json = serde_json::to_vec_pretty(&file).map_err(|_| Error::InvalidResponse)?;
-    Ok(Capture {
-        json,
-        requests,
-        failed,
+    fs::write(out.as_ref(), &json).map_err(storage)?;
+    Ok(RecordingSummary {
+        responses: count,
+        bytes: json.len() as u64,
     })
 }
 
-#[derive(Deserialize)]
-struct Channel {
-    #[serde(default, deserialize_with = "opt_i64")]
-    stream_id: Option<i64>,
-    #[serde(default, deserialize_with = "opt_string")]
-    epg_channel_id: Option<String>,
-}
-
-/// Chaînes qui annoncent un guide, réparties sur toute la liste.
-fn epg_channels(body: &[u8], count: usize) -> Vec<i64> {
-    let body = text(body);
-    let Some(entries) = entries(&body) else {
-        return Vec::new();
-    };
-    let ids: Vec<i64> = entries
-        .iter()
-        .filter_map(|(_, raw)| serde_json::from_str::<Channel>(raw.get()).ok())
-        .filter(|c| c.epg_channel_id.is_some())
-        .filter_map(|c| c.stream_id)
-        .collect();
-    spread(ids.len(), count).map(|i| ids[i]).collect()
+/// Efface toutes les réponses enregistrées dans `dir`.
+pub fn clear_recording(dir: impl AsRef<Path>) -> Result<()> {
+    for file in recorded_files(dir.as_ref()) {
+        fs::remove_file(file).map_err(storage)?;
+    }
+    Ok(())
 }
 
 /// Entrées d'une liste, tableau ou objet indexé (`{"0": {...}}`), avec leur
@@ -181,9 +234,9 @@ fn spread(len: usize, count: usize) -> impl Iterator<Item = usize> {
 }
 
 /// Nettoie les réponses : rien de ce qui identifie le compte ou le panneau
-/// n'est écrit dans le fichier.
+/// n'est écrit.
 struct Scrubber {
-    /// Textes remplacés partout, du plus long au plus court.
+    /// Textes remplacés, du plus long au plus court.
     secrets: Vec<(String, &'static str)>,
 }
 
@@ -196,11 +249,9 @@ impl Scrubber {
             (client.username().to_owned(), "username"),
         ];
         if let Some(port) = base.port() {
-            secrets.push((format!("{host}:{port}"), CAPTURE_HOST));
+            secrets.push((format!("{host}:{port}"), SCRUBBED_HOST));
         }
-        secrets.push((host, CAPTURE_HOST));
-        // Un texte trop court (« tv », « 1 ») remplacé partout abîmerait les
-        // noms : il n'est remplacé que dans un champ qui ne contient que lui.
+        secrets.push((host, SCRUBBED_HOST));
         secrets.retain(|(s, _)| !s.is_empty());
         secrets.sort_by_key(|(s, _)| std::cmp::Reverse(s.len()));
         Self { secrets }
@@ -212,14 +263,14 @@ impl Scrubber {
         &self,
         action: Option<&str>,
         params: &[(&str, &str)],
-        response: Result<(u16, bytes::Bytes)>,
+        response: &Result<(u16, bytes::Bytes)>,
         limit: Option<usize>,
     ) -> Value {
         let mut record = Map::new();
         record.insert("action".into(), action.map_or(Value::Null, Value::from));
         let params: Map<String, Value> = params
             .iter()
-            .map(|(k, v)| ((*k).to_owned(), Value::from(*v)))
+            .map(|(k, v)| ((*k).to_owned(), Value::from(self.scrub_text(v))))
             .collect();
         record.insert("params".into(), Value::Object(params));
         let (status, body) = match response {
@@ -235,12 +286,12 @@ impl Scrubber {
                 return Value::Object(record);
             }
         };
-        record.insert("status".into(), status.into());
+        record.insert("status".into(), (*status).into());
         record.insert("bytes".into(), body.len().into());
-        if !(200..300).contains(&status) {
+        if !(200..300).contains(status) {
             record.insert("error".into(), "status".into());
         }
-        let body = text(&body);
+        let body = text(body);
         if body.trim().is_empty() {
             record.insert("body".into(), Value::Null);
             return Value::Object(record);
@@ -278,7 +329,7 @@ impl Scrubber {
                     .map(|(k, v)| {
                         let v = match (k.as_str(), v) {
                             ("username" | "password", Value::String(_)) => Value::String(k.clone()),
-                            ("url", Value::String(_)) => Value::String(CAPTURE_HOST.into()),
+                            ("url", Value::String(_)) => Value::String(SCRUBBED_HOST.into()),
                             (_, v) => self.scrub(v),
                         };
                         (k, v)
@@ -291,23 +342,25 @@ impl Scrubber {
 
     fn scrub_text(&self, s: &str) -> String {
         let mut out = s.to_owned();
+        // Un texte court (« tv », « 12 ») remplacé partout abîmerait les
+        // noms : il n'est remplacé que dans un champ qui ne contient que lui,
+        // ou dans une URL (plus bas).
         for (secret, placeholder) in &self.secrets {
             if out == *secret || (secret.len() >= 4 && out.contains(secret.as_str())) {
                 out = out.replace(secret.as_str(), placeholder);
             }
         }
         if is_ip(&out) {
-            return CAPTURE_IP.into();
+            return SCRUBBED_IP.into();
         }
         if let Ok(mut url) = url::Url::parse(&out)
             && url.host_str().is_some()
-            && url.set_host(Some(CAPTURE_HOST)).is_ok()
+            && url.set_host(Some(SCRUBBED_HOST)).is_ok()
         {
             let _ = url.set_port(None);
             let _ = url.set_username("");
             let _ = url.set_password(None);
-            // Identifiants courts, que `secrets` ne remplace pas dans un
-            // texte : `/live/{u}/{p}/1.ts`, `?username=…&password=…`.
+            // `/live/{u}/{p}/1.ts`, `?username=…&password=…`.
             let segments: Option<Vec<String>> = url
                 .path_segments()
                 .map(|s| s.map(|seg| self.placeholder(seg)).collect());
@@ -317,7 +370,14 @@ impl Scrubber {
             if url.query().is_some() {
                 let pairs: Vec<(String, String)> = url
                     .query_pairs()
-                    .map(|(k, v)| (k.into_owned(), self.placeholder(&v)))
+                    .map(|(k, v)| {
+                        let v = if SECRET_PARAMS.contains(&k.to_ascii_lowercase().as_str()) {
+                            "secret".to_owned()
+                        } else {
+                            self.placeholder(&v)
+                        };
+                        (k.into_owned(), v)
+                    })
                     .collect();
                 url.query_pairs_mut().clear().extend_pairs(pairs);
             }
@@ -357,5 +417,13 @@ mod tests {
         assert_eq!(entries(r#"{"0": {"a": 1}, "1": {}}"#).unwrap().len(), 2);
         assert!(entries(r#"{"user_info": {"auth": 0}}"#).is_none());
         assert!(entries("null").is_none());
+    }
+
+    #[test]
+    fn caps_per_action() {
+        assert_eq!(keep("get_vod_streams"), 3);
+        assert_eq!(keep("get_short_epg"), 40);
+        assert_eq!(keep("auth"), 5);
+        assert_eq!(keep("get_something_new"), 10);
     }
 }

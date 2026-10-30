@@ -18,7 +18,6 @@ macro_rules! not_superseded {
 }
 
 mod account;
-mod capture;
 mod catalog;
 mod client;
 mod details;
@@ -28,11 +27,12 @@ mod lenient;
 mod model;
 mod names;
 mod parental;
+mod recording;
+mod update;
 mod url;
 mod user_data;
 
 pub use account::{AccountKey, AccountMatch, CachedAccount};
-pub use capture::{CAPTURE_HOST, Capture, CaptureOptions, capture};
 pub use catalog::{
     CachedCategory, Catalog, CatalogItem, MAX_AGE_SECS, Progress, RefreshOutcome, Section,
     SectionData, fetch_section, refresh_section,
@@ -43,5 +43,9 @@ pub use epg::{EPG_MIN_INTERVAL_SECS, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
 pub use names::clean_name;
+pub use recording::{
+    RecordingSummary, SCRUBBED_HOST, clear_recording, export_recording, recording_summary,
+};
+pub use update::{AppUpdate, GITHUB_API, UPDATE_REPO, check_update, download_update};
 pub use url::{LiveFormat, StreamKind, normalize_server_url};
 pub use user_data::{PlaybackKind, RECENTS_LIMIT, Resume, ResumeEntry};

@@ -18,20 +18,24 @@
 
   <main class="prose">
     <h1>Privacy policy</h1>
-    <p class="date">Effective October 29, 2026</p>
+    <p class="date">Effective October 30, 2026</p>
 
-    <p class="note">In short: Hey Stream has no account, no ads and no analytics. Your credentials stay on your device. Only anonymous crash reports may be sent, and you can turn them off.</p>
+    <p class="note">In short: Hey Stream has no account, no ads and no analytics. Your credentials stay on your device. Only anonymous crash reports may be sent, and you can turn them off. The app also asks GitHub whether a new version exists.</p>
 
     <h2>What the app keeps on your device</h2>
     <ul>
       <li>Your subscription’s server address, username and password, <strong>encrypted</strong> with an Android system key that cannot be exported.</li>
       <li>Your subscription’s catalog, your favorites, recent channels and titles, resume positions, titles marked as watched, hidden categories and your parental code.</li>
+      <li>Only if you turn on the test tools (hidden, off by default): a copy of your provider’s responses, from which the app removes the username, password, server address and IP addresses. It only leaves the device if you share it yourself.</li>
     </ul>
     <p>This data does not leave the device: it is excluded from Android backups and from device-to-device transfer. Signing out erases it, and so does uninstalling the app.</p>
 
     <h2>Who the app talks to</h2>
     <h3>Your IPTV provider</h3>
     <p>The app only connects to the server you entered, to check your subscription, download the catalog (once a day and when you ask), and load programs, images and videos. This traffic goes straight from your device to the provider, without going through any Hey Stream server (there is none). The app identifies itself as “HeyStream” followed by its version. Your provider handles this data under its own policy.</p>
+
+    <h3>GitHub, for updates</h3>
+    <p>At most once a day, and when you ask in <strong>Settings › About</strong>, the app asks GitHub for the list of the project’s published versions. If you choose to install a new version, it downloads it from GitHub. These requests contain no data about you or your subscription; like any online service, GitHub receives the connection’s IP address (see <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>).</p>
 
     <h3>GlitchTip, for crash reports</h3>
     <p>When the app crashes, freezes, hits an internal error or has to give up on playback after several retries, it may send a report to <a href="https://glitchtip.com">GlitchTip</a>, an error tracking service, so the problem can be fixed.</p>

@@ -48,7 +48,9 @@ class CoreSession(
     private val credentials: CredentialStore,
     private val scope: CoroutineScope,
     /** Ouvre le cœur d'un abonnement (un faux cœur dans les tests). */
-    private val open: (Credentials) -> HeyStreamCore = { saved -> openNative(saved, context.filesDir.absolutePath) },
+    private val open: (Credentials) -> HeyStreamCore = { saved ->
+        openNative(saved, context.filesDir.absolutePath).also { DevTools.resumeRecording(context, it) }
+    },
 ) {
     private val lock = Mutex()
 
@@ -240,8 +242,8 @@ class CoreSession(
         }
     }
 
-    private companion object {
-        fun openNative(saved: Credentials, dataDir: String): HeyStreamCore {
+    companion object {
+        private fun openNative(saved: Credentials, dataDir: String): HeyStreamCore {
             loadNativeLibrary()
             return HeyStreamCore(saved.server, saved.username, saved.password, dataDir)
         }

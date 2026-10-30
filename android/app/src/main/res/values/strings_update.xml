@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mises à jour de l'app (releases GitHub). -->
+    <string name="update_prompt_title">Hey Stream %1$s is available</string>
+    <string name="update_later">Later</string>
+    <string name="update_install">Install</string>
+    <string name="update_downloading">Downloading…</string>
+    <string name="update_downloading_percent">Downloading… %1$d%%</string>
+    <string name="update_installing">Installing…</string>
+    <string name="update_needs_permission">Allow Hey Stream to install apps in the screen that opened, then choose Install again.</string>
+    <string name="update_failed_check">Couldn’t check for updates. Check your connection and try again.</string>
+    <string name="update_failed_download">The download failed or the file is damaged. Try again.</string>
+    <string name="update_failed_install">Android couldn’t install the update.</string>
+
+    <string name="settings_updates">Updates</string>
+    <string name="settings_update_source">Updates come from the versions published on the project’s GitHub page.</string>
+    <string name="settings_update_check">Check for updates</string>
+    <string name="settings_update_checking">Checking…</string>
+    <string name="settings_update_up_to_date">Hey Stream is up to date.</string>
+    <string name="settings_update_available">Version %1$s is available.</string>
+    <string name="settings_update_install">Install version %1$s</string>
+
+    <!-- Outils de test (cachés : sept appuis sur la version). -->
+    <string name="settings_dev_title">Test tools</string>
+    <string name="settings_dev_recording">Record provider responses</string>
+    <string name="settings_dev_recording_detail">While you use the app, its responses are saved on this device for the automated tests, without username, password, server address or IP addresses. No extra request; nothing leaves the device until you share it.</string>
+    <plurals name="settings_dev_recorded">
+        <item quantity="one">%1$d response recorded (%2$s)</item>
+        <item quantity="other">%1$d responses recorded (%2$s)</item>
+    </plurals>
+    <string name="settings_dev_share">Share the recording</string>
+    <string name="settings_dev_clear">Delete</string>
+    <string name="settings_dev_failed">The action failed.</string>
+</resources>

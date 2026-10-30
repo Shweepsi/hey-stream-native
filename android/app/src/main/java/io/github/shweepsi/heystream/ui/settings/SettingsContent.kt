@@ -1,10 +1,12 @@
 package io.github.shweepsi.heystream.ui.settings
 
 import androidx.activity.compose.BackHandler
+import android.text.format.Formatter
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -49,6 +52,8 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -62,7 +67,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
+import io.github.shweepsi.heystream.core.AppUpdate
 import io.github.shweepsi.heystream.core.Section
+import io.github.shweepsi.heystream.data.UpdateState
+import io.github.shweepsi.heystream.data.pendingUpdate
 import io.github.shweepsi.heystream.ui.components.BelowTopBar
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.CategoryRow
@@ -83,6 +91,7 @@ import io.github.shweepsi.heystream.ui.home.text
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
+import io.github.shweepsi.heystream.ui.update.updateStatus
 import java.text.NumberFormat
 
 /**
@@ -123,8 +132,30 @@ interface SettingsActions {
 
     fun crashReports(enabled: Boolean) {}
 
+    fun checkUpdate() {}
+
+    fun installUpdate(update: AppUpdate) {}
+
+    /** Appui sur la version : sept font apparaître les outils de test. */
+    fun versionTapped() {}
+
+    fun recording(enabled: Boolean) {}
+
+    fun shareRecording() {}
+
+    fun clearRecording() {}
+
     fun back() {}
 }
+
+/** Outils de test (cachés) : enregistrement des réponses du fournisseur. */
+@Immutable
+data class DevToolsUi(
+    val recording: Boolean = false,
+    val responses: Int = 0,
+    val bytes: Long = 0,
+    val error: Boolean = false,
+)
 
 @get:StringRes
 val SettingsSection.title: Int
@@ -167,8 +198,9 @@ fun SettingsContent(
     appVersion: String,
     actions: SettingsActions,
     crashReports: Boolean = true,
-    /** Bloc ajouté en bas de la rubrique Catalogue (outils de l'APK debug). */
-    catalogExtra: (@Composable () -> Unit)? = null,
+    update: UpdateState = UpdateState.Idle,
+    /** Outils de test, `null` tant qu'ils sont cachés. */
+    devTools: DevToolsUi? = null,
 ) {
     val dimens = Hs.dimens
     val isTv = dimens.isTv
@@ -208,9 +240,9 @@ fun SettingsContent(
                     SettingsSection.HiddenCategories -> HiddenCategoriesPane(state.categories, actions)
                     SettingsSection.Parental -> ParentalPane(state.parental, actions)
                     SettingsSection.Language -> LanguagePane(language, actions)
-                    SettingsSection.Catalog -> CatalogPane(state.catalog, actions, catalogExtra)
+                    SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
-                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, actions)
+                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, update, devTools, actions)
                 }
             }
         }
@@ -632,7 +664,7 @@ private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit, mod
 // Catalogue ---------------------------------------------------------------------
 
 @Composable
-private fun CatalogPane(ui: CatalogUi, actions: SettingsActions, extra: (@Composable () -> Unit)?) {
+private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_catalog)) {
         Paragraph(stringResource(R.string.settings_catalog_intro))
@@ -651,7 +683,6 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions, extra: (@Compos
                 ui.results.forEach { result -> ResultLine(result) }
             }
         }
-        extra?.invoke()
     }
 }
 
@@ -757,7 +788,14 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
 // À propos ----------------------------------------------------------------------
 
 @Composable
-private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Boolean, actions: SettingsActions) {
+private fun AboutPane(
+    appVersion: String,
+    coreVersion: String?,
+    crashReports: Boolean,
+    update: UpdateState,
+    devTools: DevToolsUi?,
+    actions: SettingsActions,
+) {
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_about)) {
         Logo(size = if (dimens.isTv) 26.dp else 30.dp)
@@ -769,6 +807,8 @@ private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Bo
             },
             style = Hs.type.body,
             color = Hs.colors.textSecondary,
+            // Au doigt seulement, sans focus : rien de visible ne l'annonce.
+            modifier = Modifier.pointerInput(actions) { detectTapGestures(onTap = { actions.versionTapped() }) },
         )
         Paragraph(stringResource(R.string.settings_about_license), secondary = false)
         Paragraph(stringResource(R.string.settings_about_no_content), secondary = false)
@@ -778,6 +818,8 @@ private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Bo
             onToggle = { actions.crashReports(!crashReports) },
         )
         Paragraph(stringResource(R.string.settings_crash_reports_detail))
+        UpdateSection(update, actions)
+        devTools?.let { DevToolsSection(it, actions) }
         Text(
             text = stringResource(R.string.settings_about_credits),
             style = Hs.type.itemTitle,
@@ -798,6 +840,66 @@ private fun AboutPane(appVersion: String, coreVersion: String?, crashReports: Bo
             }
             CreditRow(stringResource(R.string.settings_credit_ffmpeg), stringResource(R.string.settings_credit_ffmpeg_source))
         }
+    }
+}
+
+@Composable
+private fun SubHeading(text: String) {
+    Text(
+        text = text,
+        style = Hs.type.itemTitle,
+        modifier = Modifier
+            .padding(top = Hs.dimens.gapSmall)
+            .semantics { heading() },
+    )
+}
+
+/** Version installée à jour, ou version publiée sur GitHub à installer. */
+@Composable
+private fun UpdateSection(state: UpdateState, actions: SettingsActions) {
+    SubHeading(stringResource(R.string.settings_updates))
+    val target = state.pendingUpdate()
+    Paragraph(
+        when (state) {
+            UpdateState.Checking -> stringResource(R.string.settings_update_checking)
+            UpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date)
+            is UpdateState.Available -> stringResource(R.string.settings_update_available, state.update.version)
+            else -> updateStatus(state) ?: stringResource(R.string.settings_update_source)
+        },
+        secondary = false,
+    )
+    // Toujours activé : un bouton désactivé perdrait le focus de la télécommande.
+    HsButton(
+        text = if (target != null) {
+            stringResource(R.string.settings_update_install, target.version)
+        } else {
+            stringResource(R.string.settings_update_check)
+        },
+        onClick = { if (target != null) actions.installUpdate(target) else actions.checkUpdate() },
+        icon = Lucide.RotateCw,
+    )
+}
+
+/** Outils de test : enregistrement des réponses du fournisseur pendant l'usage. */
+@Composable
+private fun DevToolsSection(ui: DevToolsUi, actions: SettingsActions) {
+    val dimens = Hs.dimens
+    val context = LocalContext.current
+    SubHeading(stringResource(R.string.settings_dev_title))
+    SwitchRow(
+        label = stringResource(R.string.settings_dev_recording),
+        checked = ui.recording,
+        onToggle = { actions.recording(!ui.recording) },
+    )
+    Paragraph(stringResource(R.string.settings_dev_recording_detail))
+    Paragraph(
+        pluralStringResource(R.plurals.settings_dev_recorded, ui.responses, ui.responses, Formatter.formatShortFileSize(context, ui.bytes)),
+        secondary = false,
+    )
+    if (ui.error) StatusLine(Lucide.CircleAlert, stringResource(R.string.settings_dev_failed), bold = false, alert = true)
+    Row(horizontalArrangement = Arrangement.spacedBy(dimens.gap)) {
+        HsButton(text = stringResource(R.string.settings_dev_share), onClick = actions::shareRecording)
+        HsButton(text = stringResource(R.string.settings_dev_clear), onClick = actions::clearRecording, icon = Lucide.Trash)
     }
 }
 
