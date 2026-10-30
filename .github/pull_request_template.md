@@ -10,5 +10,6 @@
 
 ## Checklist
 
+- [ ] Commits signed off (`git commit -s`, DCO)
 - [ ] Version bumped and `CHANGELOG.md` updated if the app changes (or ask a maintainer)
 - [ ] No credentials, server address or stream URL in code, logs or screenshots

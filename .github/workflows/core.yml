@@ -38,3 +38,18 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
+  licences:
+    name: licences tierces à jour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+      - run: cargo install cargo-about --version 0.9.3 --locked --features cli
+      # Toute licence non listée dans about.toml fait échouer la génération.
+      - run: scripts/third_party_licenses.sh
+      - name: Liste à jour
+        run: git diff --exit-code android/app/src/main/assets/licenses/rust.txt || { echo "Lancer scripts/third_party_licenses.sh et committer le résultat."; exit 1; }
+

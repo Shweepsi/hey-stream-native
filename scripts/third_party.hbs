@@ -1,0 +1,10 @@
+Licences des bibliothèques Rust du cœur de Hey Stream
+=====================================================
+{{#each licenses}}
+
+{{name}} ({{id}})
+----------------------------------------------------------------------
+Utilisée par : {{#each used_by}}{{crate.name}} {{crate.version}}{{#unless @last}}, {{/unless}}{{/each}}
+
+{{text}}
+{{/each}}

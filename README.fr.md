@@ -63,4 +63,7 @@ Voir [`docs/SPEC_V1.md`](docs/SPEC_V1.md), [`docs/DECISIONS.md`](docs/DECISIONS.
 
 ## Licence
 
-GPL-3.0. Voir [`LICENSE`](LICENSE).
+GPL-3.0 ou ultérieure (voir [`LICENSE`](LICENSE)), avec une permission
+supplémentaire pour la distribution par les magasins d'applications
+([`LICENSE-EXCEPTION.md`](LICENSE-EXCEPTION.md)). Les licences des
+bibliothèques utilisées sont listées dans l'app (Réglages › À propos).

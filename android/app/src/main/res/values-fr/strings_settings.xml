@@ -66,7 +66,7 @@
 
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_versions">Version %1$s · cœur %2$s</string>
-    <string name="settings_about_license">Logiciel libre sous licence GNU GPL 3.0.</string>
+    <string name="settings_about_license">Logiciel libre sous licence GNU GPL 3.0 ou ultérieure, avec une exception pour les magasins d’applications.</string>
     <string name="settings_about_no_content">Hey Stream ne fournit aucun contenu : l’app lit seulement l’abonnement IPTV que vous ajoutez.</string>
     <string name="settings_crash_reports">Envoyer des rapports de plantage anonymes</string>
     <string name="settings_crash_reports_detail">Plantages, gels et lectures impossibles, pour les corriger. Sans identifiants, adresse du serveur ni lien de flux.</string>
@@ -77,10 +77,11 @@
     <string name="settings_credit_inter">Inter (police de caractères)</string>
     <string name="settings_credit_lucide">Lucide (icônes)</string>
     <string name="settings_credit_lucide_license">Licence ISC</string>
-    <string name="settings_credit_androidx_license">Licence Apache 2.0</string>
     <string name="settings_credit_ffmpeg">Décodeur FFmpeg (Jellyfin)</string>
-    <string name="settings_credit_sentry">SDK Sentry (rapports de plantage)</string>
-    <string name="settings_credit_sentry_license">Licence MIT</string>
+    <string name="settings_credit_android">Bibliothèques Android</string>
+    <string name="settings_credit_rust">Bibliothèques du cœur Rust</string>
+    <string name="settings_credit_rust_license">MIT, Apache 2.0 et autres</string>
+    <string name="settings_credit_ffmpeg_source">GNU GPL · sources : github.com/jellyfin/jellyfin-androidx-media</string>
     <string name="settings_license_unavailable">Le texte de la licence est illisible.</string>
     <string name="settings_change_server">Modifier l’adresse du serveur</string>
 </resources>

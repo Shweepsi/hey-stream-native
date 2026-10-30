@@ -133,3 +133,16 @@ opérateurs, chaînes gratuites) passent plutôt par des **listes M3U**
 (hors périmètre v1, `SPEC_V1.md`). Ajouter M3U (avec guide XMLTV) serait le
 signal de légitimité le plus fort, notamment pour l'examen Google Play.
 **Non décidé** : à trancher avant la publication 1.0.
+
+## Licence (2026-10-30)
+
+- **GPL-3.0-or-later**, avec une **permission supplémentaire** (article 7 de
+  la GPL-3) pour la distribution par les magasins d'applications
+  (`LICENSE-EXCEPTION.md`), posée tant que le propriétaire est le seul auteur.
+  Elle couvre le code de Hey Stream, pas les composants tiers (FFmpeg).
+- **Contributions** : DCO (`Signed-off-by` sur chaque commit), pas de CLA ;
+  chaque contributeur garde ses droits.
+- **Licences tierces** affichées dans l'app (Réglages › À propos) : liste des
+  bibliothèques Android générée par AboutLibraries à la compilation, liste
+  des crates Rust par `cargo about` (`scripts/third_party_licenses.sh`,
+  vérifiée par la CI). Lien vers les sources du décodeur FFmpeg (GPL).

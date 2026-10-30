@@ -4,6 +4,13 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.5.1 — 2026-10-30
+
+- Licence précisée : GPL-3.0 ou ultérieure, avec une exception pour les
+  magasins d'applications.
+- Réglages › À propos : listes complètes des bibliothèques Android et Rust
+  avec le texte de leurs licences ; lien vers les sources du décodeur FFmpeg.
+
 ## 0.5.0 — 2026-10-29
 
 - Nouveau logo (piste C) : triangle blanc aux coins arrondis, ondes bleu
