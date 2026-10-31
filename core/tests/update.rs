@@ -64,9 +64,9 @@ async fn newest_release_with_an_apk_is_offered() {
 async fn a_tester_apk_on_github_is_never_offered() {
     let server = releases(json!([
         {"tag_name": "v0.7.0", "assets": [
-            apk("hey-stream-0.7.0-testeur.apk", "https://x/0.7.0-testeur.apk"),
+            apk("hey-stream-0.7.0-t.apk", "https://x/0.7.0-t.apk"),
             apk("hey-stream-0.7.0.apk", "https://x/0.7.0.apk")]},
-        {"tag_name": "v0.8.0", "assets": [apk("hey-stream-0.8.0-testeur.apk", "https://x/bad.apk")]}
+        {"tag_name": "v0.8.0", "assets": [apk("hey-stream-0.8.0-t.apk", "https://x/bad.apk")]}
     ]))
     .await;
     let update = check_update(&server.uri(), REPO, "0.6.0")
