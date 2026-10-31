@@ -57,7 +57,7 @@ jobs:
             if [ -z "${!name}" ]; then echo "Secret manquant : $name (voir docs/COLLECTE.md)"; exit 1; fi
           done
       - name: Stockage R2
-        run: npx --yes wrangler@4 r2 bucket info hey-stream-donnees > /dev/null 2>&1 || npx --yes wrangler@4 r2 bucket create hey-stream-donnees
+        run: npx --yes wrangler@4 r2 bucket info hey-stream-donnees-eu > /dev/null 2>&1 || npx --yes wrangler@4 r2 bucket create hey-stream-donnees-eu --location weur
       - name: Déploiement
         run: npx --yes wrangler@4 deploy
       - name: Clés

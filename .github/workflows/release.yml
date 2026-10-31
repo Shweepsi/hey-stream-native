@@ -106,14 +106,14 @@ jobs:
           apk="../hey-stream-$v-testeur.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           # L'APK d'abord, puis la fiche qui le désigne.
-          npx --yes wrangler@4 r2 object put "hey-stream-donnees/apk/hey-stream-$v-testeur.apk" \
+          npx --yes wrangler@4 r2 object put "hey-stream-donnees-eu/apk/hey-stream-$v-testeur.apk" \
             --file "$apk" --content-type application/vnd.android.package-archive --remote
           jq -n --arg version "$v" --rawfile notes ../notes.md \
             --arg file "apk/hey-stream-$v-testeur.apk" \
             --argjson size "$(stat -c %s "$apk")" \
             --arg sha256 "$(sha256sum "$apk" | cut -d' ' -f1)" \
             '{version: $version, notes: $notes, size: $size, sha256: $sha256, file: $file}' > latest.json
-          npx --yes wrangler@4 r2 object put hey-stream-donnees/apk/latest.json \
+          npx --yes wrangler@4 r2 object put hey-stream-donnees-eu/apk/latest.json \
             --file latest.json --content-type application/json --remote
       - name: Release
         env:

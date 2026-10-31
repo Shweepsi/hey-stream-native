@@ -37,7 +37,8 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    *Actions*) : `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
    `TELEMETRY_KEY` (clé d'envoi), `TELEMETRY_ADMIN_KEY`.
 5. **Déployer** : *Actions* › *collecte* › *Run workflow* (branche `main`).
-   Le stockage R2 `hey-stream-donnees` est créé s'il n'existe pas.
+   Le stockage R2 `hey-stream-donnees-eu` est créé s'il n'existe pas, en Europe de
+   l'Ouest (WEUR). L'emplacement d'un bucket ne change plus après coup.
 6. **Adresse** : ajouter le secret `TELEMETRY_URL` =
    `https://hey-stream-donnees.<sous-domaine>.workers.dev`.
 7. La release suivante dépose l'APK testeur dans le stockage du service
