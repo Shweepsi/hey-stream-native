@@ -9,7 +9,7 @@ workers_dev = true
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "hey-stream-donnees"
+bucket_name = "hey-stream-donnees-eu"
 
 # Effacement des données de plus d'un an, chaque nuit.
 [triggers]

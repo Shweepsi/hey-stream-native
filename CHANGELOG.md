@@ -4,6 +4,12 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.1 — 2026-10-31
+
+- Données des testeurs stockées en Europe de l'Ouest : le stockage du
+  service de collecte devient `hey-stream-donnees-eu` (WEUR). Premier APK
+  testeur.
+
 ## 0.7.0 — 2026-10-31
 
 - APK testeur (`hey-stream-X.Y.Z-testeur.apk`), remis par le propriétaire
