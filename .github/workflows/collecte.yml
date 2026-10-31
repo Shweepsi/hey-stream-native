@@ -4,7 +4,8 @@ name: collecte
 # tests à chaque changement, déploiement sur Cloudflare depuis main.
 # Secrets du dépôt : CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
 # TELEMETRY_KEY (clé d'envoi, aussi dans l'APK testeur) et
-# TELEMETRY_ADMIN_KEY (lecture et coupure). Voir docs/COLLECTE.md.
+# TELEMETRY_ADMIN_KEY (lecture et coupure) ; TELEMETRY_SHARE_KEY facultatif
+# (lien de téléchargement à partager). Voir docs/COLLECTE.md.
 on:
   push:
     branches: [main]
@@ -64,6 +65,9 @@ jobs:
         env:
           INGEST: ${{ secrets.TELEMETRY_KEY }}
           ADMIN: ${{ secrets.TELEMETRY_ADMIN_KEY }}
+          SHARE: ${{ secrets.TELEMETRY_SHARE_KEY }}
         run: |
           printf '%s' "$INGEST" | npx --yes wrangler@4 secret put INGEST_KEY
           printf '%s' "$ADMIN" | npx --yes wrangler@4 secret put ADMIN_KEY
+          # Facultative : lien de téléchargement à partager (docs/COLLECTE.md).
+          if [ -n "$SHARE" ]; then printf '%s' "$SHARE" | npx --yes wrangler@4 secret put SHARE_KEY; fi
