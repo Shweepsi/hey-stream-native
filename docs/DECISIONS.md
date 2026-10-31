@@ -78,6 +78,29 @@ de fichiers est plafonné par type. Le propriétaire partage le fichier
 (Drive) ; il devient une réponse simulée des tests dans
 `core/tests/fixtures/`, relue avant d'être versionnée.
 
+## Données des testeurs (2026-10-31)
+
+Décision du propriétaire : beaucoup de données réelles, de testeurs qui ont
+le même panneau que lui (autres appareils, autres usages), analysées par
+une IA (rapport chaque lundi). Mise en route et lecture : `docs/COLLECTE.md`.
+
+- **Deux APK** à chaque release : l'APK testeur
+  (`-testeur.apk`, `-Pheystream.testeur=true`) collecte dès
+  l'installation ; l'APK public ne collecte rien (un inconnu qui le trouve
+  sur GitHub n'a rien accordé). Chacun se met à jour vers le sien.
+- **Accord** recueilli par le propriétaire en remettant l'APK : rien n'est
+  affiché dans l'app (choix du propriétaire).
+- **Tout** : réponses entières du panneau (enregistrement complet, même
+  nettoyage que les outils de test), usage, lecture, plantages, appareil.
+  Numéro aléatoire par appareil, jamais d'URL ni d'identifiant.
+- **Envoi** sur tout réseau, jamais pendant une lecture ; **aucune requête
+  en plus** vers le panneau.
+- **Cloudflare** (choix du propriétaire) : un Worker
+  (`cloudflare/collecte`) range les lots dans R2. La clé d'envoi, dans
+  l'APK, ne permet pas de lire ; la clé d'administration ne quitte pas les
+  secrets. Conservation **un an** ; **coupure à distance** de tous ou d'un
+  appareil.
+
 ## Mises à jour de l'app (2026-10-30)
 
 Décision du propriétaire, pour réduire son implication : l'app se met à jour

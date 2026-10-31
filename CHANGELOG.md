@@ -4,6 +4,19 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.0 — 2026-10-31
+
+- APK testeur (`hey-stream-X.Y.Z-testeur.apk`), publié à côté de l'APK
+  public : il envoie ses données d'usage au service de collecte du projet
+  (Cloudflare). Réponses entières du panneau, nettoyées sur l'appareil ;
+  écrans, recherches, lectures (démarrage, coupures, formats, décodeurs,
+  débit), erreurs, plantages, mémoire et appareil. Numéro aléatoire par
+  appareil, jamais d'URL ni d'identifiant. Envoi par lots, jamais pendant
+  une lecture ; aucune requête en plus vers le fournisseur. L'APK public
+  n'envoie rien. Chacun se met à jour vers le sien.
+- Service de collecte (`cloudflare/collecte`) : conservation un an, coupure
+  à distance.
+
 ## 0.6.0 — 2026-10-30
 
 - Mise à jour intégrée : à l'ouverture (une fois par jour au plus), l'app

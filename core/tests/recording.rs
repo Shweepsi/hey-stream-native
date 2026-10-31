@@ -220,3 +220,32 @@ async fn short_credentials_are_hidden_in_urls() {
     assert_eq!(first["name"], "Chaîne 1");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[tokio::test]
+async fn full_recording_keeps_whole_lists_still_hiding_the_account() {
+    let server = panel(USER, PASS).await;
+    let client = client(&server, USER, PASS);
+    let dir = temp_dir("full");
+    client.start_full_recording(&dir).unwrap();
+    client.live_streams(None).await.unwrap();
+    for id in 0..45 {
+        client.short_epg(id).await.unwrap();
+    }
+    let (text, responses) = read_export(&dir);
+    let live = responses
+        .iter()
+        .find(|r| r["action"] == "get_live_streams")
+        .unwrap();
+    assert_eq!(live["body"].as_array().unwrap().len(), 1000);
+    assert!(live.get("kept").is_none());
+    // Plafond ×10 : les 45 guides sont gardés.
+    assert_eq!(
+        responses
+            .iter()
+            .filter(|r| r["action"] == "get_short_epg")
+            .count(),
+        45
+    );
+    assert!(!text.contains(PASS) && !text.contains(&server.address().to_string()));
+    std::fs::remove_dir_all(&dir).unwrap();
+}

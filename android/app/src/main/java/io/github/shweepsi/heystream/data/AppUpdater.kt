@@ -113,7 +113,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             _state.value = try {
                 val update = withContext(Dispatchers.IO) {
                     CoreSession.loadNativeLibrary()
-                    checkAppUpdate(BuildConfig.VERSION_NAME)
+                    checkAppUpdate(BuildConfig.VERSION_NAME, BuildConfig.TESTER)
                 }
                 prefs().edit { putLong(KEY_CHECKED_AT, System.currentTimeMillis()) }
                 if (update == null) {

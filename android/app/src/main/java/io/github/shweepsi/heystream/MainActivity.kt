@@ -7,6 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import io.github.shweepsi.heystream.data.Telemetry
+import io.github.shweepsi.heystream.data.TelemetryWorker
 import io.github.shweepsi.heystream.ui.LocalAppGraph
 import io.github.shweepsi.heystream.ui.graph
 import io.github.shweepsi.heystream.ui.nav.AppNavigation
@@ -40,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         app.player.onForeground()
         app.updater.onForeground()
+        Telemetry.event("foreground")
     }
 
     /**
@@ -52,6 +55,9 @@ class MainActivity : AppCompatActivity() {
      * reste visible. Un retour rapide ne rouvre donc rien d'adulte.
      */
     override fun onStop() {
+        Telemetry.event("background")
+        Telemetry.memory("background")
+        TelemetryWorker.soon(this)
         app.player.onBackground()
         if (!isChangingConfigurations) {
             app.session.lockParental()

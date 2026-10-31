@@ -71,8 +71,18 @@ fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
     parts.next().is_none().then_some(version)
 }
 
+/// Suffixe de l'APK testeur (`hey-stream-X.Y.Z-testeur.apk`), qui envoie ses
+/// données d'usage (voir [`crate::telemetry`]).
+pub const TESTER_APK_SUFFIX: &str = "-testeur.apk";
+
 /// Plus haute version publiée avec un APK, si elle dépasse `current`.
-pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<Option<AppUpdate>> {
+/// `tester` : l'APK testeur, sinon l'APK public ; chacun reste sur le sien.
+pub async fn check_update(
+    api_base: &str,
+    repo: &str,
+    current: &str,
+    tester: bool,
+) -> Result<Option<AppUpdate>> {
     let current = parse_version(current).ok_or(Error::InvalidResponse)?;
     let http = http_builder()
         .timeout(Duration::from_secs(20))
@@ -98,10 +108,10 @@ pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<O
         .filter_map(|r| {
             let version = parse_version(r.tag_name.as_deref()?)?;
             let apk = r.assets.into_iter().find(|a| {
-                a.name
-                    .as_deref()
-                    .is_some_and(|n| n.to_ascii_lowercase().ends_with(".apk"))
-                    && a.browser_download_url.is_some()
+                a.name.as_deref().is_some_and(|n| {
+                    let n = n.to_ascii_lowercase();
+                    n.ends_with(".apk") && n.ends_with(TESTER_APK_SUFFIX) == tester
+                }) && a.browser_download_url.is_some()
             })?;
             Some((version, r.body, apk))
         })

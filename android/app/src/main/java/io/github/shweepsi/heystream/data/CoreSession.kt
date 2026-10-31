@@ -129,11 +129,13 @@ class CoreSession(
                 val opened = open(candidate)
                 try {
                     val account = opened.authenticate()
+                    Telemetry.event("sign_in", "ok" to true)
                     credentials.save(candidate)
                     core?.close()
                     core = opened
                     account
                 } catch (error: Throwable) {
+                    Telemetry.event("sign_in", "ok" to false, "error" to error.javaClass.simpleName)
                     opened.close()
                     throw error
                 }
@@ -229,14 +231,27 @@ class CoreSession(
         // masquer celui du nouveau.
         val used = core
         _refresh.value = RefreshState.Running
+        val started = System.currentTimeMillis()
         return try {
             val sections = withContext(Dispatchers.IO) { (used ?: throw HeyStreamException.SignedOut()).refresh(force) }
+            Telemetry.event(
+                "catalog_refresh",
+                "force" to force,
+                "ms" to System.currentTimeMillis() - started,
+                "sections" to sections.joinToString(",") { "${it.section}:${if (it.failed) "failed" else if (it.refreshed) "refreshed" else "fresh"}" },
+            )
             // Le cache, lui, est partagé : ce que le cœur a pu y enregistrer
             // (même abonnement, ou avant d'être remplacé) recharge les listes.
             if (sections.any { it.refreshed }) _catalogVersion.update { it + 1 }
             if (core === used) _refresh.value = RefreshState.Done(sections)
             sections
         } catch (error: Throwable) {
+            Telemetry.event(
+                "catalog_refresh_failed",
+                "force" to force,
+                "ms" to System.currentTimeMillis() - started,
+                "error" to error.javaClass.simpleName,
+            )
             if (core === used) _refresh.value = RefreshState.Failed(error)
             throw error
         }

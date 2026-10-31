@@ -8,6 +8,7 @@ edition = "2024"
 [dependencies]
 base64 = "0.23.1"
 bytes = "1.12.1"
+flate2 = "1"
 getrandom = "0.4.3"
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "gzip"] }
 rusqlite = { version = "0.41.0", features = ["bundled"] }
@@ -23,6 +24,7 @@ url = "2.5.8"
 webpki-root-certs = "1.0.11"
 
 [dev-dependencies]
+flate2 = "1"
 tokio = { version = "1.54.1", features = ["macros", "rt", "rt-multi-thread"] }
 webpki-root-certs = "1.0.11"
 wiremock = "0.6.5"

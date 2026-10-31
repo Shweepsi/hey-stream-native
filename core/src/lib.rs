@@ -28,6 +28,7 @@ mod model;
 mod names;
 mod parental;
 mod recording;
+mod telemetry;
 mod update;
 mod url;
 mod user_data;
@@ -46,6 +47,9 @@ pub use names::clean_name;
 pub use recording::{
     RecordingSummary, SCRUBBED_HOST, clear_recording, export_recording, recording_summary,
 };
-pub use update::{AppUpdate, GITHUB_API, UPDATE_REPO, check_update, download_update};
+pub use telemetry::{TelemetryKind, TelemetryTarget, UploadOutcome, upload_telemetry};
+pub use update::{
+    AppUpdate, GITHUB_API, TESTER_APK_SUFFIX, UPDATE_REPO, check_update, download_update,
+};
 pub use url::{LiveFormat, StreamKind, normalize_server_url};
 pub use user_data::{PlaybackKind, RECENTS_LIMIT, Resume, ResumeEntry};

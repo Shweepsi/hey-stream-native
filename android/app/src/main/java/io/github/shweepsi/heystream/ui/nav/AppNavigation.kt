@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavType
@@ -28,6 +30,7 @@ import androidx.navigation.navArgument
 import io.github.shweepsi.heystream.core.PlaybackKind
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.SessionState
+import io.github.shweepsi.heystream.data.Telemetry
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.components.LoadingState
 import io.github.shweepsi.heystream.ui.detail.MovieDetailScreen
@@ -79,6 +82,22 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     }
     // Choisi une fois : ensuite, connexion et déconnexion naviguent elles-mêmes.
     val start = remember { if (state == SessionState.Ready) Routes.HOME else Routes.LOGIN }
+    // APK testeur : chaque écran ouvert (modèle de route et ses numéros).
+    DisposableEffect(navController) {
+        val listener = NavController.OnDestinationChangedListener { _, destination, arguments ->
+            Telemetry.event(
+                "screen",
+                "route" to destination.route,
+                "args" to arguments?.let { args ->
+                    // Arguments des routes : des numéros et des sections, jamais d'URL.
+                    @Suppress("DEPRECATION")
+                    args.keySet().filterNot { it.startsWith("android-support-nav") }.joinToString(",") { "$it=${args.get(it)}" }
+                },
+            )
+        }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
     NavHost(
         navController = navController,
         startDestination = start,

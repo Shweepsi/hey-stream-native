@@ -751,9 +751,11 @@ impl HeyStreamCore {
 
     /// Enregistre (`Some(dossier)`) ou non (`None`) chaque réponse du panneau,
     /// nettoyée, pendant l'usage normal (voir `recording_summary`,
-    /// `export_recording`). Aucune requête en plus.
-    pub fn set_recording(&self, dir: Option<String>) -> Result<()> {
+    /// `export_recording`). Aucune requête en plus. `full` : listes entières
+    /// (APK testeur, voir `upload_telemetry`).
+    pub fn set_recording(&self, dir: Option<String>, full: bool) -> Result<()> {
         match dir {
+            Some(dir) if full => self.client.start_full_recording(dir)?,
             Some(dir) => self.client.start_recording(dir)?,
             None => self.client.stop_recording(),
         }
@@ -1106,13 +1108,15 @@ pub fn clear_recording(dir: String) -> Result<()> {
 // --- Mise à jour de l'app ------------------------------------------------------
 
 /// Plus haute version publiée sur GitHub, si elle dépasse `current_version`.
-/// Bloquant (une requête, 20 s au plus).
+/// `tester` : l'APK testeur, sinon l'APK public. Bloquant (une requête, 20 s
+/// au plus).
 #[uniffi::export]
-pub fn check_app_update(current_version: String) -> Result<Option<AppUpdate>> {
+pub fn check_app_update(current_version: String, tester: bool) -> Result<Option<AppUpdate>> {
     let update = block_on(xc::check_update(
         xc::GITHUB_API,
         xc::UPDATE_REPO,
         &current_version,
+        tester,
     ))?;
     Ok(update.map(Into::into))
 }
@@ -1147,6 +1151,45 @@ pub fn download_app_update(
         },
     ))?;
     Ok(())
+}
+
+// --- Données des testeurs -----------------------------------------------------
+
+/// Résultat de `upload_telemetry`.
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum TelemetryUpload {
+    /// Fichiers envoyés et effacés ; octets avant compression.
+    Sent { files: u32, bytes: u64 },
+    /// Collecte coupée à distance : rien n'est envoyé.
+    Paused,
+}
+
+/// Envoie au service de collecte les réponses enregistrées (`responses_dir`,
+/// enregistrement complet) et les événements (`events_dir`, fichiers
+/// `.jsonl`), puis les efface. Bloquant. Aucune requête au panneau.
+#[uniffi::export]
+pub fn upload_telemetry(
+    endpoint: String,
+    key: String,
+    device: String,
+    app_version: String,
+    responses_dir: String,
+    events_dir: String,
+) -> Result<TelemetryUpload> {
+    let target = xc::TelemetryTarget {
+        endpoint,
+        key,
+        device,
+        app_version,
+    };
+    let dirs = [
+        (xc::TelemetryKind::Responses, PathBuf::from(responses_dir)),
+        (xc::TelemetryKind::Events, PathBuf::from(events_dir)),
+    ];
+    Ok(match block_on(xc::upload_telemetry(&target, &dirs))? {
+        xc::UploadOutcome::Sent { files, bytes } => TelemetryUpload::Sent { files, bytes },
+        xc::UploadOutcome::Paused => TelemetryUpload::Paused,
+    })
 }
 
 /// Exécute une tâche réseau hors de tout objet `HeyStreamCore`.

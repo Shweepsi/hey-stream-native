@@ -15,6 +15,10 @@
 //!
 //! Le nombre de fichiers est plafonné par type de requête : les plus anciens
 //! sont effacés.
+//!
+//! En mode **complet** (APK testeur, voir [`crate::telemetry`]), les listes
+//! sont gardées entières et les plafonds sont dix fois plus hauts : les
+//! fichiers sont envoyés puis effacés au fil de l'eau.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -75,15 +79,18 @@ pub(crate) struct Recorder {
     dir: PathBuf,
     scrubber: Scrubber,
     seq: AtomicU64,
+    /// Listes entières, plafonds ×10 (APK testeur).
+    full: bool,
 }
 
 impl Recorder {
-    pub(crate) fn new(dir: PathBuf, client: &XtreamClient) -> Result<Self> {
+    pub(crate) fn new(dir: PathBuf, client: &XtreamClient, full: bool) -> Result<Self> {
         fs::create_dir_all(&dir).map_err(storage)?;
         Ok(Self {
             dir,
             scrubber: Scrubber::new(client),
             seq: AtomicU64::new(0),
+            full,
         })
     }
 
@@ -100,7 +107,7 @@ impl Recorder {
         if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
             return;
         }
-        let limit = LIST_ACTIONS.contains(&name).then_some(LIST_LIMIT);
+        let limit = (!self.full && LIST_ACTIONS.contains(&name)).then_some(LIST_LIMIT);
         let mut record = self.scrubber.record(action, params, response, limit);
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -115,8 +122,14 @@ impl Recorder {
         // Horodatage puis numéro : l'ordre des noms est celui des requêtes.
         let seq = self.seq.fetch_add(1, Ordering::Relaxed);
         let file = format!("{:013}-{seq:06}-{name}.json", now.as_millis());
-        if fs::write(self.dir.join(file), json).is_ok() {
-            prune(&self.dir, name, keep(name));
+        // Écrit à côté puis renommé : un fichier `.json` est toujours complet
+        // (l'envoi peut le lire à tout moment).
+        let partial = self.dir.join(format!("{file}.part"));
+        if fs::write(&partial, json).is_ok() && fs::rename(&partial, self.dir.join(file)).is_ok() {
+            let factor = if self.full { 10 } else { 1 };
+            prune(&self.dir, name, keep(name) * factor);
+        } else {
+            let _ = fs::remove_file(partial);
         }
     }
 }
@@ -137,7 +150,7 @@ fn prune(dir: &Path, action: &str, keep: usize) {
 }
 
 /// Fichiers enregistrés, du plus ancien au plus récent.
-fn recorded_files(dir: &Path) -> Vec<PathBuf> {
+pub(crate) fn recorded_files(dir: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
         .flatten()

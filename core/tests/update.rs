@@ -43,7 +43,7 @@ async fn newest_release_with_an_apk_is_offered() {
         "illisible"
     ]))
     .await;
-    let update = check_update(&server.uri(), REPO, "0.5.2")
+    let update = check_update(&server.uri(), REPO, "0.5.2", false)
         .await
         .unwrap()
         .unwrap();
@@ -60,13 +60,38 @@ async fn newest_release_with_an_apk_is_offered() {
 }
 
 #[tokio::test]
+async fn each_apk_updates_to_its_own_kind() {
+    let both = json!([
+        {"tag_name": "v0.7.0", "assets": [
+            apk("hey-stream-0.7.0-testeur.apk", "https://x/0.7.0-testeur.apk"),
+            apk("hey-stream-0.7.0.apk", "https://x/0.7.0.apk")]},
+        // Avant les APK testeur : rien pour lui.
+        {"tag_name": "v0.6.1", "assets": [apk("hey-stream-0.6.1.apk", "https://x/0.6.1.apk")]}
+    ]);
+    let server = releases(both.clone()).await;
+    let public = check_update(&server.uri(), REPO, "0.6.0", false)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(public.apk_url, "https://x/0.7.0.apk");
+    let server = releases(both).await;
+    let tester = check_update(&server.uri(), REPO, "0.6.0", true)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(tester.apk_url, "https://x/0.7.0-testeur.apk");
+}
+
+#[tokio::test]
 async fn nothing_newer_means_no_update() {
     let server = releases(json!([
         {"tag_name": "v0.6.0", "assets": [apk("a.apk", "https://x/a.apk")]}
     ]))
     .await;
     assert_eq!(
-        check_update(&server.uri(), REPO, "0.6.0").await.unwrap(),
+        check_update(&server.uri(), REPO, "0.6.0", false)
+            .await
+            .unwrap(),
         None
     );
 }
@@ -79,7 +104,7 @@ async fn rate_limit_is_an_error() {
         .mount(&server)
         .await;
     assert!(matches!(
-        check_update(&server.uri(), REPO, "0.6.0").await,
+        check_update(&server.uri(), REPO, "0.6.0", false).await,
         Err(Error::Unauthorized)
     ));
 }

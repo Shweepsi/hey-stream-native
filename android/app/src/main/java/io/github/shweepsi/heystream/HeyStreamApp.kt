@@ -12,6 +12,8 @@ import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.CredentialStore
 import io.github.shweepsi.heystream.data.RefreshWorker
+import io.github.shweepsi.heystream.data.Telemetry
+import io.github.shweepsi.heystream.data.TelemetryWorker
 import io.github.shweepsi.heystream.player.PlayerController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +36,9 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         CrashReports.start(this)
+        Telemetry.start(this)
         RefreshWorker.schedule(this)
+        TelemetryWorker.schedule(this)
     }
 
     /**

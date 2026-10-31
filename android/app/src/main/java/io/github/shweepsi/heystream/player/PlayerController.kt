@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -13,12 +14,15 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import io.github.shweepsi.heystream.BuildConfig
 import io.github.shweepsi.heystream.data.CrashReports
+import io.github.shweepsi.heystream.data.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,6 +101,8 @@ class PlayerController(private val context: Context) {
      * (même titre relancé avant la fin du reverrouillage) vérifie d'abord.
      */
     fun stop() {
+        stats?.finish(exoPlayer)
+        stats = null
         cancelRetry()
         current = null
         resumeOnForeground = false
@@ -175,6 +181,8 @@ class PlayerController(private val context: Context) {
     }
 
     private fun start(item: MediaItem, live: Boolean, startMs: Long) {
+        stats?.finish(exoPlayer)
+        stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
         cancelRetry()
         this.live = live
         attempt = 0
@@ -236,10 +244,17 @@ class PlayerController(private val context: Context) {
             .setSeekBackIncrementMs(SEEK_BACK_MS)
             .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
             .build()
-            .also { it.addListener(listener) }
+            .also {
+                it.addListener(listener)
+                it.addAnalyticsListener(analytics)
+            }
     }
 
     private val listener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            stats?.playing(isPlaying)
+        }
+
         override fun onEvents(player: Player, events: Player.Events) {
             _status.update {
                 it.copy(
@@ -250,6 +265,7 @@ class PlayerController(private val context: Context) {
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            stats?.state(playbackState)
             when (playbackState) {
                 Player.STATE_READY -> {
                     attempt = 0
@@ -262,8 +278,61 @@ class PlayerController(private val context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            stats?.error(error, attempt)
             lastError = error
             scheduleRetry()
+        }
+    }
+
+    /** Mesures de la lecture en cours (APK testeur seulement, voir [Telemetry]). */
+    private var stats: PlaybackStats? = null
+
+    private val analytics = object : AnalyticsListener {
+        override fun onVideoInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?,
+        ) {
+            stats?.format("video", format)
+        }
+
+        override fun onAudioInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?,
+        ) {
+            stats?.format("audio", format)
+        }
+
+        override fun onVideoDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long,
+        ) {
+            stats?.decoder("video", decoderName, initializationDurationMs)
+        }
+
+        override fun onAudioDecoderInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            decoderName: String,
+            initializedTimestampMs: Long,
+            initializationDurationMs: Long,
+        ) {
+            stats?.decoder("audio", decoderName, initializationDurationMs)
+        }
+
+        override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
+            stats?.let { it.dropped += droppedFrames }
+        }
+
+        override fun onBandwidthEstimate(
+            eventTime: AnalyticsListener.EventTime,
+            totalLoadTimeMs: Int,
+            totalBytesLoaded: Long,
+            bitrateEstimate: Long,
+        ) {
+            stats?.let { it.bandwidth = bitrateEstimate }
         }
     }
 

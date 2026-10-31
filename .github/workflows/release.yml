@@ -1,7 +1,10 @@
 name: release
 
 # Publie la version de Cargo.toml : étiquette vX.Y.Z, release GitHub avec
-# l'APK (clé de test, rapports de plantage actifs) et l'entrée du CHANGELOG.
+# deux APK (clé de test, rapports de plantage actifs) et l'entrée du
+# CHANGELOG : l'APK public, et l'APK testeur (-testeur.apk) qui envoie ses
+# données d'usage au service de collecte (docs/COLLECTE.md). Chacun se met à
+# jour vers le sien.
 # De lui-même quand une fusion dans main monte la version (les appareils la
 # proposent alors au lancement, voir AppUpdater) ; aussi à la main : Actions ›
 # release › Run workflow (branche main). Une version déjà publiée n'est pas
@@ -79,10 +82,25 @@ jobs:
         run: |
           ./gradlew --console=plain :app:assembleRelease
           cp app/build/outputs/apk/release/app-release.apk "../hey-stream-${{ needs.version.outputs.name }}.apk"
+      - name: APK testeur
+        working-directory: android
+        env:
+          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
+          TELEMETRY_URL: ${{ secrets.TELEMETRY_URL }}
+          TELEMETRY_KEY: ${{ secrets.TELEMETRY_KEY }}
+        run: |
+          # Sans service de collecte configuré, l'APK testeur n'enverrait rien.
+          if [ -z "$TELEMETRY_URL" ] || [ -z "$TELEMETRY_KEY" ]; then
+            echo "TELEMETRY_URL ou TELEMETRY_KEY absent : pas d'APK testeur (voir docs/COLLECTE.md)."
+            exit 0
+          fi
+          ./gradlew --console=plain -Pheystream.testeur=true :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "../hey-stream-${{ needs.version.outputs.name }}-testeur.apk"
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ needs.version.outputs.name }}" "hey-stream-${{ needs.version.outputs.name }}.apk" \
+          shopt -s nullglob
+          gh release create "v${{ needs.version.outputs.name }}" hey-stream-${{ needs.version.outputs.name }}*.apk \
             --target "$GITHUB_SHA" --title "Hey Stream ${{ needs.version.outputs.name }}" \
             --notes-file notes.md --prerelease

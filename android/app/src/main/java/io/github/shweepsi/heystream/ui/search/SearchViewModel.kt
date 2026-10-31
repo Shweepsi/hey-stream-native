@@ -11,6 +11,7 @@ import io.github.shweepsi.heystream.core.CatalogItem
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.RefreshState
+import io.github.shweepsi.heystream.data.Telemetry
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.toUiText
@@ -133,6 +134,7 @@ class SearchViewModel(private val session: CoreSession) : ViewModel() {
     }
 
     fun onOpen(hit: SearchHit) {
+        Telemetry.event("search_open", "key" to hit.key)
         lastOpened = hit.key
     }
 
@@ -145,6 +147,13 @@ class SearchViewModel(private val session: CoreSession) : ViewModel() {
                 core.search(Section.SERIES, term, limit).map { it.toHit() },
             )
         }
+        Telemetry.event(
+            "search",
+            "query" to term,
+            "channels" to channels.size,
+            "movies" to movies.size,
+            "series" to series.size,
+        )
         resultsOf(term, channels, movies, series, downloading)
     } catch (cancelled: CancellationException) {
         throw cancelled
