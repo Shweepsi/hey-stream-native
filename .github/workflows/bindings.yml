@@ -1,11 +1,20 @@
 name: bindings
 
-# Seulement quand l'interface du cœur change (macOS est lent à obtenir et
-# coûteux). Le cœur lui-même est compilé par core et android à chaque PR.
+# PR : seulement quand l'interface du cœur change (macOS est lent à obtenir
+# et coûteux). main : à chaque push, car les tests Kotlin et Swift lancent
+# aussi le cœur (et le compilent pour macOS) ; une casse venue de core/ ou
+# de Cargo.lock y est vue aussitôt, et le cache reste chaud.
 on:
   push:
     branches: [main]
-    paths: [ffi/**, scripts/bindings.sh, .github/workflows/bindings.yml]
+    paths-ignore:
+      - "**.md"
+      - docs/**
+      - site/**
+      - LICENSE
+      - .github/ISSUE_TEMPLATE/**
+      - .github/workflows/pages.yml
+      - .github/workflows/release.yml
   pull_request:
     paths: [ffi/**, scripts/bindings.sh, .github/workflows/bindings.yml]
   workflow_dispatch:

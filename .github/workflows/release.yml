@@ -8,14 +8,17 @@ name: release
 # testeur (clé d'envoi) et au propriétaire (/v1/admin/apk), qui le remet aux
 # testeurs. Pas d'artefact : ceux d'un dépôt public sont téléchargeables par
 # tout compte GitHub.
-# De lui-même quand une fusion dans main monte la version (les appareils la
-# proposent alors au lancement, voir AppUpdater) ; aussi à la main : Actions ›
-# release › Run workflow (branche main). Une version déjà publiée n'est pas
-# republiée.
+# De lui-même quand une fusion dans main monte la version, **une fois toute
+# la CI android verte sur ce commit, émulateur compris** (les appareils
+# proposent la version au lancement, voir AppUpdater : rien ne part sans
+# avoir passé l'émulateur). Aussi à la main : Actions › release › Run
+# workflow (branche main), sans attendre la CI. Une version déjà publiée
+# n'est pas republiée.
 on:
-  push:
+  workflow_run:
+    workflows: [android]
+    types: [completed]
     branches: [main]
-    paths: [Cargo.toml]
   workflow_dispatch:
 
 permissions:
@@ -26,28 +29,41 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+# Commit publié : celui que la CI android a validé (pour un lancement à la
+# main, la tête de la branche).
 env:
-  NDK_VERSION: "28.2.13676358"
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   version:
+    # CI android réussie sur un push dans main, ou lancement à la main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     outputs:
       name: ${{ steps.version.outputs.name }}
       publish: ${{ steps.version.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
       - name: Version
         id: version
         run: |
           v=$(sed -nE 's/^version = "([0-9.]+)"/\1/p' Cargo.toml | head -1)
           echo "name=$v" >> "$GITHUB_OUTPUT"
-          if git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null; then
+          # Dernière version publiée (étiquettes vX.Y.Z).
+          last=$(git ls-remote --tags --refs origin 'refs/tags/v*' | sed -nE 's|.*refs/tags/v([0-9.]+)$|\1|p' | sort -V | tail -1)
+          # Déjà publiée, ou plus ancienne que la dernière : deux CI de main
+          # peuvent finir dans le désordre, on ne revient jamais en arrière.
+          if [ -n "$last" ] && [ "$(printf '%s\n%s\n' "$v" "$last" | sort -V | tail -1)" = "$last" ]; then
             if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-              echo "La version v$v est déjà publiée : monter la version d'abord."; exit 1
+              echo "v$v n'est pas plus récente que v$last, déjà publiée : monter la version d'abord."; exit 1
             fi
-            # Cargo.toml changé sans nouvelle version : rien à publier.
-            echo "v$v déjà publiée, rien à faire."
+            # Pas de nouvelle version dans ce commit : rien à publier.
+            echo "v$v pas plus récente que v$last : rien à faire."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -59,32 +75,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
       - name: Notes
         run: |
           v="${{ needs.version.outputs.name }}"
           # Entrée du CHANGELOG de cette version (jusqu'à la suivante).
           awk -v v="$v" '$0 ~ "^## "v" " {on=1; next} on && /^## / {exit} on' CHANGELOG.md > notes.md
           printf '\n---\nHey Stream est uniquement un lecteur : il ne fournit aucun contenu. APK signé avec la clé de test publique (voir android/README.md).\n' >> notes.md
-      - uses: dtolnay/rust-toolchain@stable
+      # Mêmes outils que la CI android ; reprend son cache (lecture seule).
+      - uses: ./.github/actions/android-rust
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi
-      # Reprend le cache cargo laissé par la CI android sur main.
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: android-arm
-          save-if: false
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
-      - name: NDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-ndk@4.1.2
+          cache-key: android-arm
       - name: APK
         working-directory: android
         env:
@@ -128,5 +131,5 @@ jobs:
         run: |
           v="${{ needs.version.outputs.name }}"
           gh release create "v$v" "hey-stream-$v.apk" \
-            --target "$GITHUB_SHA" --title "Hey Stream $v" \
+            --target "$SHA" --title "Hey Stream $v" \
             --notes-file notes.md --prerelease

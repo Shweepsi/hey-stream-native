@@ -67,7 +67,8 @@ app/src/main/java/io/github/shweepsi/heystream/
   connecte à un faux panneau local, télécharge le catalogue et ouvre le
   Direct. Aucun vrai fournisseur n'est contacté. Pour garder les PR
   rapides, il tourne après chaque fusion dans main, ou à la main (*Actions*
-  › *android* › *Run workflow*, sur la branche de la PR).
+  › *android* › *Run workflow*, sur la branche de la PR). La release attend
+  qu'il soit vert sur main.
 - **Appareils** : la Mi Box S reste l'appareil de référence
   (`docs/MATERIEL.md`) ; les essais avec un vrai abonnement se font à la
   main, par le propriétaire.
