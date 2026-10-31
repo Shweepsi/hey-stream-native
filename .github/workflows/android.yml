@@ -21,33 +21,41 @@ on:
       - .github/ISSUE_TEMPLATE/**
       - .github/workflows/pages.yml
       - .github/workflows/release.yml
+  # À la main : Actions › android › Run workflow (lance aussi l'émulateur).
+  workflow_dispatch:
 
 # Un nouveau push sur une PR annule la CI devenue inutile.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  NDK_VERSION: "28.2.13676358"
-
 jobs:
-  core:
-    name: cœur (arm64-v8a, armeabi-v7a)
+  # Un seul job compile le cœur pour Android (Gradle appelle cargo ndk).
+  # Cache cargo partagé avec la release (même clé).
+  app:
+    name: application (tests, APK de test, clippy Android)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Seul main écrit le cache : les PR le lisent sans le remplacer.
+      - uses: ./.github/actions/android-rust
+        id: setup
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi
           components: clippy
-      - name: NDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - run: cargo install cargo-ndk --version 4.1.2 --locked
-      # Le code propre à Android (racines TLS) n'est compilé que pour ces cibles.
-      - run: cargo ndk -t arm64-v8a -t armeabi-v7a --platform 30 clippy --workspace -- -D warnings
-      - run: cargo ndk -t arm64-v8a -t armeabi-v7a --platform 30 build -p heystream-ffi --release
+          cache-key: android-arm
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
+      # Tests JVM (Robolectric) : logique et composition de chaque écran.
+      - name: Tests et Android Lint
+        working-directory: android
+        run: ./gradlew --console=plain :app:testDebugUnitTest :app:lintDebug
+      - name: APK (release, clé de test)
+        working-directory: android
+        # Clé des rapports de plantage (vide pour une PR venue d'un fork).
+        env:
+          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
+        run: ./gradlew --console=plain :app:assembleRelease
+      # Bibliothèque compilée par Gradle (cargo ndk … build --release).
       - name: Taille et alignement 16 Ko (Android 15+)
         run: |
           readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
@@ -61,35 +69,6 @@ jobs:
               echo "segment LOAD aligné sur $align octets au lieu de 16 Ko"; exit 1
             fi
           done
-
-  app:
-    name: application (tests, APK de test)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android, armv7-linux-androideabi
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
-      - name: NDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - run: cargo install cargo-ndk --version 4.1.2 --locked
-      # Tests JVM (Robolectric) : logique et composition de chaque écran.
-      - name: Tests et Android Lint
-        working-directory: android
-        run: ./gradlew --console=plain :app:testDebugUnitTest :app:lintDebug
-      - name: APK (release, clé de test)
-        working-directory: android
-        # Clé des rapports de plantage (vide pour une PR venue d'un fork).
-        env:
-          GLITCHTIP_DSN: ${{ secrets.GLITCHTIP_DSN }}
-        run: ./gradlew --console=plain :app:assembleRelease
       - name: Taille de l'APK
         run: ls -l android/app/build/outputs/apk/release/app-release.apk
       - name: Version
@@ -100,26 +79,28 @@ jobs:
           name: hey-stream-${{ steps.version.outputs.name }}-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+      # En dernier, et même si une étape d'avant échoue : un avertissement
+      # clippy ne masque ni les tests ni l'APK, et inversement (pas si les
+      # outils eux-mêmes manquent).
+      # Le code propre à Android (racines TLS) n'est compilé que pour ces cibles.
+      - name: Clippy (cibles Android)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: cargo ndk -t arm64-v8a -t armeabi-v7a --platform 30 clippy --workspace -- -D warnings
 
+  # Le plus long : après chaque fusion dans main, ou à la main. La release
+  # attend que tout ce workflow soit vert sur main (release.yml).
   emulator:
     name: émulateur (connexion, catalogue, direct)
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/android-rust
         with:
           targets: x86_64-linux-android
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v4
-      - name: NDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - run: cargo install cargo-ndk --version 4.1.2 --locked
+          cache-key: android-x86
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
       - name: KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

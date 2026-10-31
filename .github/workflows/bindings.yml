@@ -1,6 +1,9 @@
 name: bindings
 
-# Docs, site et modèles GitHub seuls ne relancent pas la CI du code.
+# PR : seulement quand l'interface du cœur change (macOS est lent à obtenir
+# et coûteux). main : à chaque push, car les tests Kotlin et Swift lancent
+# aussi le cœur (et le compilent pour macOS) ; une casse venue de core/ ou
+# de Cargo.lock y est vue aussitôt, et le cache reste chaud.
 on:
   push:
     branches: [main]
@@ -13,14 +16,8 @@ on:
       - .github/workflows/pages.yml
       - .github/workflows/release.yml
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - docs/**
-      - site/**
-      - LICENSE
-      - .github/ISSUE_TEMPLATE/**
-      - .github/workflows/pages.yml
-      - .github/workflows/release.yml
+    paths: [ffi/**, scripts/bindings.sh, .github/workflows/bindings.yml]
+  workflow_dispatch:
 
 # Un nouveau push sur une PR annule la CI devenue inutile.
 concurrency:
@@ -33,6 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -48,6 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: scripts/bindings.sh swift
       - name: Compiler et lancer le test Swift
         run: |

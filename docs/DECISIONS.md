@@ -191,6 +191,14 @@ Constats :
   ait à le demander). Il crée l'étiquette `vX.Y.Z` et la release GitHub avec
   l'APK. Une version déjà publiée n'est pas republiée ; lancement à la main
   encore possible.
+- **CI et publication** (2026-10-31) : pour garder les PR rapides, le test
+  sur émulateur ne tourne plus sur les PR, seulement sur main (ou à la main).
+  La release attend donc que **toute la CI android soit verte sur main,
+  émulateur compris**, avant de publier : une régression vue seulement par
+  l'émulateur ne part jamais vers les appareils. Si l'émulateur échoue sur
+  main, corriger puis fusionner ; la version (non publiée) part avec la
+  correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
+  `ffi/` change, et à chaque push sur main.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
