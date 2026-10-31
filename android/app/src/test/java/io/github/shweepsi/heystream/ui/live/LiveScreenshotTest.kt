@@ -111,6 +111,10 @@ class LiveScreenshotTest {
         number = 101,
         now = LiveProgramme("Le journal du soir", start = now - 25 * 60, stop = now + 45 * 60),
         next = LiveProgramme("Grand entretien", start = now + 45 * 60, stop = now + 95 * 60),
+        later = listOf(
+            LiveProgramme("Le monde en face", start = now + 95 * 60, stop = now + 155 * 60),
+            LiveProgramme("Journal de la nuit", start = now + 155 * 60, stop = now + 175 * 60),
+        ),
     )
 
     private val playing = LiveUiState(

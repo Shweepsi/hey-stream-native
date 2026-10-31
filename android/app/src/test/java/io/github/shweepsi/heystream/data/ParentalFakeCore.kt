@@ -110,7 +110,7 @@ internal class ParentalFakeCore : HeyStreamCore(NoHandle) {
 
     override fun catalogUpdatedAt(): Long? = null
 
-    override fun nowNext(streamId: Long): NowNext = NowNext(now = null, next = null)
+    override fun nowNext(streamId: Long): NowNext = NowNext(now = null, next = null, later = emptyList())
 
     override fun cachedNow(streamIds: List<Long>): List<ChannelNow> = emptyList()
 }

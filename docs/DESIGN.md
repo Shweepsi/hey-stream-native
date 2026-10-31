@@ -145,7 +145,9 @@ Niveau moyen :
    la ligne n'a pas de deuxième ligne de texte. Jamais de requête pour remplir
    la liste.
 3. Aperçu 16:9 avec badge « EN DIRECT », puis le programme **en cours** (avec
-   sa progression) et le **suivant**, demandés à la sélection de la chaîne.
+   sa progression), le **suivant** et les deux d'après, chacun avec « début –
+   fin », demandés à la sélection de la chaîne. Faute de place (téléphone),
+   les dernières lignes disparaissent plutôt que d'être coupées.
 
 OK sur une chaîne déjà en aperçu → plein écran. Mêmes trois panneaux sur
 téléphone, plus étroits.

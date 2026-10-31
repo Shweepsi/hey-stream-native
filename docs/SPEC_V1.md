@@ -30,7 +30,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 ## Direct
 
 - Trois panneaux : catégories | chaînes | **aperçu vidéo** + programme
-  **en cours et suivant** (EPG court, demandé à la sélection d'une chaîne,
+  **en cours, suivant et les deux d'après**, chacun avec ses heures de début
+  et de fin (EPG court de 4 programmes, demandé à la sélection d'une chaîne,
   mis en cache, jamais plus d'une fois toutes les 15 min par chaîne).
 - Chaque ligne de chaîne : **numéro** du fournisseur, logo, nom, et le
   programme en cours **seulement s'il est déjà en cache** (jamais de requête

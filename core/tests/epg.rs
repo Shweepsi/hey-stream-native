@@ -236,3 +236,32 @@ fn cached_now_reads_only_the_cache() {
     assert_eq!(catalog.cached_now(&[7], 2650).unwrap()[0].1.title, "Météo");
     assert!(catalog.cached_now(&[], 2100).unwrap().is_empty());
 }
+
+#[test]
+fn now_next_lists_the_four_programmes() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let programme = |title: &str, start, stop| Programme {
+        title: title.into(),
+        description: None,
+        start,
+        stop,
+    };
+    let all = [
+        programme("A", 1000, 2000),
+        programme("B", 2000, 3000),
+        programme("C", 3000, 4000),
+        programme("D", 4000, 5000),
+        programme("E", 5000, 6000),
+    ];
+    catalog.store_epg(7, &all, 1500).unwrap();
+    let nn = catalog.now_next(7, 1500).unwrap();
+    assert_eq!(nn.now.unwrap().title, "A");
+    assert_eq!(nn.next.unwrap().title, "B");
+    let later: Vec<_> = nn.later.iter().map(|p| p.title.as_str()).collect();
+    assert_eq!(later, ["C", "D"]);
+    // Plus tard, il reste moins de programmes connus : la liste se raccourcit.
+    let nn = catalog.now_next(7, 4500).unwrap();
+    assert_eq!(nn.now.unwrap().title, "D");
+    assert_eq!(nn.next.unwrap().title, "E");
+    assert!(nn.later.is_empty());
+}

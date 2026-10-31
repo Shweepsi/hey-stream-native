@@ -8,6 +8,9 @@ Une entrée par version, la plus récente en haut. La version vient de
 
 - Connexion : un œil à droite du mot de passe l'affiche ou le masque, pour
   vérifier la saisie.
+- Direct : sous l'aperçu, les 4 programmes connus (en cours, suivant et les
+  deux d'après) avec leurs heures de début et de fin. Aucune requête en plus :
+  ce sont les 4 déjà demandés au fournisseur.
 
 ## 0.7.2 — 2026-10-31
 

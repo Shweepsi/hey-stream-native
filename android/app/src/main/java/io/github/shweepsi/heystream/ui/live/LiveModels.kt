@@ -64,7 +64,7 @@ data class LiveProgramme(val title: String, val start: Long, val stop: Long)
 
 fun Programme.toLive() = LiveProgramme(title = title, start = start, stop = stop)
 
-/** Chaîne de l'aperçu, avec ses programmes en cours et suivant (s'ils sont connus). */
+/** Chaîne de l'aperçu, avec ses programmes en cours, suivant et d'après (s'ils sont connus). */
 @Immutable
 data class LivePreview(
     val id: Long,
@@ -73,10 +73,11 @@ data class LivePreview(
     val logo: String? = null,
     val now: LiveProgramme? = null,
     val next: LiveProgramme? = null,
+    val later: List<LiveProgramme> = emptyList(),
 )
 
 fun LivePreview.withEpg(nowNext: NowNext): LivePreview =
-    copy(now = nowNext.now?.toLive(), next = nowNext.next?.toLive())
+    copy(now = nowNext.now?.toLive(), next = nowNext.next?.toLive(), later = nowNext.later.map { it.toLive() })
 
 /**
  * Le programme affiché est dépassé à [nowSecs] : le « en cours » est fini, ou
