@@ -30,12 +30,17 @@ pub struct Programme {
     pub stop: i64,
 }
 
-/// Programme en cours et suivant.
+/// Programme en cours, suivant, puis ceux d'après connus du cache.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NowNext {
     pub now: Option<Programme>,
     pub next: Option<Programme>,
+    /// Programmes après le suivant, dans l'ordre (au plus [`LATER_MAX`]).
+    pub later: Vec<Programme>,
 }
+
+/// Programmes gardés après le suivant : les 4 demandés moins le cours et le suivant.
+pub const LATER_MAX: usize = 2;
 
 #[derive(Deserialize)]
 struct RawListing {
@@ -121,30 +126,38 @@ fn decode_base64(text: &str) -> Option<String> {
 }
 
 impl Catalog {
-    /// Programme en cours et suivant d'après le cache.
+    /// Programme en cours, suivant et ceux d'après, d'après le cache.
     pub fn now_next(&self, stream_id: i64, now: i64) -> Result<NowNext> {
-        let read = |sql: &str| -> Result<Option<Programme>> {
-            Ok(self
-                .conn
-                .query_row(sql, params![stream_id, now], |r| {
-                    Ok(Programme {
-                        title: r.get(0)?,
-                        description: r.get(1)?,
-                        start: r.get(2)?,
-                        stop: r.get(3)?,
-                    })
-                })
-                .optional()?)
+        let row = |r: &rusqlite::Row| -> rusqlite::Result<Programme> {
+            Ok(Programme {
+                title: r.get(0)?,
+                description: r.get(1)?,
+                start: r.get(2)?,
+                stop: r.get(3)?,
+            })
         };
-        Ok(NowNext {
-            now: read(
+        let current = self
+            .conn
+            .query_row(
                 "SELECT title, description, start, stop FROM epg
                  WHERE stream_id = ?1 AND start <= ?2 AND stop > ?2 ORDER BY start DESC LIMIT 1",
-            )?,
-            next: read(
-                "SELECT title, description, start, stop FROM epg
-                 WHERE stream_id = ?1 AND start > ?2 ORDER BY start LIMIT 1",
-            )?,
+                params![stream_id, now],
+                row,
+            )
+            .optional()?;
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT title, description, start, stop FROM epg
+             WHERE stream_id = ?1 AND start > ?2 ORDER BY start LIMIT ?3",
+        )?;
+        let mut upcoming = stmt
+            .query_map(params![stream_id, now, 1 + LATER_MAX as i64], row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+            .into_iter();
+        let next = upcoming.next();
+        Ok(NowNext {
+            now: current,
+            next,
+            later: upcoming.collect(),
         })
     }
 

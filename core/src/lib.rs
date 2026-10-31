@@ -40,7 +40,7 @@ pub use catalog::{
 };
 pub use client::{USER_AGENT, XtreamClient};
 pub use details::{Episode, MovieInfo, Season, SeriesInfo};
-pub use epg::{EPG_MIN_INTERVAL_SECS, NowNext, Programme, now_next_for};
+pub use epg::{EPG_MIN_INTERVAL_SECS, LATER_MAX, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
 pub use names::clean_name;

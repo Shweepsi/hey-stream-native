@@ -59,6 +59,8 @@
     <string name="login_server_hint">http://exemple.com:8080</string>
     <string name="login_username">Identifiant</string>
     <string name="login_password">Mot de passe</string>
+    <string name="login_show_password">Afficher le mot de passe</string>
+    <string name="login_hide_password">Masquer le mot de passe</string>
     <string name="login_submit">Se connecter</string>
     <string name="login_checking">Vérification…</string>
     <string name="home_live">Direct</string>

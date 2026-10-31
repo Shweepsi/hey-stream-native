@@ -235,6 +235,8 @@ pub struct ChannelNow {
 pub struct NowNext {
     pub now: Option<Programme>,
     pub next: Option<Programme>,
+    /// Programmes après le suivant (au plus deux).
+    pub later: Vec<Programme>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -698,6 +700,7 @@ impl HeyStreamCore {
         Ok(NowNext {
             now: nn.now.map(Into::into),
             next: nn.next.map(Into::into),
+            later: nn.later.into_iter().map(Into::into).collect(),
         })
     }
 

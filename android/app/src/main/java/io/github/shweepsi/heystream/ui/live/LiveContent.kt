@@ -638,7 +638,7 @@ private fun ChannelRow(
     }
 }
 
-/** Sous l'aperçu vidéo : programme en cours (et sa progression), puis le suivant. */
+/** Sous l'aperçu vidéo : programme en cours (et sa progression), puis les suivants (début – fin). */
 @Composable
 private fun PreviewPanel(
     preview: LivePreview?,
@@ -661,7 +661,9 @@ private fun PreviewPanel(
                 Text(stringResource(R.string.live_preview_hint), style = Hs.type.body, color = Hs.colors.textSecondary)
             } else {
                 NowBlock(preview, nowSecs, layout.compact)
+                // Lignes coupées par FitColumn quand la place manque (téléphone).
                 preview.next?.let { NextRow(it, Modifier.padding(top = if (isTv) 12.dp else 16.dp)) }
+                preview.later.forEach { NextRow(it) }
             }
         }
         if (!layout.compact && message != null) {
@@ -717,6 +719,7 @@ private fun NowBlock(preview: LivePreview, nowSecs: Long, compact: Boolean) {
 @Composable
 private fun NextRow(next: LiveProgramme, modifier: Modifier = Modifier) {
     val isTv = Hs.isTv
+    val locale = currentLocale()
     val separator = Hs.colors.separator
     Row(
         modifier
@@ -726,11 +729,15 @@ private fun NextRow(next: LiveProgramme, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(if (isTv) 12.dp else 16.dp),
     ) {
         Text(
-            text = Formats.timeOfSeconds(next.start, currentLocale()),
+            text = stringResource(
+                R.string.live_time_range,
+                Formats.timeOfSeconds(next.start, locale),
+                Formats.timeOfSeconds(next.stop, locale),
+            ),
             style = Hs.type.body.tabular(),
             color = Hs.colors.textSecondary,
             maxLines = 1,
-            modifier = Modifier.widthIn(min = if (isTv) 42.dp else 52.dp),
+            modifier = Modifier.widthIn(min = if (isTv) 96.dp else 112.dp),
         )
         Text(next.title, style = Hs.type.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
