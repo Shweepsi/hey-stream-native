@@ -1,26 +1,14 @@
 name: bindings
 
-# Docs, site et modèles GitHub seuls ne relancent pas la CI du code.
+# Seulement quand l'interface du cœur change (macOS est lent à obtenir et
+# coûteux). Le cœur lui-même est compilé par core et android à chaque PR.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
-      - docs/**
-      - site/**
-      - LICENSE
-      - .github/ISSUE_TEMPLATE/**
-      - .github/workflows/pages.yml
-      - .github/workflows/release.yml
+    paths: [ffi/**, scripts/bindings.sh, .github/workflows/bindings.yml]
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - docs/**
-      - site/**
-      - LICENSE
-      - .github/ISSUE_TEMPLATE/**
-      - .github/workflows/pages.yml
-      - .github/workflows/release.yml
+    paths: [ffi/**, scripts/bindings.sh, .github/workflows/bindings.yml]
+  workflow_dispatch:
 
 # Un nouveau push sur une PR annule la CI devenue inutile.
 concurrency:
@@ -33,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -48,6 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: scripts/bindings.sh swift
       - name: Compiler et lancer le test Swift
         run: |

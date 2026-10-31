@@ -35,6 +35,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -47,7 +50,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi
-      - run: cargo install cargo-about --version 0.9.3 --locked --features cli
+      # Binaire précompilé : pas de compilation de cargo-about à chaque fois.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.3
       # Toute licence non listée dans about.toml fait échouer la génération.
       - run: scripts/third_party_licenses.sh
       - name: Liste à jour

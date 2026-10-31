@@ -68,6 +68,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi
+      # Reprend le cache cargo laissé par la CI android sur main.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-arm
+          save-if: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -77,7 +82,9 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-      - run: cargo install cargo-ndk --version 4.1.2 --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk@4.1.2
       - name: APK
         working-directory: android
         env:

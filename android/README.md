@@ -65,7 +65,9 @@ app/src/main/java/io/github/shweepsi/heystream/
   (Robolectric, Roborazzi), sur TV, tablette et téléphone.
 - **Émulateur** (CI, job `émulateur`) : sur un vrai Android 11, l'app se
   connecte à un faux panneau local, télécharge le catalogue et ouvre le
-  Direct. Aucun vrai fournisseur n'est contacté.
+  Direct. Aucun vrai fournisseur n'est contacté. Pour garder les PR
+  rapides, il tourne après chaque fusion dans main, ou à la main (*Actions*
+  › *android* › *Run workflow*, sur la branche de la PR).
 - **Appareils** : la Mi Box S reste l'appareil de référence
   (`docs/MATERIEL.md`) ; les essais avec un vrai abonnement se font à la
   main, par le propriétaire.
