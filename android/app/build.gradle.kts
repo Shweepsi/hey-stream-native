@@ -184,7 +184,8 @@ android {
         minSdk = 30
         targetSdk = 36
         versionCode = appVersionCode
-        versionName = appVersion
+        // APK testeur : X.Y.Z-t (Réglages › À propos, données d'usage, rapports).
+        versionName = if (testerBuild) "$appVersion-t" else appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += rustAbis }
     }

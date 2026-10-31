@@ -2,7 +2,7 @@ name: release
 
 # Publie la version de Cargo.toml : étiquette vX.Y.Z, release GitHub avec
 # l'APK public (clé de test, rapports de plantage actifs) et l'entrée du
-# CHANGELOG. L'APK testeur (-testeur.apk), qui envoie ses données d'usage au
+# CHANGELOG. L'APK testeur (-t.apk), qui envoie ses données d'usage au
 # service de collecte (docs/COLLECTE.md), n'est **jamais** sur GitHub : il
 # est déposé dans le stockage R2 du service, qui le sert aux seuls APK
 # testeur (clé d'envoi) et au propriétaire (/v1/admin/apk), qui le remet aux
@@ -113,13 +113,13 @@ jobs:
           done
           v="${{ needs.version.outputs.name }}"
           ./gradlew --console=plain -Pheystream.testeur=true :app:assembleRelease
-          apk="../hey-stream-$v-testeur.apk"
+          apk="../hey-stream-$v-t.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           # L'APK d'abord, puis la fiche qui le désigne.
-          npx --yes wrangler@4 r2 object put "hey-stream-donnees-eu/apk/hey-stream-$v-testeur.apk" \
+          npx --yes wrangler@4 r2 object put "hey-stream-donnees-eu/apk/hey-stream-$v-t.apk" \
             --file "$apk" --content-type application/vnd.android.package-archive --remote
           jq -n --arg version "$v" --rawfile notes ../notes.md \
-            --arg file "apk/hey-stream-$v-testeur.apk" \
+            --arg file "apk/hey-stream-$v-t.apk" \
             --argjson size "$(stat -c %s "$apk")" \
             --arg sha256 "$(sha256sum "$apk" | cut -d' ' -f1)" \
             '{version: $version, notes: $notes, size: $size, sha256: $sha256, file: $file}' > latest.json

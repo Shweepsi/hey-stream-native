@@ -5,7 +5,7 @@ comment le mettre en route (une fois) et comment lire les données.
 
 ## Ce qui est collecté
 
-Seulement par l'**APK testeur** (`hey-stream-X.Y.Z-testeur.apk`), que le
+Seulement par l'**APK testeur** (`hey-stream-X.Y.Z-t.apk`, version `X.Y.Z-t`), que le
 propriétaire remet aux testeurs qui lui ont donné leur accord. Il n'est
 jamais sur GitHub : il est servi par le service de collecte, au
 propriétaire (clé d'administration) et aux APK testeur pour leurs mises à
@@ -30,7 +30,7 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    l'*Account ID* (page d'accueil du compte, colonne de droite).
 2. **Sous-domaine workers.dev** : *Workers & Pages* › choisir un
    sous-domaine s'il n'y en a pas encore.
-3. **Deux clés au hasard**, par exemple `openssl rand -hex 32`, deux fois :
+3. **Deux clés au hasard** (une troisième pour le lien à partager, étape 9), par exemple `openssl rand -hex 32`, deux fois :
    la clé d'envoi (dans l'APK testeur, ne permet que de déposer) et la clé
    d'administration (lecture et coupure, jamais dans l'app).
 4. **Secrets du dépôt** (GitHub › *Settings* › *Secrets and variables* ›
@@ -48,6 +48,22 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    navigateur
    `https://hey-stream-donnees.<sous-domaine>.workers.dev/v1/admin/apk?key=<clé d'administration>`.
    Ne partager que le fichier, jamais ce lien (il contient la clé).
+9. **Lien à partager** (facultatif) : secret `TELEMETRY_SHARE_KEY` (une
+   troisième clé au hasard), puis *Run workflow* de *collecte*. Le lien
+   `https://hey-stream-donnees.<sous-domaine>.workers.dev/v1/apk?share=<clé de partage>`
+   ne donne que le dernier APK testeur : il peut être envoyé aux testeurs.
+   Pour le couper, changer le secret et relancer le workflow.
+10. **Installer sur une box Android TV** (testeur peu à l'aise) : enregistrer
+    le lien à partager sur [go.aftvnews.com](https://go.aftvnews.com) pour
+    obtenir un code de quelques chiffres (le lien est alors connu de ce
+    service : quiconque a le code télécharge l'APK testeur ; changer la clé
+    de partage le coupe). Une fois sur la box : installer **Downloader**
+    (AFTVnews) depuis le Play Store, l'ouvrir, puis l'autoriser dans
+    *Paramètres › Applis › Accès spécial › Installer des applis inconnues*
+    (Mi Box : *Sécurité et restrictions › Sources inconnues*). Le testeur
+    n'a ensuite qu'à taper le code dans Downloader, *Go*, *Installer*,
+    *Ouvrir*. Le code sert toujours la dernière version ; les suivantes
+    sont proposées par l'app elle-même (« Installer »).
 
 Pour les rapports automatiques (session Claude), ajouter dans
 l'environnement de la session la variable `TELEMETRY_ADMIN_KEY`, et
