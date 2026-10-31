@@ -48,9 +48,11 @@ import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.appGraph
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.HsButton
+import io.github.shweepsi.heystream.ui.components.HsIconButton
 import io.github.shweepsi.heystream.ui.components.Logo
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
+import io.github.shweepsi.heystream.ui.theme.Lucide
 
 /**
  * Premier lancement : serveur, identifiant, mot de passe (spec, rien
@@ -64,6 +66,7 @@ object LoginTags {
     const val SERVER = "login_server"
     const val USERNAME = "login_username"
     const val PASSWORD = "login_password"
+    const val PASSWORD_TOGGLE = "login_password_toggle"
 }
 
 @Composable
@@ -196,35 +199,48 @@ private fun LoginField(
     val dimens = Hs.dimens
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(dimens.radius)
+    // Mot de passe : masqué par défaut, l'œil à droite l'affiche le temps de
+    // vérifier la saisie (bouton à part, atteignable à la télécommande).
+    var revealed by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = Hs.type.small, color = Hs.colors.textSecondary)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = Hs.type.body.copy(color = Hs.colors.text),
-            cursorBrush = SolidColor(Hs.colors.text),
-            visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType,
-                imeAction = imeAction,
-                autoCorrectEnabled = false,
-            ),
-            keyboardActions = KeyboardActions(onNext = { onNext() }, onDone = { onNext() }),
-            modifier = modifier
-                .onFocusChanged { focused = it.isFocused }
-                .fillMaxWidth()
-                .heightIn(min = dimens.minTouch + 4.dp)
-                .border(dimens.focusBorder, if (focused) HsColors.Focus else Hs.colors.surface2, shape)
-                .background(Hs.colors.surface2, shape),
-            decorationBox = { field ->
-                Box(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty() && placeholder != null) {
-                        Text(placeholder, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 1)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = Hs.type.body.copy(color = Hs.colors.text),
+                cursorBrush = SolidColor(Hs.colors.text),
+                visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = keyboardType,
+                    imeAction = imeAction,
+                    autoCorrectEnabled = false,
+                ),
+                keyboardActions = KeyboardActions(onNext = { onNext() }, onDone = { onNext() }),
+                modifier = modifier
+                    .weight(1f)
+                    .onFocusChanged { focused = it.isFocused }
+                    .heightIn(min = dimens.minTouch + 4.dp)
+                    .border(dimens.focusBorder, if (focused) HsColors.Focus else Hs.colors.surface2, shape)
+                    .background(Hs.colors.surface2, shape),
+                decorationBox = { field ->
+                    Box(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
+                        if (value.isEmpty() && placeholder != null) {
+                            Text(placeholder, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 1)
+                        }
+                        field()
                     }
-                    field()
-                }
-            },
-        )
+                },
+            )
+            if (password) {
+                HsIconButton(
+                    icon = if (revealed) Lucide.EyeOff else Lucide.Eye,
+                    label = stringResource(if (revealed) R.string.login_hide_password else R.string.login_show_password),
+                    onClick = { revealed = !revealed },
+                    modifier = Modifier.testTag(LoginTags.PASSWORD_TOGGLE),
+                )
+            }
+        }
     }
 }

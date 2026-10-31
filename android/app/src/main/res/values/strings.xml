@@ -61,6 +61,8 @@
     <string name="login_server_hint">http://example.com:8080</string>
     <string name="login_username">Username</string>
     <string name="login_password">Password</string>
+    <string name="login_show_password">Show password</string>
+    <string name="login_hide_password">Hide password</string>
     <string name="login_submit">Sign in</string>
     <string name="login_checking">Checking…</string>
     <string name="home_live">Live</string>
