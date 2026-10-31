@@ -179,9 +179,11 @@ Constats :
 - **Une seule version** pour le cœur, les liaisons et les apps :
   `[workspace.package] version` du `Cargo.toml` racine. L'app Android la lit
   (`versionName`) et en tire `versionCode` (1.2.3 → 10203).
-- **Versionnage sémantique** : correctif (0.2.**1**) pour une correction,
-  mineure (0.**3**.0) pour une fonctionnalité ou un changement visible,
-  majeure (**1**.0.0) à la première publication.
+- **Versionnage sémantique** : correctif (0.2.**1**) pour une correction
+  ou une petite retouche d'interface (un bouton, un libellé, un réglage
+  d'affichage — ex. l'œil du mot de passe, 2026-10-31), mineure (0.**3**.0)
+  pour une vraie fonctionnalité (un écran, un parcours, un comportement
+  nouveau), majeure (**1**.0.0) à la première publication.
 - **Chaque PR qui change l'app monte la version** et ajoute son entrée en
   tête de `CHANGELOG.md`. Une PR sans effet sur l'app (CI, docs) ne la monte pas.
 - Le nom de l'APK de la CI porte la version (`hey-stream-0.2.0-<commit>`).
