@@ -202,6 +202,7 @@ class PlayerController(private val context: Context) {
     }
 
     private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
+        stats?.opening()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
         player.stop()

@@ -37,7 +37,8 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    Le stockage R2 `hey-stream-donnees` est créé s'il n'existe pas.
 6. **Adresse** : ajouter le secret `TELEMETRY_URL` =
    `https://hey-stream-donnees.<sous-domaine>.workers.dev`.
-7. La release suivante publie l'APK testeur à côté de l'APK public. Sans
+7. La release suivante publie l'APK testeur dans sa propre release
+   (`testeur-vX.Y.Z`, à côté de `vX.Y.Z` et de l'APK public). Sans
    `TELEMETRY_URL` ni `TELEMETRY_KEY`, seul l'APK public est publié.
 
 Pour les rapports automatiques (session Claude), ajouter dans

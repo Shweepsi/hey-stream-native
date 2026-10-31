@@ -74,6 +74,10 @@ fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
 /// Suffixe de l'APK testeur (`hey-stream-X.Y.Z-testeur.apk`), qui envoie ses
 /// données d'usage (voir [`crate::telemetry`]).
 pub const TESTER_APK_SUFFIX: &str = "-testeur.apk";
+/// Étiquette de la release de l'APK testeur : `testeur-vX.Y.Z`, à part de
+/// `vX.Y.Z`. Une app qui ne connaît pas les APK testeur (0.6.0) ne sait pas
+/// lire cette étiquette et ne peut donc jamais le proposer.
+pub const TESTER_TAG_PREFIX: &str = "testeur-";
 
 /// Plus haute version publiée avec un APK, si elle dépasse `current`.
 /// `tester` : l'APK testeur, sinon l'APK public ; chacun reste sur le sien.
@@ -106,7 +110,12 @@ pub async fn check_update(
         .into_iter()
         .filter(|r| !r.draft)
         .filter_map(|r| {
-            let version = parse_version(r.tag_name.as_deref()?)?;
+            let tag = r.tag_name.as_deref()?;
+            let version = match tag.strip_prefix(TESTER_TAG_PREFIX) {
+                Some(tag) if tester => parse_version(tag)?,
+                None if !tester => parse_version(tag)?,
+                _ => return None,
+            };
             let apk = r.assets.into_iter().find(|a| {
                 a.name.as_deref().is_some_and(|n| {
                     let n = n.to_ascii_lowercase();

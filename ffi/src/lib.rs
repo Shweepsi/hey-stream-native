@@ -1192,6 +1192,53 @@ pub fn upload_telemetry(
     })
 }
 
+/// Journal des événements de l'APK testeur (voir `upload_telemetry`) : une
+/// ligne JSON par événement dans `dir`. Les fichiers laissés ouverts par un
+/// lancement arrêté net deviennent prêts à partir dès l'ouverture.
+#[derive(uniffi::Object)]
+pub struct TelemetryLog {
+    log: Mutex<xc::EventLog>,
+}
+
+#[uniffi::export]
+impl TelemetryLog {
+    #[uniffi::constructor]
+    pub fn new(dir: String, launch: String) -> Self {
+        Self {
+            log: Mutex::new(xc::EventLog::open(dir, &launch)),
+        }
+    }
+
+    /// Ajoute un événement (objet JSON sur une ligne ; sinon ignoré).
+    pub fn append(&self, line: String) {
+        self.lock().append(&line, now_ms());
+    }
+
+    /// Le fichier en cours devient prêt à partir.
+    pub fn rotate(&self) {
+        self.lock().rotate();
+    }
+
+    /// Efface tout ce qui attend (collecte coupée à distance).
+    pub fn clear(&self) {
+        self.lock().clear();
+    }
+}
+
+impl TelemetryLog {
+    fn lock(&self) -> MutexGuard<'_, xc::EventLog> {
+        self.log
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64)
+}
+
 /// Exécute une tâche réseau hors de tout objet `HeyStreamCore`.
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()

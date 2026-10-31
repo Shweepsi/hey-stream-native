@@ -122,7 +122,12 @@ pub async fn upload_telemetry(
             if bytes >= RUN_BYTES {
                 return Ok(UploadOutcome::Sent { files, bytes });
             }
-            let Some((body, raw)) = bundle(&batch) else {
+            let bundle = bundle(&batch);
+            // Fichiers vides : rien à envoyer.
+            for file in &bundle.empty {
+                let _ = fs::remove_file(file);
+            }
+            let Some(body) = bundle.body else {
                 continue;
             };
             let response = headers(http.post(format!("{endpoint}/v1/ingest")))
@@ -137,11 +142,12 @@ pub async fn upload_telemetry(
                 return Ok(UploadOutcome::Paused);
             }
             check_status(code)?;
-            for file in &batch {
+            // Seulement ceux qui sont partis ; un fichier illisible reste.
+            for file in &bundle.sent {
                 let _ = fs::remove_file(file);
             }
-            files += batch.len() as u32;
-            bytes += raw;
+            files += bundle.sent.len() as u32;
+            bytes += bundle.raw;
         }
     }
     Ok(UploadOutcome::Sent { files, bytes })
@@ -150,12 +156,8 @@ pub async fn upload_telemetry(
 /// Fichiers `*.extension` de `dir`, du plus ancien au plus récent, groupés
 /// par lots de [`BATCH_BYTES`] environ.
 fn batches(dir: &Path, extension: &str) -> Vec<Vec<PathBuf>> {
-    let mut files: Vec<(PathBuf, u64)> = fs::read_dir(dir)
+    let mut files: Vec<(PathBuf, u64)> = files_with(dir, extension)
         .into_iter()
-        .flatten()
-        .flatten()
-        .map(|entry| entry.path())
-        .filter(|p| p.extension().is_some_and(|e| e == extension))
         .filter_map(|p| fs::metadata(&p).ok().map(|m| (p, m.len())))
         .collect();
     files.sort_by(|(a, _), (b, _)| a.file_name().cmp(&b.file_name()));
@@ -174,25 +176,185 @@ fn batches(dir: &Path, extension: &str) -> Vec<Vec<PathBuf>> {
     batches
 }
 
+/// Un lot prêt à partir.
+struct Bundle {
+    /// Lignes JSON compressées ; `None` si aucun fichier n'a pu être lu.
+    body: Option<Vec<u8>>,
+    /// Fichiers compris dans `body`.
+    sent: Vec<PathBuf>,
+    /// Fichiers vides, à effacer.
+    empty: Vec<PathBuf>,
+    /// Taille avant compression.
+    raw: u64,
+}
+
 /// Les fichiers bout à bout, une ligne JSON par réponse ou par événement,
-/// compressés ; avec leur taille avant compression. Un fichier illisible est
-/// sauté ; `None` si rien n'a pu être lu.
-fn bundle(files: &[PathBuf]) -> Option<(Vec<u8>, u64)> {
+/// compressés au fil de la lecture (jamais un fichier entier en mémoire). Un
+/// fichier illisible est laissé pour le prochain envoi.
+fn bundle(files: &[PathBuf]) -> Bundle {
     let mut gz = GzEncoder::new(Vec::new(), Compression::default());
-    let mut raw = 0u64;
+    let (mut sent, mut empty, mut raw) = (Vec::new(), Vec::new(), 0u64);
     for file in files {
-        let Ok(content) = fs::read(file) else {
+        let Ok(mut reader) = fs::File::open(file) else {
             continue;
         };
-        let content = content.trim_ascii_end();
-        if content.is_empty() {
+        let mut counted = Counter {
+            inner: &mut gz,
+            bytes: 0,
+            last: b'\n',
+        };
+        if std::io::copy(&mut reader, &mut counted).is_err() {
+            // Lot inutilisable (lecture coupée en plein milieu) : rien ne part.
+            return Bundle {
+                body: None,
+                sent: Vec::new(),
+                empty,
+                raw: 0,
+            };
+        }
+        let (bytes, last) = (counted.bytes, counted.last);
+        if bytes == 0 {
+            empty.push(file.clone());
             continue;
         }
-        gz.write_all(content).ok()?;
-        gz.write_all(b"\n").ok()?;
-        raw += content.len() as u64 + 1;
+        if last != b'\n' && gz.write_all(b"\n").is_err() {
+            return Bundle {
+                body: None,
+                sent: Vec::new(),
+                empty,
+                raw: 0,
+            };
+        }
+        raw += bytes + u64::from(last != b'\n');
+        sent.push(file.clone());
     }
-    (raw > 0).then(|| gz.finish().ok().map(|body| (body, raw)))?
+    let body = if sent.is_empty() {
+        None
+    } else {
+        gz.finish().ok()
+    };
+    if body.is_none() {
+        sent.clear();
+    }
+    Bundle {
+        body,
+        sent,
+        empty,
+        raw,
+    }
+}
+
+/// Compte les octets écrits et retient le dernier.
+struct Counter<'a, W: Write> {
+    inner: &'a mut W,
+    bytes: u64,
+    last: u8,
+}
+
+impl<W: Write> Write for Counter<'_, W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        if n > 0 {
+            self.bytes += n as u64;
+            self.last = buf[n - 1];
+        }
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+// --- Journal des événements ----------------------------------------------------
+
+/// Taille d'un fichier d'événements avant d'en ouvrir un autre.
+const EVENT_FILE_BYTES: u64 = 512 * 1024;
+/// Extension d'un fichier en cours d'écriture (jamais envoyé).
+const OPEN_EXTENSION: &str = "open";
+
+/// Journal des événements de l'app : une ligne JSON par événement, dans des
+/// fichiers `.open` renommés en `.jsonl` (prêts à partir) quand ils sont
+/// pleins, à chaque [`EventLog::rotate`], ou au lancement suivant pour ceux
+/// d'un lancement arrêté net.
+pub struct EventLog {
+    dir: PathBuf,
+    /// Numéro du lancement, dans le nom des fichiers.
+    launch: String,
+    current: Option<PathBuf>,
+}
+
+impl EventLog {
+    /// Ouvre le journal de `dir` ; les fichiers laissés ouverts par un
+    /// lancement précédent deviennent prêts à partir.
+    pub fn open(dir: impl Into<PathBuf>, launch: &str) -> Self {
+        let dir = dir.into();
+        for file in files_with(&dir, OPEN_EXTENSION) {
+            let _ = fs::rename(&file, file.with_extension("jsonl"));
+        }
+        let launch = launch
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+            .collect();
+        Self {
+            dir,
+            launch,
+            current: None,
+        }
+    }
+
+    /// Ajoute `line` (un objet JSON, sans retour à la ligne). Une ligne
+    /// invalide est ignorée ; une erreur d'écriture aussi (jamais fatale).
+    pub fn append(&mut self, line: &str, now_ms: i64) {
+        let line = line.trim();
+        if line.contains('\n') || serde_json::from_str::<serde::de::IgnoredAny>(line).is_err() {
+            return;
+        }
+        let file = match &self.current {
+            Some(file) => file.clone(),
+            None => {
+                if fs::create_dir_all(&self.dir).is_err() {
+                    return;
+                }
+                let file = self
+                    .dir
+                    .join(format!("{now_ms:013}-{}.{OPEN_EXTENSION}", self.launch));
+                self.current = Some(file.clone());
+                file
+            }
+        };
+        let written = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&file)
+            .and_then(|mut f| f.write_all(format!("{line}\n").as_bytes()));
+        if written.is_ok() && fs::metadata(&file).is_ok_and(|m| m.len() >= EVENT_FILE_BYTES) {
+            self.rotate();
+        }
+    }
+
+    /// Le fichier en cours devient prêt à partir.
+    pub fn rotate(&mut self) {
+        if let Some(file) = self.current.take() {
+            let _ = fs::rename(&file, file.with_extension("jsonl"));
+        }
+    }
+
+    /// Efface tout ce qui attend (collecte coupée).
+    pub fn clear(&mut self) {
+        self.current = None;
+        let _ = fs::remove_dir_all(&self.dir);
+    }
+}
+
+fn files_with(dir: &Path, extension: &str) -> Vec<PathBuf> {
+    fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|p| p.extension().is_some_and(|e| e == extension))
+        .collect()
 }
 
 #[cfg(test)]
@@ -222,5 +384,53 @@ mod tests {
             })
             .collect();
         assert_eq!(names, [vec!["1.jsonl"], vec!["2.jsonl"], vec!["3.jsonl"]]);
+    }
+
+    #[test]
+    fn bundle_keeps_unreadable_files_and_drops_empty_ones() {
+        let dir = temp("bundle");
+        let (a, empty, missing) = (
+            dir.join("a.jsonl"),
+            dir.join("b.jsonl"),
+            dir.join("c.jsonl"),
+        );
+        fs::write(&a, b"{\"x\":1}").unwrap();
+        fs::write(&empty, b"").unwrap();
+        let bundle = bundle(&[a.clone(), empty.clone(), missing]);
+        assert_eq!(bundle.sent, [a]);
+        assert_eq!(bundle.empty, [empty]);
+        assert_eq!(bundle.raw, 8);
+        let mut out = String::new();
+        std::io::Read::read_to_string(
+            &mut flate2::read::GzDecoder::new(&bundle.body.unwrap()[..]),
+            &mut out,
+        )
+        .unwrap();
+        assert_eq!(out, "{\"x\":1}\n");
+    }
+
+    #[test]
+    fn event_log_rotates_and_recovers_files_of_a_stopped_launch() {
+        let dir = temp("log");
+        let mut log = EventLog::open(&dir, "lancement-1");
+        log.append(r#"{"type":"screen"}"#, 1);
+        log.append("pas du json", 2);
+        log.append("{\"a\":1}\n{\"b\":2}", 3);
+        // Arrêt net : le fichier reste ouvert, jamais envoyé…
+        assert_eq!(files_with(&dir, "open").len(), 1);
+        assert!(batches(&dir, "jsonl").is_empty());
+        // … jusqu'au lancement suivant.
+        let mut next = EventLog::open(&dir, "lancement-2");
+        let ready = files_with(&dir, "jsonl");
+        assert_eq!(ready.len(), 1);
+        assert_eq!(
+            fs::read_to_string(&ready[0]).unwrap(),
+            "{\"type\":\"screen\"}\n"
+        );
+        next.append("{}", 4);
+        next.rotate();
+        assert_eq!(files_with(&dir, "jsonl").len(), 2);
+        next.clear();
+        assert!(!dir.exists());
     }
 }

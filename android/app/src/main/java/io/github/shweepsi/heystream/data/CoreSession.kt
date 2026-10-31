@@ -129,7 +129,6 @@ class CoreSession(
                 val opened = open(candidate)
                 try {
                     val account = opened.authenticate()
-                    Telemetry.event("sign_in", "ok" to true)
                     credentials.save(candidate)
                     core?.close()
                     core = opened
@@ -141,6 +140,7 @@ class CoreSession(
                 }
             }
         }
+        Telemetry.event("sign_in", "ok" to true)
         _account.value = result
         _state.value = SessionState.Ready
         _catalogVersion.update { it + 1 }

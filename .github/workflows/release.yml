@@ -1,10 +1,11 @@
 name: release
 
 # Publie la version de Cargo.toml : étiquette vX.Y.Z, release GitHub avec
-# deux APK (clé de test, rapports de plantage actifs) et l'entrée du
-# CHANGELOG : l'APK public, et l'APK testeur (-testeur.apk) qui envoie ses
-# données d'usage au service de collecte (docs/COLLECTE.md). Chacun se met à
-# jour vers le sien.
+# l'APK public (clé de test, rapports de plantage actifs) et l'entrée du
+# CHANGELOG. L'APK testeur (-testeur.apk), qui envoie ses données d'usage au
+# service de collecte (docs/COLLECTE.md), a sa propre release
+# testeur-vX.Y.Z : une app 0.6.0, qui prend le premier APK d'une release,
+# ne peut ainsi jamais le recevoir. Chacun se met à jour vers le sien.
 # De lui-même quand une fusion dans main monte la version (les appareils la
 # proposent alors au lancement, voir AppUpdater) ; aussi à la main : Actions ›
 # release › Run workflow (branche main). Une version déjà publiée n'est pas
@@ -100,7 +101,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shopt -s nullglob
-          gh release create "v${{ needs.version.outputs.name }}" hey-stream-${{ needs.version.outputs.name }}*.apk \
-            --target "$GITHUB_SHA" --title "Hey Stream ${{ needs.version.outputs.name }}" \
+          v="${{ needs.version.outputs.name }}"
+          gh release create "v$v" "hey-stream-$v.apk" \
+            --target "$GITHUB_SHA" --title "Hey Stream $v" \
             --notes-file notes.md --prerelease
+          if [ -f "hey-stream-$v-testeur.apk" ]; then
+            gh release create "testeur-v$v" "hey-stream-$v-testeur.apk" \
+              --target "$GITHUB_SHA" --title "Hey Stream $v (testeur)" \
+              --notes-file notes.md --prerelease
+          fi

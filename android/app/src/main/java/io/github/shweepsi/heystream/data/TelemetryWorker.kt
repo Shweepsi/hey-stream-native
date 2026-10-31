@@ -27,7 +27,8 @@ class TelemetryWorker(context: Context, params: WorkerParameters) : CoroutineWor
     override suspend fun doWork(): Result {
         if (!Telemetry.available) return Result.success()
         val app = applicationContext as HeyStreamApp
-        val playing = withContext(Dispatchers.Main) { app.player.status.value.active }
+        // Lecture en cours (pas un flux chargé en pause ou fermé en arrière-plan).
+        val playing = withContext(Dispatchers.Main) { app.player.status.value.playing }
         if (playing) return Result.success()
         return withContext(Dispatchers.IO) {
             try {
@@ -41,7 +42,15 @@ class TelemetryWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     Telemetry.responsesDir.absolutePath,
                     Telemetry.eventsDir.absolutePath,
                 )
-                Telemetry.setPaused(outcome is TelemetryUpload.Paused)
+                if (Telemetry.setPaused(outcome is TelemetryUpload.Paused)) {
+                    // L'enregistrement complet des réponses suit la coupure ou la reprise.
+                    runCatching {
+                        app.session.withCore { core ->
+                            core.setRecording(null, false)
+                            DevTools.resumeRecording(applicationContext, core)
+                        }
+                    }
+                }
                 Result.success()
             } catch (_: Throwable) {
                 // Hors ligne, service indisponible : les fichiers restent pour la prochaine fois.

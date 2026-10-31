@@ -88,6 +88,9 @@ une IA (rapport chaque lundi). Mise en route et lecture : `docs/COLLECTE.md`.
   (`-testeur.apk`, `-Pheystream.testeur=true`) collecte dès
   l'installation ; l'APK public ne collecte rien (un inconnu qui le trouve
   sur GitHub n'a rien accordé). Chacun se met à jour vers le sien.
+  L'APK testeur a sa propre release, `testeur-vX.Y.Z` : une app 0.6.0
+  prend le premier APK d'une release `vX.Y.Z` et ne sait pas lire
+  l'étiquette `testeur-…`, elle ne peut donc jamais le recevoir.
 - **Accord** recueilli par le propriétaire en remettant l'APK : rien n'est
   affiché dans l'app (choix du propriétaire).
 - **Tout** : réponses entières du panneau (enregistrement complet, même

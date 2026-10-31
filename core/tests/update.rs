@@ -62,11 +62,11 @@ async fn newest_release_with_an_apk_is_offered() {
 #[tokio::test]
 async fn each_apk_updates_to_its_own_kind() {
     let both = json!([
-        {"tag_name": "v0.7.0", "assets": [
-            apk("hey-stream-0.7.0-testeur.apk", "https://x/0.7.0-testeur.apk"),
-            apk("hey-stream-0.7.0.apk", "https://x/0.7.0.apk")]},
-        // Avant les APK testeur : rien pour lui.
-        {"tag_name": "v0.6.1", "assets": [apk("hey-stream-0.6.1.apk", "https://x/0.6.1.apk")]}
+        {"tag_name": "testeur-v0.7.0", "assets": [
+            apk("hey-stream-0.7.0-testeur.apk", "https://x/0.7.0-testeur.apk")]},
+        {"tag_name": "v0.7.0", "assets": [apk("hey-stream-0.7.0.apk", "https://x/0.7.0.apk")]},
+        // Un APK testeur égaré dans une release publique n'est jamais pris.
+        {"tag_name": "v0.6.1", "assets": [apk("hey-stream-0.6.1-testeur.apk", "https://x/bad.apk")]}
     ]);
     let server = releases(both.clone()).await;
     let public = check_update(&server.uri(), REPO, "0.6.0", false)
@@ -79,7 +79,10 @@ async fn each_apk_updates_to_its_own_kind() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(tester.apk_url, "https://x/0.7.0-testeur.apk");
+    assert_eq!(
+        (tester.version.as_str(), tester.apk_url.as_str()),
+        ("0.7.0", "https://x/0.7.0-testeur.apk")
+    );
 }
 
 #[tokio::test]

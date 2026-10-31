@@ -17,7 +17,9 @@ import io.github.shweepsi.heystream.data.Telemetry
  */
 @OptIn(UnstableApi::class)
 internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs: Long) {
-    private val opened = SystemClock.elapsedRealtime()
+    /** Ouverture réelle du flux (pas le choix, s'il a attendu en arrière-plan). */
+    private var opened = SystemClock.elapsedRealtime()
+    private var openedOnce = false
     private val kind: String?
     private val streamId: String?
     private val container: String?
@@ -45,6 +47,13 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
             "container" to container,
             "start_ms" to startMs,
         )
+    }
+
+    /** Le flux est réellement ouvert ; seule la première ouverture compte. */
+    fun opening() {
+        if (openedOnce) return
+        openedOnce = true
+        opened = SystemClock.elapsedRealtime()
     }
 
     private fun common(): Array<Pair<String, Any?>> = arrayOf("kind" to kind, "stream_id" to streamId)

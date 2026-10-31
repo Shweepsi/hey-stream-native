@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Debug
 import androidx.core.content.edit
 import io.github.shweepsi.heystream.BuildConfig
+import io.github.shweepsi.heystream.core.TelemetryLog
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -18,7 +19,8 @@ import org.json.JSONObject
  * testeurs ») : les testeurs ont donné leur accord au propriétaire, qui leur
  * remet cet APK. L'APK public n'en a pas : [active] y est toujours faux.
  *
- * Deux sortes de fichiers, envoyés puis effacés par [TelemetryWorker] :
+ * Deux sortes de fichiers, écrits par le cœur, envoyés puis effacés par
+ * [TelemetryWorker] :
  * - les réponses du panneau, nettoyées par le cœur (enregistrement complet,
  *   dossier [responsesDir]) ;
  * - les événements, une ligne JSON chacun (dossier [eventsDir]) : appareil,
@@ -34,9 +36,6 @@ object Telemetry {
     private const val PREFS = "telemetry"
     private const val KEY_DEVICE = "device"
     private const val KEY_PAUSED = "paused"
-
-    /** Taille d'un fichier d'événements avant d'en ouvrir un autre. */
-    private const val FILE_BYTES = 512 * 1024L
 
     /** APK testeur relié à un service de collecte. */
     val available: Boolean get() = BuildConfig.TESTER && BuildConfig.TELEMETRY_URL.isNotEmpty()
@@ -54,8 +53,11 @@ object Telemetry {
     /** Numéro de ce lancement de l'app. */
     private val launch = UUID.randomUUID().toString()
 
+    /** Fil du journal : les écritures ne bloquent jamais l'interface. */
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "telemetry") }
-    private var current: File? = null
+
+    /** Journal du cœur, ouvert sur [writer] (chargement de la bibliothèque). */
+    private var log: TelemetryLog? = null
 
     val responsesDir: File get() = File(root, "responses")
     val eventsDir: File get() = File(root, "events")
@@ -69,28 +71,40 @@ object Telemetry {
             prefs.edit { putString(KEY_DEVICE, it) }
         }
         active = !prefs.getBoolean(KEY_PAUSED, false)
-        if (!active) return
-        event("app_start", deviceInfo(context))
+        writer.execute {
+            runCatching {
+                CoreSession.loadNativeLibrary()
+                log = TelemetryLog(eventsDir.absolutePath, launch)
+            }
+        }
+        // Toujours installé : une reprise à distance en cours de lancement
+        // compte aussi les plantages ([active] lu au moment du plantage).
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
-            runCatching { crash(thread, error) }
+            runCatching { if (active) crash(thread, error) }
             previous?.uncaughtException(thread, error)
         }
+        event("app_start", deviceInfo(context))
     }
 
-    /** Coupure (ou reprise) décidée à distance par le service de collecte. */
-    fun setPaused(paused: Boolean) {
-        if (!available) return
-        if (prefs.getBoolean(KEY_PAUSED, false) != paused) prefs.edit { putBoolean(KEY_PAUSED, paused) }
+    /**
+     * Coupure (ou reprise) décidée à distance par le service de collecte.
+     * Vrai si l'état a changé : l'enregistrement des réponses du cœur doit
+     * alors suivre (voir [TelemetryWorker]).
+     */
+    fun setPaused(paused: Boolean): Boolean {
+        if (!available) return false
+        val changed = prefs.getBoolean(KEY_PAUSED, false) != paused
+        if (changed) prefs.edit { putBoolean(KEY_PAUSED, paused) }
         active = !paused
-        // Rien ne doit attendre : ni événements, ni réponses que le cœur
-        // enregistre encore jusqu'au prochain lancement.
+        // Rien ne doit attendre : ni événements, ni réponses.
         if (paused) {
             writer.submit {
-                current = null
-                root.deleteRecursively()
+                log?.clear()
+                responsesDir.deleteRecursively()
             }.get(10, TimeUnit.SECONDS)
         }
+        return changed
     }
 
     /** Un événement ; les valeurs `null` sont omises. Jamais bloquant. */
@@ -101,7 +115,7 @@ object Telemetry {
             .put("type", type)
             .put("launch", launch)
         for ((key, value) in fields) if (value != null) line.put(key, value)
-        writer.execute { append(line.toString()) }
+        writer.execute { log?.append(line.toString()) }
     }
 
     fun event(type: String, vararg fields: Pair<String, Any?>) = event(type, fields.toMap())
@@ -109,7 +123,7 @@ object Telemetry {
     /** Ferme le fichier en cours : tout ce qui est écrit peut partir. */
     fun rotate() {
         if (!available) return
-        writer.submit { close() }.get(10, TimeUnit.SECONDS)
+        writer.submit { log?.rotate() }.get(10, TimeUnit.SECONDS)
     }
 
     /** Mémoire de l'app, à des moments choisis (arrière-plan, fin de lecture). */
@@ -125,19 +139,6 @@ object Telemetry {
         )
     }
 
-    private fun append(line: String) {
-        val file = current ?: File(eventsDir.apply { mkdirs() }, "${System.currentTimeMillis()}-$launch.open")
-            .also { current = it }
-        runCatching { file.appendText(line + "\n") }
-        if (file.length() >= FILE_BYTES) close()
-    }
-
-    private fun close() {
-        val file = current ?: return
-        current = null
-        file.renameTo(File(file.parentFile, file.name.removeSuffix(".open") + ".jsonl"))
-    }
-
     /** Plantage : écrit tout de suite, l'app s'arrête juste après. */
     private fun crash(thread: Thread, error: Throwable) {
         val stack = error.stackTrace.take(20).joinToString("\n") { "${it.className}.${it.methodName}:${it.lineNumber}" }
@@ -151,8 +152,8 @@ object Telemetry {
             .put("cause", error.cause?.javaClass?.name)
             .put("stack", stack)
         writer.submit {
-            append(line.toString())
-            close()
+            log?.append(line.toString())
+            log?.rotate()
         }.get(2, TimeUnit.SECONDS)
     }
 

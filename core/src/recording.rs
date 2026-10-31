@@ -107,30 +107,70 @@ impl Recorder {
         if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
             return;
         }
-        let limit = (!self.full && LIST_ACTIONS.contains(&name)).then_some(LIST_LIMIT);
-        let mut record = self.scrubber.record(action, params, response, limit);
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
-        if let Value::Object(map) = &mut record {
-            map.insert("at".into(), now.as_secs().into());
-            map.insert("elapsed_ms".into(), (elapsed.as_millis() as u64).into());
-        }
-        let Ok(json) = serde_json::to_vec(&record) else {
-            return;
-        };
         // Horodatage puis numéro : l'ordre des noms est celui des requêtes.
         let seq = self.seq.fetch_add(1, Ordering::Relaxed);
         let file = format!("{:013}-{seq:06}-{name}.json", now.as_millis());
         // Écrit à côté puis renommé : un fichier `.json` est toujours complet
         // (l'envoi peut le lire à tout moment).
         let partial = self.dir.join(format!("{file}.part"));
-        if fs::write(&partial, json).is_ok() && fs::rename(&partial, self.dir.join(file)).is_ok() {
+        let stamp = [
+            ("at", Value::from(now.as_secs())),
+            ("elapsed_ms", Value::from(elapsed.as_millis() as u64)),
+        ];
+        let written = match response {
+            // Liste entière (mode complet) : écrite entrée par entrée, sans
+            // jamais tenir toute la liste nettoyée en mémoire (Mi Box S,
+            // 32 bits, 2 Go).
+            Ok((status, body))
+                if self.full && LIST_ACTIONS.contains(&name) && (200..300).contains(status) =>
+            {
+                let body = text(body);
+                match entries(&body) {
+                    Some(entries) => {
+                        let mut head = Map::new();
+                        head.insert("action".into(), Value::from(name));
+                        head.insert("params".into(), Value::Object(self.scrubber.params(params)));
+                        head.insert("status".into(), (*status).into());
+                        head.insert("bytes".into(), body.len().into());
+                        head.insert("total".into(), entries.len().into());
+                        head.extend(stamp.map(|(k, v)| (k.to_owned(), v)));
+                        self.scrubber.write_list(&partial, head, &entries).is_ok()
+                    }
+                    None => self.write_record(&partial, action, params, response, None, stamp),
+                }
+            }
+            _ => {
+                let limit = (!self.full && LIST_ACTIONS.contains(&name)).then_some(LIST_LIMIT);
+                self.write_record(&partial, action, params, response, limit, stamp)
+            }
+        };
+        if written && fs::rename(&partial, self.dir.join(file)).is_ok() {
             let factor = if self.full { 10 } else { 1 };
             prune(&self.dir, name, keep(name) * factor);
         } else {
             let _ = fs::remove_file(partial);
         }
+    }
+}
+
+impl Recorder {
+    fn write_record(
+        &self,
+        path: &Path,
+        action: Option<&str>,
+        params: &[(&str, &str)],
+        response: &Result<(u16, bytes::Bytes)>,
+        limit: Option<usize>,
+        stamp: [(&str, Value); 2],
+    ) -> bool {
+        let mut record = self.scrubber.record(action, params, response, limit);
+        if let Value::Object(map) = &mut record {
+            map.extend(stamp.map(|(k, v)| (k.to_owned(), v)));
+        }
+        serde_json::to_vec(&record).is_ok_and(|json| fs::write(path, json).is_ok())
     }
 }
 
@@ -150,7 +190,7 @@ fn prune(dir: &Path, action: &str, keep: usize) {
 }
 
 /// Fichiers enregistrés, du plus ancien au plus récent.
-pub(crate) fn recorded_files(dir: &Path) -> Vec<PathBuf> {
+fn recorded_files(dir: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -281,11 +321,7 @@ impl Scrubber {
     ) -> Value {
         let mut record = Map::new();
         record.insert("action".into(), action.map_or(Value::Null, Value::from));
-        let params: Map<String, Value> = params
-            .iter()
-            .map(|(k, v)| ((*k).to_owned(), Value::from(self.scrub_text(v))))
-            .collect();
-        record.insert("params".into(), Value::Object(params));
+        record.insert("params".into(), Value::Object(self.params(params)));
         let (status, body) = match response {
             Ok(response) => response,
             Err(error) => {
@@ -331,6 +367,47 @@ impl Scrubber {
             record.insert("text".into(), self.scrub_text(&start).into());
         }
         Value::Object(record)
+    }
+
+    fn params(&self, params: &[(&str, &str)]) -> Map<String, Value> {
+        params
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), Value::from(self.scrub_text(v))))
+            .collect()
+    }
+
+    /// Écrit `head` suivi de la liste nettoyée (`"body"`), une entrée à la
+    /// fois, sur une seule ligne JSON.
+    fn write_list(
+        &self,
+        path: &Path,
+        head: Map<String, Value>,
+        entries: &[(Option<String>, &RawValue)],
+    ) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut out = std::io::BufWriter::new(fs::File::create(path)?);
+        let head = serde_json::to_string(&Value::Object(head))?;
+        // `{...}` sans son `}` final : la liste suit.
+        out.write_all(&head.as_bytes()[..head.len() - 1])?;
+        let keyed = entries.first().is_some_and(|(k, _)| k.is_some());
+        out.write_all(if keyed {
+            b",\"body\":{"
+        } else {
+            b",\"body\":["
+        })?;
+        for (i, (key, raw)) in entries.iter().enumerate() {
+            if i > 0 {
+                out.write_all(b",")?;
+            }
+            if keyed {
+                serde_json::to_writer(&mut out, key.as_deref().unwrap_or_default())?;
+                out.write_all(b":")?;
+            }
+            let value = serde_json::from_str(raw.get()).unwrap_or(Value::Null);
+            serde_json::to_writer(&mut out, &self.scrub(value))?;
+        }
+        out.write_all(if keyed { b"}}" } else { b"]}" })?;
+        out.flush()
     }
 
     fn scrub(&self, value: Value) -> Value {
