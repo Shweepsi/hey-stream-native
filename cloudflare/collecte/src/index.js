@@ -15,6 +15,8 @@
 //   GET  /v1/admin/apk?key=…        → le dernier APK testeur, à remettre aux
 //                                     testeurs (clé dans l'adresse : lien
 //                                     ouvrable dans un navigateur).
+// Les testeurs (clé SHARE_KEY, facultative, à changer pour couper le lien) :
+//   GET  /v1/apk?share=…            → le dernier APK testeur seulement.
 // Chaque nuit : effacement des lots de plus de RETENTION_DAYS jours.
 //
 // Rangement : <kind>/<AAAA-MM-JJ>/<appareil>/<heure>-<aléa>.ndjson.gz, kind
@@ -54,6 +56,19 @@ async function control(env) {
   };
 }
 
+/** Le dernier APK testeur, à télécharger (nom de fichier compris). */
+async function apkResponse(env) {
+  const latest = await latestApk(env);
+  const object = latest ? await env.BUCKET.get(latest.file) : null;
+  if (!object) return json({ error: "no release" }, 404);
+  const headers = {
+    "content-type": "application/vnd.android.package-archive",
+    "content-disposition": `attachment; filename="${latest.file.slice(4)}"`,
+  };
+  if (object.size) headers["content-length"] = String(object.size);
+  return new Response(object.body, { headers });
+}
+
 /** `{version, notes, size, sha256, file}` du dernier APK testeur, ou `null`. */
 async function latestApk(env) {
   const object = await env.BUCKET.get("apk/latest.json");
@@ -69,6 +84,9 @@ function day(date) {
 
 async function app(request, env, url) {
   if (!authorized(request, env.INGEST_KEY)) return json({ error: "unauthorized" }, 401);
+  // Le téléchargement de la mise à jour n'envoie que la clé (core/src/update.rs,
+  // download_update) : pas d'appareil ni de version exigés.
+  if (url.pathname === "/v1/update/apk" && request.method === "GET") return apkResponse(env);
   const device = request.headers.get("x-device") || "";
   const version = request.headers.get("x-app-version") || "";
   if (!DEVICE.test(device) || !VERSION.test(version)) return json({ error: "bad request" }, 400);
@@ -88,15 +106,6 @@ async function app(request, env, url) {
     if (!latest) return json({ error: "no release" }, 404);
     const { file, ...release } = latest;
     return json(release);
-  }
-
-  if (url.pathname === "/v1/update/apk" && request.method === "GET") {
-    const latest = await latestApk(env);
-    const object = latest ? await env.BUCKET.get(latest.file) : null;
-    if (!object) return json({ error: "no release" }, 404);
-    const headers = { "content-type": "application/vnd.android.package-archive" };
-    if (object.size) headers["content-length"] = String(object.size);
-    return new Response(object.body, { headers });
   }
 
   if (url.pathname === "/v1/ingest" && request.method === "POST") {
@@ -128,15 +137,7 @@ async function admin(request, env, url) {
     if (!authorized(request, env.ADMIN_KEY) && !same(url.searchParams.get("key") || "", env.ADMIN_KEY)) {
       return json({ error: "unauthorized" }, 401);
     }
-    const latest = await latestApk(env);
-    const object = latest ? await env.BUCKET.get(latest.file) : null;
-    if (!object) return json({ error: "no release" }, 404);
-    return new Response(object.body, {
-      headers: {
-        "content-type": "application/vnd.android.package-archive",
-        "content-disposition": `attachment; filename="${latest.file.slice(4)}"`,
-      },
-    });
+    return apkResponse(env);
   }
   if (!authorized(request, env.ADMIN_KEY)) return json({ error: "unauthorized" }, 401);
 
@@ -223,6 +224,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/v1/admin/")) return admin(request, env, url);
+    // Lien à partager avec les testeurs : ne donne que l'APK, rien d'autre.
+    if (url.pathname === "/v1/apk" && request.method === "GET") {
+      if (!same(url.searchParams.get("share") || "", env.SHARE_KEY)) return json({ error: "unauthorized" }, 401);
+      return apkResponse(env);
+    }
     if (url.pathname.startsWith("/v1/")) return app(request, env, url);
     return json({ error: "not found" }, 404);
   },

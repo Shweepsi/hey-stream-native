@@ -48,6 +48,11 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    navigateur
    `https://hey-stream-donnees.<sous-domaine>.workers.dev/v1/admin/apk?key=<clé d'administration>`.
    Ne partager que le fichier, jamais ce lien (il contient la clé).
+9. **Lien à partager** (facultatif) : secret `TELEMETRY_SHARE_KEY` (une
+   troisième clé au hasard), puis *Run workflow* de *collecte*. Le lien
+   `https://hey-stream-donnees.<sous-domaine>.workers.dev/v1/apk?share=<clé de partage>`
+   ne donne que le dernier APK testeur : il peut être envoyé aux testeurs.
+   Pour le couper, changer le secret et relancer le workflow.
 
 Pour les rapports automatiques (session Claude), ajouter dans
 l'environnement de la session la variable `TELEMETRY_ADMIN_KEY`, et
