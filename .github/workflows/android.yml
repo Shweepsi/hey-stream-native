@@ -79,6 +79,9 @@ jobs:
           name: hey-stream-${{ steps.version.outputs.name }}-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+          # Les APK publiés vivent dans les releases ; ceux de la CI ne servent
+          # qu’à tester une PR, puis s’effacent seuls.
+          retention-days: 7
       # En dernier, et même si une étape d'avant échoue : un avertissement
       # clippy ne masque ni les tests ni l'APK, et inversement (pas si les
       # outils eux-mêmes manquent).
