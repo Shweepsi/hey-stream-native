@@ -5,7 +5,7 @@ resolver = "3"
 # Version de l'app : seule source, lue aussi par l'app Android (versionName et
 # versionCode). À monter dans chaque PR qui change l'app (voir CHANGELOG.md).
 [workspace.package]
-version = "0.7.3"
+version = "0.8.0"
 license = "GPL-3.0-or-later"
 
 # Bibliothèque embarquée dans les apps : taille de l'APK (< 25 Mo par

@@ -4,7 +4,7 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
-## 0.7.3 — 2026-10-31
+## 0.8.0 — 2026-10-31
 
 - Connexion : un œil à droite du mot de passe l'affiche ou le masque, pour
   vérifier la saisie.
