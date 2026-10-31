@@ -85,14 +85,14 @@ le même panneau que lui (autres appareils, autres usages), analysées par
 une IA (rapport chaque lundi). Mise en route et lecture : `docs/COLLECTE.md`.
 
 - **Deux APK** à chaque version : l'APK testeur
-  (`-testeur.apk`, `-Pheystream.testeur=true`) collecte dès
+  (`-t.apk`, version `X.Y.Z-t`, `-Pheystream.testeur=true`) collecte dès
   l'installation ; l'APK public ne collecte rien. L'APK testeur n'est
   **jamais sur GitHub** (dépôt public : un inconnu qui le trouverait n'a rien
   accordé, et la clé d'envoi qu'il contient serait publique). Le workflow
   `release` le dépose dans le stockage R2 du service ; le propriétaire le
   télécharge (`/v1/admin/apk`) et le remet aux testeurs ; l'APK testeur se
   met ensuite à jour depuis le service (`/v1/update`, clé d'envoi), l'APK
-  public depuis GitHub. Un APK `-testeur` trouvé sur GitHub n'est jamais
+  public depuis GitHub. Un APK `-t.apk` trouvé sur GitHub n'est jamais
   proposé.
 - **Accord** recueilli par le propriétaire en remettant l'APK : rien n'est
   affiché dans l'app (choix du propriétaire).

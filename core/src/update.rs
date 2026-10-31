@@ -74,12 +74,12 @@ fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
     parts.next().is_none().then_some(version)
 }
 
-/// Suffixe de l'APK testeur (`hey-stream-X.Y.Z-testeur.apk`), qui envoie ses
+/// Suffixe de l'APK testeur (`hey-stream-X.Y.Z-t.apk`), qui envoie ses
 /// données d'usage (voir [`crate::telemetry`]). Il n'est jamais publié sur
 /// GitHub : seulement remis par le propriétaire, puis mis à jour depuis le
 /// service de collecte ([`check_tester_update`]). Par prudence, un APK de ce
 /// nom sur GitHub n'est jamais proposé.
-pub const TESTER_APK_SUFFIX: &str = "-testeur.apk";
+pub const TESTER_APK_SUFFIX: &str = "-t.apk";
 
 /// Plus haute version publiée avec un APK public, si elle dépasse `current`.
 pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<Option<AppUpdate>> {

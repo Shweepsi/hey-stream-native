@@ -5,7 +5,7 @@ comment le mettre en route (une fois) et comment lire les données.
 
 ## Ce qui est collecté
 
-Seulement par l'**APK testeur** (`hey-stream-X.Y.Z-testeur.apk`), que le
+Seulement par l'**APK testeur** (`hey-stream-X.Y.Z-t.apk`, version `X.Y.Z-t`), que le
 propriétaire remet aux testeurs qui lui ont donné leur accord. Il n'est
 jamais sur GitHub : il est servi par le service de collecte, au
 propriétaire (clé d'administration) et aux APK testeur pour leurs mises à

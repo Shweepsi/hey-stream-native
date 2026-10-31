@@ -4,6 +4,12 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.2 — 2026-10-31
+
+- APK testeur : numéro de version `X.Y.Z-t` (Réglages › À propos, données
+  d'usage, rapports de plantage) et fichier `hey-stream-X.Y.Z-t.apk`, pour le
+  distinguer de l'APK public d'un coup d'œil.
+
 ## 0.7.1 — 2026-10-31
 
 - Données des testeurs stockées en Europe de l'Ouest : le stockage du

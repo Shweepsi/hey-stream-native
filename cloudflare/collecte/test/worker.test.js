@@ -105,10 +105,10 @@ test("les lots de plus d'un an sont effacés", async () => {
 test("l'APK testeur n'est servi qu'avec la clé d'envoi", async () => {
   const e = env();
   assert.equal((await call(e, "/v1/update")).status, 404);
-  await e.BUCKET.put("apk/hey-stream-0.7.0-testeur.apk", "apk");
+  await e.BUCKET.put("apk/hey-stream-0.7.0-t.apk", "apk");
   await e.BUCKET.put(
     "apk/latest.json",
-    JSON.stringify({ version: "0.7.0", notes: "- x", size: 3, sha256: "ab", file: "apk/hey-stream-0.7.0-testeur.apk" }),
+    JSON.stringify({ version: "0.7.0", notes: "- x", size: 3, sha256: "ab", file: "apk/hey-stream-0.7.0-t.apk" }),
   );
   assert.deepEqual(await (await call(e, "/v1/update")).json(), { version: "0.7.0", notes: "- x", size: 3, sha256: "ab" });
   const apk = await call(e, "/v1/update/apk?version=0.7.0");
@@ -118,7 +118,7 @@ test("l'APK testeur n'est servi qu'avec la clé d'envoi", async () => {
   // Le propriétaire le télécharge avec sa clé, dans un navigateur.
   const owner = await call(e, "/v1/admin/apk?key=admin", { key: "" });
   assert.equal(owner.status, 200);
-  assert.match(owner.headers.get("content-disposition"), /hey-stream-0\.7\.0-testeur\.apk/);
+  assert.match(owner.headers.get("content-disposition"), /hey-stream-0\.7\.0-t\.apk/);
   assert.equal((await call(e, "/v1/admin/apk?key=envoi", { key: "" })).status, 401);
   // Jamais effacé par la conservation d'un an.
   await expire(e, new Date("2030-01-01T00:00:00Z"));
