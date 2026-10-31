@@ -14,9 +14,14 @@ ligne quand sa PR est fusionnée.
    test cachés, sept appuis sur la version), utilise l'app, puis partage le
    fichier ; en faire les réponses simulées des tests
    (`core/tests/fixtures/`) et corriger ce qu'elles révèlent.
-4. **1.0.0** : APK signé pour la publication ; comptes développeur à
+4. **Enregistrement programmé** (`DECISIONS.md`, 2026-10-31) : cœur
+   (planning, conflits, espace, copie du flux avec reprise), puis Android
+   (alarme exacte, service au premier plan, catégorie Enregistrements) ;
+   essais sur la Mi Box S et la Xiaomi Pad 7 (veille, batterie HyperOS).
+5. **1.0.0** : APK signé pour la publication ; comptes développeur à
    décider ; sort des outils de test et de la mise à jour intégrée
-   (interdite par le Play Store) dans la version des magasins.
+   (interdite par le Play Store) dans la version des magasins ; décider si
+   l'enregistrement y reste.
 
 ## Cœur (acceptables pour l'instant)
 

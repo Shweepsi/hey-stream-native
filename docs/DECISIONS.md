@@ -202,6 +202,37 @@ Constats :
   correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
   `ffi/` change, et à chaque push sur main.
 
+## Enregistrement programmé (2026-10-31)
+
+Décidé avec le propriétaire : l'enregistrement programmé entre dans la v1,
+**avant la 1.0** (`SPEC_V1.md`, « Enregistrement »).
+
+- **Programmation depuis le guide en Direct** seulement : sur l'un des
+  4 programmes affichés, « Enregistrer » ; début et fin viennent du guide,
+  avec une marge (2 min avant, 5 min après). Pas de saisie manuelle, pas de
+  répétition, pas d'« enregistrer maintenant » en v1.
+- **Une seule connexion** : pendant un enregistrement, la lecture d'un autre
+  flux est **bloquée**, avec un message ; on peut arrêter l'enregistrement.
+  Deux enregistrements qui se chevauchent sont refusés à la programmation.
+- **Tous les appareils, selon l'espace** : la Mi Box S a peu de chances de
+  suffire (≈ 4 Go libres), mais rien n'est réservé à un appareil. L'app
+  vérifie l'espace libre avant de programmer et avant de démarrer, refuse si
+  c'est trop juste, et s'arrête proprement si le disque se remplit. Un
+  volume externe (clé, disque USB) peut être choisi s'il est présent.
+- **Local** : un enregistrement ne se regarde que sur l'appareil qui l'a
+  fait (pas de partage réseau, comme « Tout en local »).
+- **App fermée, écran éteint** : alarme exacte et service au premier plan
+  (notification « Enregistrement en cours ») ; l'app indique quand un
+  réglage de batterie du fabricant (HyperOS…) l'empêche.
+- **Coupure** : reconnexion automatique dans **un seul fichier** ; un trou de
+  plus d'une minute marque l'enregistrement « incomplet ».
+- Le flux est copié tel quel (.ts), sans réencodage. Planning, conflits,
+  espace et reprise sont dans le cœur (`core/`) ; Android ne fait que
+  l'alarme, le service et l'affichage.
+- **Point ouvert** : effet sur l'examen Google Play (fonction exposée face
+  aux ayants droit, voir « Image publique et listes M3U ») ; à trancher avec
+  la publication 1.0 (`TODO.md`).
+
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
 Constat : les lecteurs reconnus (TiviMate, OTT Navigator) se présentent comme

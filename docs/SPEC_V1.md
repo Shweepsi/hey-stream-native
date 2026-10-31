@@ -38,8 +38,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   pour remplir la liste).
 - Sélectionner une chaîne lance l'aperçu ; **OK** passe en plein écran ;
   **Retour** quitte le plein écran et revient à l'aperçu.
-- Pas de zapping en plein écran, pas de guide en grille, pas de replay.
-- Catégories spéciales en tête : **Favoris**, **Récents**.
+- Pas de zapping en plein écran, pas de guide en grille, pas de replay
+  (l'enregistrement programmé est à part : « Enregistrement »).
+- Catégories spéciales en tête : **Favoris**, **Récents**, **Enregistrements**.
 
 ## Films
 
@@ -122,6 +123,23 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - Outils de test cachés (sept appuis sur la version) : enregistrement des
   réponses du fournisseur pendant l'usage, pour les tests automatiques
   (`DECISIONS.md`, « Panneau de référence »).
+
+## Enregistrement (2026-10-31)
+
+- Depuis le guide en Direct : « Enregistrer » sur l'un des 4 programmes
+  affichés (marge de 2 min avant, 5 min après). Rien d'autre (ni saisie
+  manuelle, ni répétition).
+- Démarre même app fermée et écran éteint ; notification pendant
+  l'enregistrement.
+- Un seul flux : pendant un enregistrement, la lecture d'un autre flux est
+  bloquée (message, possibilité d'arrêter l'enregistrement) ; deux
+  enregistrements qui se chevauchent sont refusés.
+- Espace libre vérifié avant de programmer et de démarrer ; arrêt propre si
+  le disque se remplit ; volume externe au choix s'il est présent.
+- Coupure : reconnexion dans le même fichier ; « incomplet » si plus d'une
+  minute manque.
+- Catégorie **Enregistrements** (dans Direct) : lecture avec reprise,
+  suppression. Enregistrements locaux à l'appareil.
 
 ## Hors périmètre v1
 
