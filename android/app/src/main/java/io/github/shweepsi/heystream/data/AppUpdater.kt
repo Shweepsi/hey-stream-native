@@ -15,6 +15,7 @@ import io.github.shweepsi.heystream.HeyStreamApp
 import io.github.shweepsi.heystream.core.AppUpdate
 import io.github.shweepsi.heystream.core.UpdateProgress
 import io.github.shweepsi.heystream.core.checkAppUpdate
+import io.github.shweepsi.heystream.core.checkTesterUpdate
 import io.github.shweepsi.heystream.core.downloadAppUpdate
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
@@ -113,7 +114,16 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             _state.value = try {
                 val update = withContext(Dispatchers.IO) {
                     CoreSession.loadNativeLibrary()
-                    checkAppUpdate(BuildConfig.VERSION_NAME)
+                    if (BuildConfig.TESTER) {
+                        // APK testeur : jamais sur GitHub, servi par le service de collecte.
+                        if (!Telemetry.available) {
+                            null
+                        } else {
+                            checkTesterUpdate(BuildConfig.TELEMETRY_URL, BuildConfig.TELEMETRY_KEY, BuildConfig.VERSION_NAME, Telemetry.device)
+                        }
+                    } else {
+                        checkAppUpdate(BuildConfig.VERSION_NAME)
+                    }
                 }
                 prefs().edit { putLong(KEY_CHECKED_AT, System.currentTimeMillis()) }
                 if (update == null) {

@@ -310,6 +310,8 @@ pub struct AppUpdate {
     pub apk_url: String,
     pub size: u64,
     pub sha256: Option<String>,
+    /// Clé du téléchargement (APK testeur) ; aucune pour GitHub.
+    pub token: Option<String>,
 }
 
 impl From<xc::AppUpdate> for AppUpdate {
@@ -320,6 +322,7 @@ impl From<xc::AppUpdate> for AppUpdate {
             apk_url: u.apk_url,
             size: u.size,
             sha256: u.sha256,
+            token: u.token,
         }
     }
 }
@@ -332,6 +335,7 @@ impl From<AppUpdate> for xc::AppUpdate {
             apk_url: u.apk_url,
             size: u.size,
             sha256: u.sha256,
+            token: u.token,
         }
     }
 }
@@ -751,9 +755,11 @@ impl HeyStreamCore {
 
     /// Enregistre (`Some(dossier)`) ou non (`None`) chaque réponse du panneau,
     /// nettoyée, pendant l'usage normal (voir `recording_summary`,
-    /// `export_recording`). Aucune requête en plus.
-    pub fn set_recording(&self, dir: Option<String>) -> Result<()> {
+    /// `export_recording`). Aucune requête en plus. `full` : listes entières
+    /// (APK testeur, voir `upload_telemetry`).
+    pub fn set_recording(&self, dir: Option<String>, full: bool) -> Result<()> {
         match dir {
+            Some(dir) if full => self.client.start_full_recording(dir)?,
             Some(dir) => self.client.start_recording(dir)?,
             None => self.client.stop_recording(),
         }
@@ -1117,6 +1123,24 @@ pub fn check_app_update(current_version: String) -> Result<Option<AppUpdate>> {
     Ok(update.map(Into::into))
 }
 
+/// APK testeur : dernière version servie par le service de collecte, si elle
+/// dépasse `current_version`. Bloquant (une requête, 20 s au plus).
+#[uniffi::export]
+pub fn check_tester_update(
+    endpoint: String,
+    key: String,
+    current_version: String,
+    device: String,
+) -> Result<Option<AppUpdate>> {
+    let update = block_on(xc::check_tester_update(
+        &endpoint,
+        &key,
+        &current_version,
+        &device,
+    ))?;
+    Ok(update.map(Into::into))
+}
+
 /// Avancement d'un téléchargement : `total` à 0 s'il est inconnu. Appelé
 /// depuis le fil du téléchargement ; ne doit jamais lever d'exception.
 #[uniffi::export(with_foreign)]
@@ -1147,6 +1171,110 @@ pub fn download_app_update(
         },
     ))?;
     Ok(())
+}
+
+// --- Données des testeurs -----------------------------------------------------
+
+/// Un flux désigné sans son adresse : sorte (`live`, `movie`, `series`),
+/// numéro et format du fichier.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct StreamRef {
+    pub kind: String,
+    pub stream_id: i64,
+    pub container: Option<String>,
+}
+
+/// Sorte et numéro d'un flux d'après son adresse, `None` si elle n'a pas la
+/// forme Xtream. Pour les données de l'APK testeur : jamais l'URL elle-même.
+#[uniffi::export]
+pub fn describe_stream_url(url: String) -> Option<StreamRef> {
+    xc::describe_stream_url(&url).map(|(kind, stream_id, container)| StreamRef {
+        kind: kind.to_owned(),
+        stream_id,
+        container,
+    })
+}
+
+/// Résultat de `upload_telemetry`.
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum TelemetryUpload {
+    /// Fichiers envoyés et effacés ; octets avant compression.
+    Sent { files: u32, bytes: u64 },
+    /// Collecte coupée à distance : rien n'est envoyé.
+    Paused,
+}
+
+/// Envoie au service de collecte les réponses enregistrées (`responses_dir`,
+/// enregistrement complet) et les événements (`events_dir`, fichiers
+/// `.jsonl`), puis les efface. Bloquant. Aucune requête au panneau.
+#[uniffi::export]
+pub fn upload_telemetry(
+    endpoint: String,
+    key: String,
+    device: String,
+    app_version: String,
+    responses_dir: String,
+    events_dir: String,
+) -> Result<TelemetryUpload> {
+    let target = xc::TelemetryTarget {
+        endpoint,
+        key,
+        device,
+        app_version,
+    };
+    // Les événements d'abord : petits, et les plus utiles.
+    let dirs = [
+        (xc::TelemetryKind::Events, PathBuf::from(events_dir)),
+        (xc::TelemetryKind::Responses, PathBuf::from(responses_dir)),
+    ];
+    Ok(match block_on(xc::upload_telemetry(&target, &dirs))? {
+        xc::UploadOutcome::Sent { files, bytes } => TelemetryUpload::Sent { files, bytes },
+        xc::UploadOutcome::Paused => TelemetryUpload::Paused,
+    })
+}
+
+/// Journal des événements de l'APK testeur (voir `upload_telemetry`) : une
+/// ligne JSON par événement dans `dir`. Les fichiers laissés ouverts par un
+/// lancement arrêté net deviennent prêts à partir dès l'ouverture.
+#[derive(uniffi::Object)]
+pub struct TelemetryLog {
+    log: Mutex<xc::EventLog>,
+}
+
+#[uniffi::export]
+impl TelemetryLog {
+    #[uniffi::constructor]
+    pub fn new(dir: String, launch: String) -> Self {
+        Self {
+            log: Mutex::new(xc::EventLog::open(dir, &launch)),
+        }
+    }
+
+    /// Ajoute un événement (objet JSON sur une ligne ; sinon ignoré).
+    pub fn append(&self, line: String) {
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis() as i64);
+        self.lock().append(&line, now_ms);
+    }
+
+    /// Le fichier en cours devient prêt à partir.
+    pub fn rotate(&self) {
+        self.lock().rotate();
+    }
+
+    /// Efface tout ce qui attend (collecte coupée à distance).
+    pub fn clear(&self) {
+        self.lock().clear();
+    }
+}
+
+impl TelemetryLog {
+    fn lock(&self) -> MutexGuard<'_, xc::EventLog> {
+        self.log
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 }
 
 /// Exécute une tâche réseau hors de tout objet `HeyStreamCore`.

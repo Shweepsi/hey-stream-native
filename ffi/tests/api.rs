@@ -616,13 +616,13 @@ fn recording_follows_the_requests() {
     let recording = dir.join("recording");
     let core = open(&panel, &dir);
     assert!(!core.is_recording());
-    core.set_recording(Some(recording.to_string_lossy().into()))
+    core.set_recording(Some(recording.to_string_lossy().into()), false)
         .unwrap();
     assert!(core.is_recording());
     core.now_next(7).unwrap();
     let dir_text: String = recording.to_string_lossy().into();
     assert_eq!(heystream::recording_summary(dir_text.clone()).responses, 1);
-    core.set_recording(None).unwrap();
+    core.set_recording(None, false).unwrap();
     core.now_next(8).unwrap();
     let out = dir.join("export.json");
     let summary =

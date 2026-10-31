@@ -36,6 +36,7 @@ class UpdateUiTest {
         apkUrl = "https://example.invalid/hey-stream-0.6.0.apk",
         size = 24_000_000uL,
         sha256 = null,
+        token = null,
     )
 
     @Test

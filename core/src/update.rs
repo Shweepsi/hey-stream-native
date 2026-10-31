@@ -35,6 +35,9 @@ pub struct AppUpdate {
     pub size: u64,
     /// Empreinte SHA-256 de l'APK en hexadécimal, si GitHub la fournit.
     pub sha256: Option<String>,
+    /// Clé à présenter pour le téléchargement (APK testeur, servi par le
+    /// service de collecte) ; aucune pour GitHub.
+    pub token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -71,7 +74,14 @@ fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
     parts.next().is_none().then_some(version)
 }
 
-/// Plus haute version publiée avec un APK, si elle dépasse `current`.
+/// Suffixe de l'APK testeur (`hey-stream-X.Y.Z-testeur.apk`), qui envoie ses
+/// données d'usage (voir [`crate::telemetry`]). Il n'est jamais publié sur
+/// GitHub : seulement remis par le propriétaire, puis mis à jour depuis le
+/// service de collecte ([`check_tester_update`]). Par prudence, un APK de ce
+/// nom sur GitHub n'est jamais proposé.
+pub const TESTER_APK_SUFFIX: &str = "-testeur.apk";
+
+/// Plus haute version publiée avec un APK public, si elle dépasse `current`.
 pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<Option<AppUpdate>> {
     let current = parse_version(current).ok_or(Error::InvalidResponse)?;
     let http = http_builder()
@@ -98,10 +108,10 @@ pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<O
         .filter_map(|r| {
             let version = parse_version(r.tag_name.as_deref()?)?;
             let apk = r.assets.into_iter().find(|a| {
-                a.name
-                    .as_deref()
-                    .is_some_and(|n| n.to_ascii_lowercase().ends_with(".apk"))
-                    && a.browser_download_url.is_some()
+                a.name.as_deref().is_some_and(|n| {
+                    let n = n.to_ascii_lowercase();
+                    n.ends_with(".apk") && !n.ends_with(TESTER_APK_SUFFIX)
+                }) && a.browser_download_url.is_some()
             })?;
             Some((version, r.body, apk))
         })
@@ -116,8 +126,77 @@ pub async fn check_update(api_base: &str, repo: &str, current: &str) -> Result<O
                 .digest
                 .and_then(|d| d.strip_prefix("sha256:").map(str::to_ascii_lowercase))
                 .filter(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit())),
+            token: None,
         },
     ))
+}
+
+#[derive(Deserialize)]
+struct TesterRelease {
+    #[serde(default, deserialize_with = "opt_string")]
+    version: Option<String>,
+    #[serde(default, deserialize_with = "opt_string")]
+    notes: Option<String>,
+    #[serde(default, deserialize_with = "opt_i64")]
+    size: Option<i64>,
+    #[serde(default, deserialize_with = "opt_string")]
+    sha256: Option<String>,
+}
+
+/// Dernier APK testeur, servi par le service de collecte (`endpoint`, clé
+/// d'envoi `key`), s'il dépasse `current`. Pas de version publiée : `None`.
+pub async fn check_tester_update(
+    endpoint: &str,
+    key: &str,
+    current: &str,
+    device: &str,
+) -> Result<Option<AppUpdate>> {
+    let current = parse_version(current).ok_or(Error::InvalidResponse)?;
+    let http = http_builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .map_err(Error::network)?;
+    let endpoint = endpoint.trim_end_matches('/');
+    let response = http
+        .get(format!("{endpoint}/v1/update"))
+        .bearer_auth(key)
+        .header("X-Device", device)
+        .header(
+            "X-App-Version",
+            format!("{}.{}.{}", current.0, current.1, current.2),
+        )
+        .send()
+        .await
+        .map_err(Error::network)?;
+    let status = response.status().as_u16();
+    if status == 404 {
+        return Ok(None);
+    }
+    check_status(status)?;
+    let body = response.bytes().await.map_err(Error::network)?;
+    let release: TesterRelease =
+        serde_json::from_slice(&body).map_err(|_| Error::InvalidResponse)?;
+    let Some((major, minor, patch)) = release.version.as_deref().and_then(parse_version) else {
+        return Err(Error::InvalidResponse);
+    };
+    if (major, minor, patch) <= current {
+        return Ok(None);
+    }
+    let version = format!("{major}.{minor}.{patch}");
+    Ok(Some(AppUpdate {
+        apk_url: format!("{endpoint}/v1/update/apk?version={version}"),
+        version,
+        notes: release.notes.unwrap_or_default(),
+        size: release
+            .size
+            .and_then(|s| u64::try_from(s).ok())
+            .unwrap_or(0),
+        sha256: release
+            .sha256
+            .map(|hex| hex.to_ascii_lowercase())
+            .filter(|hex| hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit())),
+        token: Some(key.to_owned()),
+    }))
 }
 
 /// Télécharge l'APK de `update` dans `path`. `progress(reçus, total)` est
@@ -133,11 +212,11 @@ pub async fn download_update(
         .read_timeout(Duration::from_secs(30))
         .build()
         .map_err(Error::network)?;
-    let mut response = http
-        .get(&update.apk_url)
-        .send()
-        .await
-        .map_err(Error::network)?;
+    let mut request = http.get(&update.apk_url);
+    if let Some(token) = &update.token {
+        request = request.bearer_auth(token);
+    }
+    let mut response = request.send().await.map_err(Error::network)?;
     check_status(response.status().as_u16())?;
     let total = match update.size {
         0 => response.content_length().unwrap_or(0),

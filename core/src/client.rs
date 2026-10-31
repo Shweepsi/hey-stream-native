@@ -56,7 +56,15 @@ impl XtreamClient {
     /// Enregistre désormais chaque réponse du panneau, nettoyée, dans `dir`
     /// (voir [`crate::recording`]). Ne fait aucune requête.
     pub fn start_recording(&self, dir: impl Into<PathBuf>) -> Result<()> {
-        let recorder = Recorder::new(dir.into(), self)?;
+        let recorder = Recorder::new(dir.into(), self, false)?;
+        *self.recorder_lock() = Some(recorder);
+        Ok(())
+    }
+
+    /// Comme [`Self::start_recording`], en mode complet : listes entières
+    /// (APK testeur, voir [`crate::telemetry`]).
+    pub fn start_full_recording(&self, dir: impl Into<PathBuf>) -> Result<()> {
+        let recorder = Recorder::new(dir.into(), self, true)?;
         *self.recorder_lock() = Some(recorder);
         Ok(())
     }

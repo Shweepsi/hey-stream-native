@@ -1,0 +1,16 @@
+# Service de collecte des données de l'APK testeur (docs/DECISIONS.md,
+# « Données des testeurs »). Déployé par .github/workflows/collecte.yml.
+# Secrets (wrangler secret put) : INGEST_KEY (envoi, dans l'APK testeur),
+# ADMIN_KEY (lecture et coupure, jamais dans l'app).
+name = "hey-stream-donnees"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "hey-stream-donnees"
+
+# Effacement des données de plus d'un an, chaque nuit.
+[triggers]
+crons = ["17 3 * * *"]

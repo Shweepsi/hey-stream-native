@@ -162,6 +162,17 @@ androidComponents {
 val glitchtipDsn: String = providers.environmentVariable("GLITCHTIP_DSN").orNull?.trim().orEmpty()
     .also { require(it.none { c -> c == '"' || c == '\\' }) { "GLITCHTIP_DSN invalide" } }
 
+// APK testeur (-Pheystream.testeur=true) : envoie ses données d'usage au
+// service de collecte (docs/DECISIONS.md, « Données des testeurs »). Adresse
+// et clé d'envoi : secrets de la CI. L'APK public n'envoie rien.
+val testerBuild: Boolean = providers.gradleProperty("heystream.testeur").orNull == "true"
+
+fun buildConfigText(name: String): String = providers.environmentVariable(name).orNull?.trim().orEmpty()
+    .also { require(it.none { c -> c == '"' || c == '\\' || c == '$' }) { "$name invalide" } }
+
+val telemetryUrl: String = if (testerBuild) buildConfigText("TELEMETRY_URL").trimEnd('/') else ""
+val telemetryKey: String = if (testerBuild) buildConfigText("TELEMETRY_KEY") else ""
+
 android {
     namespace = "io.github.shweepsi.heystream"
     compileSdk = 37
@@ -194,9 +205,15 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("test")
             buildConfigField("String", "GLITCHTIP_DSN", "\"\"")
+            buildConfigField("boolean", "TESTER", "false")
+            buildConfigField("String", "TELEMETRY_URL", "\"\"")
+            buildConfigField("String", "TELEMETRY_KEY", "\"\"")
         }
         release {
             buildConfigField("String", "GLITCHTIP_DSN", "\"$glitchtipDsn\"")
+            buildConfigField("boolean", "TESTER", testerBuild.toString())
+            buildConfigField("String", "TELEMETRY_URL", "\"$telemetryUrl\"")
+            buildConfigField("String", "TELEMETRY_KEY", "\"$telemetryKey\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

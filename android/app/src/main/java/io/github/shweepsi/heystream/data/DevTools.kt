@@ -35,6 +35,12 @@ object DevTools {
 
     fun isUnlocked(context: Context): Boolean = prefs(context).getBoolean(KEY_UNLOCKED, false)
 
+    /**
+     * L'enregistrement manuel est proposé. Pas dans l'APK testeur : toutes
+     * les réponses y sont déjà enregistrées et envoyées (voir [Telemetry]).
+     */
+    val recordingOffered: Boolean get() = !Telemetry.available
+
     fun unlock(context: Context) = prefs(context).edit { putBoolean(KEY_UNLOCKED, true) }
 
     fun isRecording(context: Context): Boolean = prefs(context).getBoolean(KEY_RECORDING, false)
@@ -43,14 +49,19 @@ object DevTools {
 
     /** À l'ouverture du cœur : reprend l'enregistrement s'il est activé. */
     fun resumeRecording(context: Context, core: HeyStreamCore) {
-        if (isRecording(context)) runCatching { core.setRecording(recordingDir(context).absolutePath) }
+        when {
+            // APK testeur : toutes les réponses, envoyées par TelemetryWorker.
+            Telemetry.active -> runCatching { core.setRecording(Telemetry.responsesDir.absolutePath, true) }
+            recordingOffered && isRecording(context) -> runCatching { core.setRecording(recordingDir(context).absolutePath, false) }
+        }
     }
 
     /** Active ou coupe l'enregistrement, retenu pour les prochains lancements. */
     suspend fun setRecording(context: Context, session: CoreSession, enabled: Boolean) {
         prefs(context).edit { putBoolean(KEY_RECORDING, enabled) }
+        if (!recordingOffered) return
         val dir = recordingDir(context).absolutePath
-        session.withCore { it.setRecording(if (enabled) dir else null) }
+        session.withCore { it.setRecording(if (enabled) dir else null, false) }
     }
 
     suspend fun summary(context: Context): RecordingSummary = withContext(Dispatchers.IO) {

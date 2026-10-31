@@ -51,6 +51,7 @@ object CrashReports {
 
     /** Lecture abandonnée après toutes les reconnexions ; [code] : nom du code d'erreur Media3. */
     fun playbackFailed(code: String, live: Boolean) {
+        Telemetry.event("play_failed", "code" to code, "live" to live)
         if (!started || !enabled) return
         Sentry.captureMessage("Lecture abandonnée : $code", SentryLevel.WARNING) { scope ->
             scope.setTag("source", "player")
@@ -88,6 +89,7 @@ object CrashReports {
         override fun onPanic(message: String, location: String) {
             // Une exception ici, dans le crochet de panique, arrêterait l'app.
             try {
+                Telemetry.event("rust_panic", "message" to scrub(message), "location" to location)
                 if (!enabled) return
                 Sentry.captureException(RustPanic(message, location)) { scope ->
                     scope.setTag("source", "rust")

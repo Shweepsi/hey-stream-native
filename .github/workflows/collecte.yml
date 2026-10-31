@@ -1,0 +1,69 @@
+name: collecte
+
+# Service de collecte des données de l'APK testeur (cloudflare/collecte) :
+# tests à chaque changement, déploiement sur Cloudflare depuis main.
+# Secrets du dépôt : CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
+# TELEMETRY_KEY (clé d'envoi, aussi dans l'APK testeur) et
+# TELEMETRY_ADMIN_KEY (lecture et coupure). Voir docs/COLLECTE.md.
+on:
+  push:
+    branches: [main]
+    paths: [cloudflare/collecte/**, .github/workflows/collecte.yml]
+  pull_request:
+    paths: [cloudflare/collecte/**, .github/workflows/collecte.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collecte-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/collecte
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/collecte
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Secrets présents
+        env:
+          INGEST: ${{ secrets.TELEMETRY_KEY }}
+          ADMIN: ${{ secrets.TELEMETRY_ADMIN_KEY }}
+        run: |
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID INGEST ADMIN; do
+            if [ -z "${!name}" ]; then echo "Secret manquant : $name (voir docs/COLLECTE.md)"; exit 1; fi
+          done
+      - name: Stockage R2
+        run: npx --yes wrangler@4 r2 bucket info hey-stream-donnees > /dev/null 2>&1 || npx --yes wrangler@4 r2 bucket create hey-stream-donnees
+      - name: Déploiement
+        run: npx --yes wrangler@4 deploy
+      - name: Clés
+        env:
+          INGEST: ${{ secrets.TELEMETRY_KEY }}
+          ADMIN: ${{ secrets.TELEMETRY_ADMIN_KEY }}
+        run: |
+          printf '%s' "$INGEST" | npx --yes wrangler@4 secret put INGEST_KEY
+          printf '%s' "$ADMIN" | npx --yes wrangler@4 secret put ADMIN_KEY

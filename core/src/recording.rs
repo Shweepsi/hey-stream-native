@@ -15,11 +15,18 @@
 //!
 //! Le nombre de fichiers est plafonné par type de requête : les plus anciens
 //! sont effacés.
+//!
+//! En mode **complet** (APK testeur, voir [`crate::telemetry`]), les listes
+//! sont gardées entières et les plafonds sont dix fois plus hauts : les
+//! fichiers sont envoyés puis effacés au fil de l'eau.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{SyncSender, sync_channel};
+use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::value::RawValue;
@@ -70,20 +77,73 @@ pub struct RecordingSummary {
     pub bytes: u64,
 }
 
-/// Enregistreur d'un client : nettoie et écrit chaque réponse.
+/// Réponse telle que l'enregistreur la garde : d'une erreur, seulement sa
+/// sorte (le détail pourrait contenir l'URL).
+type Outcome = std::result::Result<(u16, bytes::Bytes), &'static str>;
+
+fn outcome(response: &Result<(u16, bytes::Bytes)>) -> Outcome {
+    match response {
+        Ok((status, body)) => Ok((*status, body.clone())),
+        Err(Error::Network(e)) if e.is_timeout() => Err("timeout"),
+        Err(Error::Network(_)) => Err("network"),
+        Err(_) => Err("other"),
+    }
+}
+
+/// Une réponse à écrire.
+struct Job {
+    action: Option<String>,
+    params: Vec<(String, String)>,
+    outcome: Outcome,
+    elapsed: Duration,
+    at: Duration,
+}
+
+/// Enregistreur d'un client : nettoie et écrit chaque réponse. En mode
+/// complet, l'écriture se fait sur un fil à part : le nettoyage d'une liste
+/// entière ne retarde pas le chargement du catalogue.
 pub(crate) struct Recorder {
-    dir: PathBuf,
-    scrubber: Scrubber,
-    seq: AtomicU64,
+    writer: Arc<Writer>,
+    queue: Option<SyncSender<Job>>,
+    thread: Option<JoinHandle<()>>,
 }
 
 impl Recorder {
-    pub(crate) fn new(dir: PathBuf, client: &XtreamClient) -> Result<Self> {
+    pub(crate) fn new(dir: PathBuf, client: &XtreamClient, full: bool) -> Result<Self> {
         fs::create_dir_all(&dir).map_err(storage)?;
-        Ok(Self {
+        // Écritures interrompues (app arrêtée net) : jamais complètes.
+        for entry in fs::read_dir(&dir).into_iter().flatten().flatten() {
+            if entry.path().extension().is_some_and(|e| e == "part") {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+        let writer = Arc::new(Writer {
             dir,
             scrubber: Scrubber::new(client),
             seq: AtomicU64::new(0),
+            full,
+        });
+        let (queue, thread) = if full {
+            // Quelques réponses d'avance au plus : au-delà, la requête
+            // attend (mémoire bornée).
+            let (send, receive) = sync_channel::<Job>(4);
+            let worker = Arc::clone(&writer);
+            let thread = std::thread::Builder::new()
+                .name("recording".into())
+                .spawn(move || {
+                    for job in receive {
+                        worker.write(job);
+                    }
+                })
+                .map_err(storage)?;
+            (Some(send), Some(thread))
+        } else {
+            (None, None)
+        };
+        Ok(Self {
+            writer,
+            queue,
+            thread,
         })
     }
 
@@ -96,28 +156,118 @@ impl Recorder {
         response: &Result<(u16, bytes::Bytes)>,
         elapsed: Duration,
     ) {
+        let job = Job {
+            action: action.map(str::to_owned),
+            params: params
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            outcome: outcome(response),
+            elapsed,
+            at: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default(),
+        };
+        match &self.queue {
+            Some(queue) => {
+                let _ = queue.send(job);
+            }
+            None => self.writer.write(job),
+        }
+    }
+}
+
+impl Drop for Recorder {
+    /// Termine les écritures en attente.
+    fn drop(&mut self) {
+        self.queue.take();
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+struct Writer {
+    dir: PathBuf,
+    scrubber: Scrubber,
+    seq: AtomicU64,
+    /// Listes entières, plafonds ×10 (APK testeur).
+    full: bool,
+}
+
+impl Writer {
+    fn write(&self, job: Job) {
+        let action = job.action.as_deref();
         let name = action.unwrap_or("auth");
         if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
             return;
         }
-        let limit = LIST_ACTIONS.contains(&name).then_some(LIST_LIMIT);
-        let mut record = self.scrubber.record(action, params, response, limit);
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
-        if let Value::Object(map) = &mut record {
-            map.insert("at".into(), now.as_secs().into());
-            map.insert("elapsed_ms".into(), (elapsed.as_millis() as u64).into());
-        }
-        let Ok(json) = serde_json::to_vec(&record) else {
-            return;
-        };
+        let params: Vec<(&str, &str)> = job
+            .params
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let params = params.as_slice();
+        let response = &job.outcome;
         // Horodatage puis numéro : l'ordre des noms est celui des requêtes.
         let seq = self.seq.fetch_add(1, Ordering::Relaxed);
-        let file = format!("{:013}-{seq:06}-{name}.json", now.as_millis());
-        if fs::write(self.dir.join(file), json).is_ok() {
-            prune(&self.dir, name, keep(name));
+        let file = format!("{:013}-{seq:06}-{name}.json", job.at.as_millis());
+        // Écrit à côté puis renommé : un fichier `.json` est toujours complet
+        // (l'envoi peut le lire à tout moment).
+        let partial = self.dir.join(format!("{file}.part"));
+        let stamp = [
+            ("at", Value::from(job.at.as_secs())),
+            ("elapsed_ms", Value::from(job.elapsed.as_millis() as u64)),
+        ];
+        let written = match response {
+            // Liste entière (mode complet) : écrite entrée par entrée, sans
+            // jamais tenir toute la liste nettoyée en mémoire (Mi Box S,
+            // 32 bits, 2 Go).
+            Ok((status, body))
+                if self.full && LIST_ACTIONS.contains(&name) && (200..300).contains(status) =>
+            {
+                let body = text(body);
+                match entries(&body) {
+                    Some(entries) => {
+                        let mut head = Map::new();
+                        head.insert("action".into(), Value::from(name));
+                        head.insert("params".into(), Value::Object(self.scrubber.params(params)));
+                        head.insert("status".into(), (*status).into());
+                        head.insert("bytes".into(), body.len().into());
+                        head.insert("total".into(), entries.len().into());
+                        head.extend(stamp.map(|(k, v)| (k.to_owned(), v)));
+                        self.scrubber.write_list(&partial, head, &entries).is_ok()
+                    }
+                    None => self.write_record(&partial, action, params, response, None, stamp),
+                }
+            }
+            _ => {
+                let limit = (!self.full && LIST_ACTIONS.contains(&name)).then_some(LIST_LIMIT);
+                self.write_record(&partial, action, params, response, limit, stamp)
+            }
+        };
+        if written && fs::rename(&partial, self.dir.join(file)).is_ok() {
+            let factor = if self.full { 10 } else { 1 };
+            prune(&self.dir, name, keep(name) * factor);
+        } else {
+            let _ = fs::remove_file(partial);
         }
+    }
+
+    fn write_record(
+        &self,
+        path: &Path,
+        action: Option<&str>,
+        params: &[(&str, &str)],
+        response: &Outcome,
+        limit: Option<usize>,
+        stamp: [(&str, Value); 2],
+    ) -> bool {
+        let mut record = self.scrubber.record(action, params, response, limit);
+        if let Value::Object(map) = &mut record {
+            map.extend(stamp.map(|(k, v)| (k.to_owned(), v)));
+        }
+        serde_json::to_vec(&record).is_ok_and(|json| fs::write(path, json).is_ok())
     }
 }
 
@@ -263,26 +413,16 @@ impl Scrubber {
         &self,
         action: Option<&str>,
         params: &[(&str, &str)],
-        response: &Result<(u16, bytes::Bytes)>,
+        response: &Outcome,
         limit: Option<usize>,
     ) -> Value {
         let mut record = Map::new();
         record.insert("action".into(), action.map_or(Value::Null, Value::from));
-        let params: Map<String, Value> = params
-            .iter()
-            .map(|(k, v)| ((*k).to_owned(), Value::from(self.scrub_text(v))))
-            .collect();
-        record.insert("params".into(), Value::Object(params));
+        record.insert("params".into(), Value::Object(self.params(params)));
         let (status, body) = match response {
             Ok(response) => response,
-            Err(error) => {
-                // Jamais le détail : il pourrait contenir l'URL.
-                let kind = match error {
-                    Error::Network(e) if e.is_timeout() => "timeout",
-                    Error::Network(_) => "network",
-                    _ => "other",
-                };
-                record.insert("error".into(), kind.into());
+            Err(kind) => {
+                record.insert("error".into(), (*kind).into());
                 return Value::Object(record);
             }
         };
@@ -318,6 +458,47 @@ impl Scrubber {
             record.insert("text".into(), self.scrub_text(&start).into());
         }
         Value::Object(record)
+    }
+
+    fn params(&self, params: &[(&str, &str)]) -> Map<String, Value> {
+        params
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), Value::from(self.scrub_text(v))))
+            .collect()
+    }
+
+    /// Écrit `head` suivi de la liste nettoyée (`"body"`), une entrée à la
+    /// fois, sur une seule ligne JSON.
+    fn write_list(
+        &self,
+        path: &Path,
+        head: Map<String, Value>,
+        entries: &[(Option<String>, &RawValue)],
+    ) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut out = std::io::BufWriter::new(fs::File::create(path)?);
+        let head = serde_json::to_string(&Value::Object(head))?;
+        // `{...}` sans son `}` final : la liste suit.
+        out.write_all(&head.as_bytes()[..head.len() - 1])?;
+        let keyed = entries.first().is_some_and(|(k, _)| k.is_some());
+        out.write_all(if keyed {
+            b",\"body\":{"
+        } else {
+            b",\"body\":["
+        })?;
+        for (i, (key, raw)) in entries.iter().enumerate() {
+            if i > 0 {
+                out.write_all(b",")?;
+            }
+            if keyed {
+                serde_json::to_writer(&mut out, key.as_deref().unwrap_or_default())?;
+                out.write_all(b":")?;
+            }
+            let value = serde_json::from_str(raw.get()).unwrap_or(Value::Null);
+            serde_json::to_writer(&mut out, &self.scrub(value))?;
+        }
+        out.write_all(if keyed { b"}}" } else { b"]}" })?;
+        out.flush()
     }
 
     fn scrub(&self, value: Value) -> Value {

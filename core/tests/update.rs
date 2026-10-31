@@ -1,8 +1,8 @@
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use xtream_core::{AppUpdate, Error, check_update, download_update};
+use xtream_core::{AppUpdate, Error, check_tester_update, check_update, download_update};
 
 const REPO: &str = "owner/app";
 
@@ -55,7 +55,66 @@ async fn newest_release_with_an_apk_is_offered() {
             apk_url: "https://x/0.6.0.apk".into(),
             size: 3,
             sha256: Some(hex(b"apk")),
+            token: None,
         }
+    );
+}
+
+#[tokio::test]
+async fn a_tester_apk_on_github_is_never_offered() {
+    let server = releases(json!([
+        {"tag_name": "v0.7.0", "assets": [
+            apk("hey-stream-0.7.0-testeur.apk", "https://x/0.7.0-testeur.apk"),
+            apk("hey-stream-0.7.0.apk", "https://x/0.7.0.apk")]},
+        {"tag_name": "v0.8.0", "assets": [apk("hey-stream-0.8.0-testeur.apk", "https://x/bad.apk")]}
+    ]))
+    .await;
+    let update = check_update(&server.uri(), REPO, "0.6.0")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(update.apk_url, "https://x/0.7.0.apk");
+}
+
+#[tokio::test]
+async fn tester_updates_come_from_the_collection_service_with_the_key() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/update"))
+        .and(header("authorization", "Bearer cle"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "version": "0.7.0", "notes": "- Collecte", "size": 3, "sha256": hex(b"apk").to_uppercase()})))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v1/update/apk"))
+        .and(header("authorization", "Bearer cle"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(&b"apk"[..]))
+        .mount(&server)
+        .await;
+    let device = "0f8fad5b-d9cb-469f-a165-70867728950e";
+    let update = check_tester_update(&server.uri(), "cle", "0.6.0", device)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(update.version, "0.7.0");
+    assert_eq!(update.token.as_deref(), Some("cle"));
+    let file = target("tester.apk");
+    download_update(&update, &file, |_, _| {}).await.unwrap();
+    assert_eq!(std::fs::read(&file).unwrap(), b"apk");
+    assert_eq!(
+        check_tester_update(&server.uri(), "cle", "0.7.0", device)
+            .await
+            .unwrap(),
+        None
+    );
+    // Sans version publiée.
+    let empty = MockServer::start().await;
+    assert_eq!(
+        check_tester_update(&empty.uri(), "cle", "0.6.0", device)
+            .await
+            .unwrap(),
+        None
     );
 }
 
@@ -91,6 +150,7 @@ fn update(server: &MockServer, size: u64, sha256: Option<String>) -> AppUpdate {
         apk_url: format!("{}/download/app.apk", server.uri()),
         size,
         sha256,
+        token: None,
     }
 }
 
