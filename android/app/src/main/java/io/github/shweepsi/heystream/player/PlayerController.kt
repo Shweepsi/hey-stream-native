@@ -252,6 +252,14 @@ class PlayerController(private val context: Context) {
     }
 
     private val listener = object : Player.Listener {
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) stats?.seeking()
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             stats?.playing(isPlaying)
         }

@@ -33,6 +33,8 @@ const BATCH_BYTES: u64 = 4 * 1024 * 1024;
 const RUN_BYTES: u64 = 64 * 1024 * 1024;
 /// Réponse du service quand la collecte est coupée.
 const PAUSED: u16 = 423;
+/// Réponse du service à un lot trop gros.
+const TOO_LARGE: u16 = 413;
 
 /// Service de collecte et identité de l'appareil.
 #[derive(Debug, Clone)]
@@ -84,14 +86,19 @@ struct Status {
     collect: bool,
 }
 
-/// Envoie les fichiers de `dirs` puis les efface. Arrête au premier lot
-/// refusé (les fichiers restent pour le prochain essai).
+/// Envoie les fichiers de `dirs`, dans l'ordre, puis les efface. Pour chaque
+/// sorte, s'arrête au premier lot en échec (ses fichiers restent pour le
+/// prochain essai) et passe à la suivante. Une erreur n'est rendue que si
+/// rien n'est parti.
 pub async fn upload_telemetry(
     target: &TelemetryTarget,
     dirs: &[(TelemetryKind, PathBuf)],
 ) -> Result<UploadOutcome> {
     let http = http_builder()
-        .timeout(Duration::from_secs(120))
+        .connect_timeout(Duration::from_secs(20))
+        // Un lot de réponses entières peut peser plusieurs Mo compressés
+        // (liste de films complète) : liaison lente de la Mi Box comprise.
+        .timeout(Duration::from_secs(900))
         .build()
         .map_err(Error::network)?;
     let endpoint = target.endpoint.trim_end_matches('/');
@@ -116,11 +123,15 @@ pub async fn upload_telemetry(
         return Ok(UploadOutcome::Paused);
     }
 
+    // Chaque sorte a son budget et ses erreurs : un lot de réponses qui
+    // échoue toujours (trop lent, refusé) ne retient jamais les événements.
     let (mut files, mut bytes) = (0u32, 0u64);
+    let mut failure = None;
     for (kind, dir) in dirs {
+        let mut sent = 0u64;
         for batch in batches(dir, kind.extension()) {
-            if bytes >= RUN_BYTES {
-                return Ok(UploadOutcome::Sent { files, bytes });
+            if sent >= RUN_BYTES {
+                break;
             }
             let bundle = bundle(&batch);
             // Fichiers vides : rien à envoyer.
@@ -135,22 +146,38 @@ pub async fn upload_telemetry(
                 .header(reqwest::header::CONTENT_TYPE, "application/gzip")
                 .body(body)
                 .send()
-                .await
-                .map_err(Error::network)?;
-            let code = response.status().as_u16();
-            if code == PAUSED {
-                return Ok(UploadOutcome::Paused);
+                .await;
+            let code = match response {
+                Ok(response) => response.status().as_u16(),
+                Err(error) => {
+                    failure = Some(Error::network(error));
+                    break;
+                }
+            };
+            match code {
+                PAUSED => return Ok(UploadOutcome::Paused),
+                // Trop gros pour le service : ne partira jamais.
+                TOO_LARGE => {}
+                code => {
+                    if let Err(error) = check_status(code) {
+                        failure = Some(error);
+                        break;
+                    }
+                    files += bundle.sent.len() as u32;
+                    bytes += bundle.raw;
+                    sent += bundle.raw;
+                }
             }
-            check_status(code)?;
             // Seulement ceux qui sont partis ; un fichier illisible reste.
             for file in &bundle.sent {
                 let _ = fs::remove_file(file);
             }
-            files += bundle.sent.len() as u32;
-            bytes += bundle.raw;
         }
     }
-    Ok(UploadOutcome::Sent { files, bytes })
+    match failure {
+        Some(error) if files == 0 => Err(error),
+        _ => Ok(UploadOutcome::Sent { files, bytes }),
+    }
 }
 
 /// Fichiers `*.extension` de `dir`, du plus ancien au plus récent, groupés

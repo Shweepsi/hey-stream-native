@@ -310,6 +310,8 @@ pub struct AppUpdate {
     pub apk_url: String,
     pub size: u64,
     pub sha256: Option<String>,
+    /// Clé du téléchargement (APK testeur) ; aucune pour GitHub.
+    pub token: Option<String>,
 }
 
 impl From<xc::AppUpdate> for AppUpdate {
@@ -320,6 +322,7 @@ impl From<xc::AppUpdate> for AppUpdate {
             apk_url: u.apk_url,
             size: u.size,
             sha256: u.sha256,
+            token: u.token,
         }
     }
 }
@@ -332,6 +335,7 @@ impl From<AppUpdate> for xc::AppUpdate {
             apk_url: u.apk_url,
             size: u.size,
             sha256: u.sha256,
+            token: u.token,
         }
     }
 }
@@ -1108,15 +1112,31 @@ pub fn clear_recording(dir: String) -> Result<()> {
 // --- Mise à jour de l'app ------------------------------------------------------
 
 /// Plus haute version publiée sur GitHub, si elle dépasse `current_version`.
-/// `tester` : l'APK testeur, sinon l'APK public. Bloquant (une requête, 20 s
-/// au plus).
+/// Bloquant (une requête, 20 s au plus).
 #[uniffi::export]
-pub fn check_app_update(current_version: String, tester: bool) -> Result<Option<AppUpdate>> {
+pub fn check_app_update(current_version: String) -> Result<Option<AppUpdate>> {
     let update = block_on(xc::check_update(
         xc::GITHUB_API,
         xc::UPDATE_REPO,
         &current_version,
-        tester,
+    ))?;
+    Ok(update.map(Into::into))
+}
+
+/// APK testeur : dernière version servie par le service de collecte, si elle
+/// dépasse `current_version`. Bloquant (une requête, 20 s au plus).
+#[uniffi::export]
+pub fn check_tester_update(
+    endpoint: String,
+    key: String,
+    current_version: String,
+    device: String,
+) -> Result<Option<AppUpdate>> {
+    let update = block_on(xc::check_tester_update(
+        &endpoint,
+        &key,
+        &current_version,
+        &device,
     ))?;
     Ok(update.map(Into::into))
 }
@@ -1155,6 +1175,26 @@ pub fn download_app_update(
 
 // --- Données des testeurs -----------------------------------------------------
 
+/// Un flux désigné sans son adresse : sorte (`live`, `movie`, `series`),
+/// numéro et format du fichier.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct StreamRef {
+    pub kind: String,
+    pub stream_id: i64,
+    pub container: Option<String>,
+}
+
+/// Sorte et numéro d'un flux d'après son adresse, `None` si elle n'a pas la
+/// forme Xtream. Pour les données de l'APK testeur : jamais l'URL elle-même.
+#[uniffi::export]
+pub fn describe_stream_url(url: String) -> Option<StreamRef> {
+    xc::describe_stream_url(&url).map(|(kind, stream_id, container)| StreamRef {
+        kind: kind.to_owned(),
+        stream_id,
+        container,
+    })
+}
+
 /// Résultat de `upload_telemetry`.
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum TelemetryUpload {
@@ -1182,9 +1222,10 @@ pub fn upload_telemetry(
         device,
         app_version,
     };
+    // Les événements d'abord : petits, et les plus utiles.
     let dirs = [
-        (xc::TelemetryKind::Responses, PathBuf::from(responses_dir)),
         (xc::TelemetryKind::Events, PathBuf::from(events_dir)),
+        (xc::TelemetryKind::Responses, PathBuf::from(responses_dir)),
     ];
     Ok(match block_on(xc::upload_telemetry(&target, &dirs))? {
         xc::UploadOutcome::Sent { files, bytes } => TelemetryUpload::Sent { files, bytes },
@@ -1211,7 +1252,10 @@ impl TelemetryLog {
 
     /// Ajoute un événement (objet JSON sur une ligne ; sinon ignoré).
     pub fn append(&self, line: String) {
-        self.lock().append(&line, now_ms());
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis() as i64);
+        self.lock().append(&line, now_ms);
     }
 
     /// Le fichier en cours devient prêt à partir.
@@ -1231,12 +1275,6 @@ impl TelemetryLog {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
-}
-
-fn now_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_millis() as i64)
 }
 
 /// Exécute une tâche réseau hors de tout objet `HeyStreamCore`.

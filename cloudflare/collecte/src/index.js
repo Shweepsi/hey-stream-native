@@ -3,11 +3,18 @@
 // L'app (clé d'envoi INGEST_KEY) :
 //   GET  /v1/status   → {"collect": bool} ; coupure à distance.
 //   POST /v1/ingest   → lot gzip de lignes JSON, rangé tel quel dans R2.
+//   GET  /v1/update   → dernier APK testeur (apk/latest.json, publié par le
+//                       workflow release) ; GET /v1/update/apk → l'APK.
+//   L'APK testeur n'est jamais sur GitHub : seuls ceux à qui le
+//   propriétaire l'a remis ont la clé, donc ses mises à jour.
 // Le propriétaire et ses rapports (clé ADMIN_KEY, jamais dans l'app) :
 //   GET  /v1/admin/devices          → appareils vus, dernière visite, version.
 //   GET  /v1/admin/list?prefix=…    → objets (clé, taille, date).
 //   GET  /v1/admin/object?key=…     → un lot ; &decompress=1 pour du texte.
 //   GET|PUT /v1/admin/control       → {"paused": bool, "paused_devices": [...]}.
+//   GET  /v1/admin/apk?key=…        → le dernier APK testeur, à remettre aux
+//                                     testeurs (clé dans l'adresse : lien
+//                                     ouvrable dans un navigateur).
 // Chaque nuit : effacement des lots de plus de RETENTION_DAYS jours.
 //
 // Rangement : <kind>/<AAAA-MM-JJ>/<appareil>/<heure>-<aléa>.ndjson.gz, kind
@@ -26,15 +33,17 @@ const json = (value, status = 200) =>
     headers: { "content-type": "application/json" },
   });
 
-/** Comparaison en temps constant d'une clé `Bearer`. */
-function authorized(request, secret) {
-  if (!secret) return false;
-  const given = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
-  if (given.length !== secret.length) return false;
+/** Comparaison en temps constant. */
+function same(given, secret) {
+  if (!secret || given.length !== secret.length) return false;
   let diff = 0;
   for (let i = 0; i < secret.length; i++) diff |= given.charCodeAt(i) ^ secret.charCodeAt(i);
   return diff === 0;
 }
+
+/** Clé `Bearer` de la requête. */
+const authorized = (request, secret) =>
+  same((request.headers.get("authorization") || "").replace(/^Bearer /, ""), secret);
 
 async function control(env) {
   const object = await env.BUCKET.get(CONTROL);
@@ -43,6 +52,13 @@ async function control(env) {
     paused: value.paused === true,
     paused_devices: Array.isArray(value.paused_devices) ? value.paused_devices : [],
   };
+}
+
+/** `{version, notes, size, sha256, file}` du dernier APK testeur, ou `null`. */
+async function latestApk(env) {
+  const object = await env.BUCKET.get("apk/latest.json");
+  const latest = object ? await object.json().catch(() => null) : null;
+  return latest && typeof latest.file === "string" && latest.file.startsWith("apk/") ? latest : null;
 }
 
 const collecting = (c, device) => !c.paused && !c.paused_devices.includes(device);
@@ -65,6 +81,22 @@ async function app(request, env, url) {
       { httpMetadata: { contentType: "application/json" } },
     );
     return json({ collect: collecting(c, device) });
+  }
+
+  if (url.pathname === "/v1/update" && request.method === "GET") {
+    const latest = await latestApk(env);
+    if (!latest) return json({ error: "no release" }, 404);
+    const { file, ...release } = latest;
+    return json(release);
+  }
+
+  if (url.pathname === "/v1/update/apk" && request.method === "GET") {
+    const latest = await latestApk(env);
+    const object = latest ? await env.BUCKET.get(latest.file) : null;
+    if (!object) return json({ error: "no release" }, 404);
+    const headers = { "content-type": "application/vnd.android.package-archive" };
+    if (object.size) headers["content-length"] = String(object.size);
+    return new Response(object.body, { headers });
   }
 
   if (url.pathname === "/v1/ingest" && request.method === "POST") {
@@ -91,8 +123,22 @@ async function app(request, env, url) {
 }
 
 async function admin(request, env, url) {
-  if (!authorized(request, env.ADMIN_KEY)) return json({ error: "unauthorized" }, 401);
   const path = url.pathname;
+  if (path === "/v1/admin/apk" && request.method === "GET") {
+    if (!authorized(request, env.ADMIN_KEY) && !same(url.searchParams.get("key") || "", env.ADMIN_KEY)) {
+      return json({ error: "unauthorized" }, 401);
+    }
+    const latest = await latestApk(env);
+    const object = latest ? await env.BUCKET.get(latest.file) : null;
+    if (!object) return json({ error: "no release" }, 404);
+    return new Response(object.body, {
+      headers: {
+        "content-type": "application/vnd.android.package-archive",
+        "content-disposition": `attachment; filename="${latest.file.slice(4)}"`,
+      },
+    });
+  }
+  if (!authorized(request, env.ADMIN_KEY)) return json({ error: "unauthorized" }, 401);
 
   if (path === "/v1/admin/control" && request.method === "GET") return json(await control(env));
   if (path === "/v1/admin/control" && request.method === "PUT") {

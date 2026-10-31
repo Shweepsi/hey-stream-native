@@ -154,7 +154,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
         actions = actions,
         crashReports = crashReports,
         update = update,
-        devTools = devTools.takeIf { devUnlocked },
+        devTools = devTools.takeIf { devUnlocked && DevTools.recordingOffered },
     )
 
     pinPurpose?.let { purpose ->

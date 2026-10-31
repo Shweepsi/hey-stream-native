@@ -16,6 +16,8 @@ import io.github.shweepsi.heystream.core.TelemetryUpload
 import io.github.shweepsi.heystream.core.uploadTelemetry
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -30,6 +32,12 @@ class TelemetryWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // Lecture en cours (pas un flux chargé en pause ou fermé en arrière-plan).
         val playing = withContext(Dispatchers.Main) { app.player.status.value.playing }
         if (playing) return Result.success()
+        // Envoi horaire et envoi après l'arrière-plan : jamais les deux à la
+        // fois (les mêmes fichiers partiraient deux fois).
+        return running.withLock { upload(app) }
+    }
+
+    private suspend fun upload(app: HeyStreamApp): Result {
         return withContext(Dispatchers.IO) {
             try {
                 Telemetry.rotate()
@@ -42,7 +50,10 @@ class TelemetryWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     Telemetry.responsesDir.absolutePath,
                     Telemetry.eventsDir.absolutePath,
                 )
-                if (Telemetry.setPaused(outcome is TelemetryUpload.Paused)) {
+                val paused = outcome is TelemetryUpload.Paused
+                // Coupée : l'arrêt de l'enregistrement est redemandé à chaque
+                // fois (une tentative précédente a pu échouer).
+                if (Telemetry.setPaused(paused) || paused) {
                     // L'enregistrement complet des réponses suit la coupure ou la reprise.
                     runCatching {
                         app.session.withCore { core ->
@@ -60,6 +71,8 @@ class TelemetryWorker(context: Context, params: WorkerParameters) : CoroutineWor
     }
 
     companion object {
+        private val running = Mutex()
+
         private const val PERIODIC = "telemetry-upload"
         private const val SOON = "telemetry-upload-soon"
 

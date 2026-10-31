@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import io.github.shweepsi.heystream.core.describeStreamUrl
 import io.github.shweepsi.heystream.data.Telemetry
 
 /**
@@ -20,6 +21,9 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
     /** Ouverture réelle du flux (pas le choix, s'il a attendu en arrière-plan). */
     private var opened = SystemClock.elapsedRealtime()
     private var openedOnce = false
+
+    /** Le prochain chargement vient d'une action (ouverture, déplacement). */
+    private var expectedLoad = false
     private val kind: String?
     private val streamId: String?
     private val container: String?
@@ -34,11 +38,11 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
     var bandwidth = 0L
 
     init {
-        val segments = item.localConfiguration?.uri?.pathSegments.orEmpty()
-        kind = segments.firstOrNull()?.takeIf { it in KINDS }
-        val last = segments.lastOrNull().orEmpty()
-        streamId = last.substringBefore('.').takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
-        container = last.substringAfterLast('.', "").takeIf { it.length in 1..5 && it.all(Char::isLetterOrDigit) }
+        // Le cœur lit la sorte et le numéro dans l'adresse ; elle n'est jamais gardée.
+        val ref = item.localConfiguration?.uri?.toString()?.let { runCatching { describeStreamUrl(it) }.getOrNull() }
+        kind = ref?.kind
+        streamId = ref?.streamId?.toString()
+        container = ref?.container
         Telemetry.event(
             "play_start",
             "live" to live,
@@ -51,9 +55,17 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
 
     /** Le flux est réellement ouvert ; seule la première ouverture compte. */
     fun opening() {
+        // Réouverture (retour au premier plan, reconnexion) : son chargement
+        // n'est pas une coupure.
+        expectedLoad = true
         if (openedOnce) return
         openedOnce = true
         opened = SystemClock.elapsedRealtime()
+    }
+
+    /** Déplacement demandé (avance, recul) : son chargement n'est pas une coupure. */
+    fun seeking() {
+        expectedLoad = true
     }
 
     private fun common(): Array<Pair<String, Any?>> = arrayOf("kind" to kind, "stream_id" to streamId)
@@ -66,6 +78,7 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
                     ready = true
                     Telemetry.event("play_ready", *common(), "startup_ms" to now - opened)
                 }
+                expectedLoad = false
                 if (rebufferStart != 0L) {
                     val ms = now - rebufferStart
                     rebufferMs += ms
@@ -73,7 +86,7 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
                     Telemetry.event("rebuffer", *common(), "ms" to ms)
                 }
             }
-            Player.STATE_BUFFERING -> if (ready && rebufferStart == 0L) {
+            Player.STATE_BUFFERING -> if (ready && !expectedLoad && rebufferStart == 0L) {
                 rebuffers += 1
                 rebufferStart = now
             }
@@ -139,7 +152,4 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
         Telemetry.memory("play_end")
     }
 
-    private companion object {
-        val KINDS = setOf("live", "movie", "series")
-    }
 }

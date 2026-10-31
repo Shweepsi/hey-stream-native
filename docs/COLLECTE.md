@@ -6,8 +6,11 @@ comment le mettre en route (une fois) et comment lire les données.
 ## Ce qui est collecté
 
 Seulement par l'**APK testeur** (`hey-stream-X.Y.Z-testeur.apk`), que le
-propriétaire remet aux testeurs qui lui ont donné leur accord. L'APK public
-(`hey-stream-X.Y.Z.apk`) n'envoie rien. Chacun se met à jour vers le sien.
+propriétaire remet aux testeurs qui lui ont donné leur accord. Il n'est
+jamais sur GitHub : il est servi par le service de collecte, au
+propriétaire (clé d'administration) et aux APK testeur pour leurs mises à
+jour (clé d'envoi). L'APK public (`hey-stream-X.Y.Z.apk`, releases GitHub)
+n'envoie rien. Chacun se met à jour vers le sien.
 
 | Sorte | Contenu |
 |---|---|
@@ -37,9 +40,13 @@ passage en arrière-plan. Aucune requête en plus vers le panneau.
    Le stockage R2 `hey-stream-donnees` est créé s'il n'existe pas.
 6. **Adresse** : ajouter le secret `TELEMETRY_URL` =
    `https://hey-stream-donnees.<sous-domaine>.workers.dev`.
-7. La release suivante publie l'APK testeur dans sa propre release
-   (`testeur-vX.Y.Z`, à côté de `vX.Y.Z` et de l'APK public). Sans
-   `TELEMETRY_URL` ni `TELEMETRY_KEY`, seul l'APK public est publié.
+7. La release suivante dépose l'APK testeur dans le stockage du service
+   (et l'APK public sur GitHub, comme avant). Sans ces secrets, seul l'APK
+   public est publié.
+8. **Récupérer l'APK testeur**, à remettre aux testeurs : ouvrir dans un
+   navigateur
+   `https://hey-stream-donnees.<sous-domaine>.workers.dev/v1/admin/apk?key=<clé d'administration>`.
+   Ne partager que le fichier, jamais ce lien (il contient la clé).
 
 Pour les rapports automatiques (session Claude), ajouter dans
 l'environnement de la session la variable `TELEMETRY_ADMIN_KEY`, et

@@ -97,3 +97,50 @@ mod tests {
         assert_eq!(Hls.extension(), "m3u8");
     }
 }
+
+/// Sorte et numéro d'un flux d'après son adresse (`/live/u/p/42.ts`,
+/// `/movie/u/p/7.mkv`, `/series/u/p/9.mp4`, y compris derrière un préfixe de
+/// chemin) : de quoi désigner un flux sans jamais garder son URL (données de
+/// l'APK testeur). `None` si l'adresse n'a pas cette forme.
+pub fn describe_stream_url(url: &str) -> Option<(&'static str, i64, Option<String>)> {
+    let url = url::Url::parse(url).ok()?;
+    let segments: Vec<&str> = url.path_segments()?.collect();
+    let [.., kind, _, _, last] = segments.as_slice() else {
+        return None;
+    };
+    let kind = match *kind {
+        "live" => "live",
+        "movie" => "movie",
+        "series" => "series",
+        _ => return None,
+    };
+    let (id, extension) = match last.split_once('.') {
+        Some((id, ext)) => (id, Some(ext)),
+        None => (*last, None),
+    };
+    let id = id.parse::<i64>().ok()?;
+    let extension = extension
+        .filter(|e| (1..=5).contains(&e.len()) && e.bytes().all(|b| b.is_ascii_alphanumeric()))
+        .map(str::to_ascii_lowercase);
+    Some((kind, id, extension))
+}
+
+#[cfg(test)]
+mod describe_tests {
+    use super::describe_stream_url;
+
+    #[test]
+    fn streams_are_described_without_their_address() {
+        assert_eq!(
+            describe_stream_url("http://h:8080/live/u/p/42.ts"),
+            Some(("live", 42, Some("ts".into())))
+        );
+        assert_eq!(
+            describe_stream_url("https://h/prefix/movie/u/p/7.MKV?token=x"),
+            Some(("movie", 7, Some("mkv".into())))
+        );
+        assert_eq!(describe_stream_url("http://h/u/p/42"), None);
+        assert_eq!(describe_stream_url("http://h/live/u/p/abc.ts"), None);
+        assert_eq!(describe_stream_url("pas une url"), None);
+    }
+}

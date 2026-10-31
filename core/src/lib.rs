@@ -49,8 +49,8 @@ pub use recording::{
 };
 pub use telemetry::{EventLog, TelemetryKind, TelemetryTarget, UploadOutcome, upload_telemetry};
 pub use update::{
-    AppUpdate, GITHUB_API, TESTER_APK_SUFFIX, TESTER_TAG_PREFIX, UPDATE_REPO, check_update,
+    AppUpdate, GITHUB_API, TESTER_APK_SUFFIX, UPDATE_REPO, check_tester_update, check_update,
     download_update,
 };
-pub use url::{LiveFormat, StreamKind, normalize_server_url};
+pub use url::{LiveFormat, StreamKind, describe_stream_url, normalize_server_url};
 pub use user_data::{PlaybackKind, RECENTS_LIMIT, Resume, ResumeEntry};

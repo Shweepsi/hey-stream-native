@@ -99,10 +99,12 @@ object Telemetry {
         active = !paused
         // Rien ne doit attendre : ni événements, ni réponses.
         if (paused) {
-            writer.submit {
-                log?.clear()
-                responsesDir.deleteRecursively()
-            }.get(10, TimeUnit.SECONDS)
+            runCatching {
+                writer.submit {
+                    log?.clear()
+                    responsesDir.deleteRecursively()
+                }.get(30, TimeUnit.SECONDS)
+            }
         }
         return changed
     }

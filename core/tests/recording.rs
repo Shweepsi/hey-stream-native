@@ -226,11 +226,17 @@ async fn full_recording_keeps_whole_lists_still_hiding_the_account() {
     let server = panel(USER, PASS).await;
     let client = client(&server, USER, PASS);
     let dir = temp_dir("full");
+    // Écriture interrompue d'un lancement précédent : effacée.
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("1-get_vod_streams.json.part"), b"[{").unwrap();
     client.start_full_recording(&dir).unwrap();
+    assert!(!dir.join("1-get_vod_streams.json.part").exists());
     client.live_streams(None).await.unwrap();
     for id in 0..45 {
         client.short_epg(id).await.unwrap();
     }
+    // Écrit sur un fil à part : l'arrêt attend la fin des écritures.
+    client.stop_recording();
     let (text, responses) = read_export(&dir);
     let live = responses
         .iter()

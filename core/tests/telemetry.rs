@@ -128,6 +128,43 @@ async fn nothing_is_sent_while_collection_is_paused() {
 }
 
 #[tokio::test]
+async fn failing_responses_never_hold_back_events() {
+    let server = MockServer::start().await;
+    status(
+        &server,
+        ResponseTemplate::new(200).set_body_json(json!({"collect": true})),
+    )
+    .await;
+    Mock::given(method("POST"))
+        .and(header("x-kind", "responses"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(header("x-kind", "events"))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let responses = temp("blocked-responses");
+    let events = temp("blocked-events");
+    std::fs::write(responses.join("1-get_vod_streams.json"), b"{}").unwrap();
+    std::fs::write(events.join("1.jsonl"), b"{}\n").unwrap();
+    let outcome = upload_telemetry(
+        &target(&server),
+        &[
+            (TelemetryKind::Responses, responses.clone()),
+            (TelemetryKind::Events, events.clone()),
+        ],
+    )
+    .await
+    .unwrap();
+    assert!(matches!(outcome, UploadOutcome::Sent { files: 1, .. }));
+    assert!(responses.join("1-get_vod_streams.json").exists());
+    assert!(!events.join("1.jsonl").exists());
+}
+
+#[tokio::test]
 async fn a_refused_batch_stays_for_the_next_run() {
     let server = MockServer::start().await;
     status(
