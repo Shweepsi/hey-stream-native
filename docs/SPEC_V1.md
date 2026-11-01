@@ -124,22 +124,29 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   réponses du fournisseur pendant l'usage, pour les tests automatiques
   (`DECISIONS.md`, « Panneau de référence »).
 
-## Enregistrement (2026-10-31)
+## Enregistrement (2026-10-31, Android seulement)
 
 - Depuis le guide en Direct : « Enregistrer » sur l'un des 4 programmes
-  affichés (marge de 2 min avant, 5 min après). Rien d'autre (ni saisie
-  manuelle, ni répétition).
+  affichés (marge de 2 min avant, 5 min après ; horaires figés à la
+  programmation). Rien d'autre (ni saisie manuelle, ni répétition).
+- Programmes qui se suivent : fusionnés sur la même chaîne, marges
+  raccourcies entre deux chaînes ; un vrai chevauchement est refusé.
 - Démarre même app fermée et écran éteint ; notification pendant
   l'enregistrement.
-- Un seul flux : pendant un enregistrement, la lecture d'un autre flux est
-  bloquée (message, possibilité d'arrêter l'enregistrement) ; deux
-  enregistrements qui se chevauchent sont refusés.
-- Espace libre vérifié avant de programmer et de démarrer ; arrêt propre si
-  le disque se remplit ; volume externe au choix s'il est présent.
-- Coupure : reconnexion dans le même fichier ; « incomplet » si plus d'une
-  minute manque.
-- Catégorie **Enregistrements** (dans Direct) : lecture avec reprise,
-  suppression. Enregistrements locaux à l'appareil.
+- Un seul flux : pendant un enregistrement, la chaîne enregistrée se regarde
+  depuis le fichier en cours ; tout autre flux est bloqué (message,
+  possibilité d'arrêter l'enregistrement). Lecture en cours à l'heure de
+  début : compte à rebours d'1 min, puis l'enregistrement gagne, sauf
+  annulation.
+- Espace : 3 Go/h + 500 Mo de réserve, vérifié avant de programmer et de
+  démarrer ; arrêt propre si le disque se remplit ; volume externe au choix
+  s'il est présent. Pas de suppression automatique.
+- Coupure : reconnexion dans le même fichier (attentes croissantes, essais
+  limités) ; « incomplet » si plus d'une minute manque.
+- Catégorie **Enregistrements** (dans Direct) : en cours, programmés et
+  terminés ; lecture avec reprise, suppression. Locaux à l'appareil, gardés
+  après un changement d'identifiant (programmations annulées), verrouillés
+  comme leur chaîne par le contrôle parental.
 
 ## Hors périmètre v1
 

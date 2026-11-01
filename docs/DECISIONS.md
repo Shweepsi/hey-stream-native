@@ -204,34 +204,65 @@ Constats :
 
 ## Enregistrement programmé (2026-10-31)
 
-Décidé avec le propriétaire : l'enregistrement programmé entre dans la v1,
-**avant la 1.0** (`SPEC_V1.md`, « Enregistrement »).
+Décidé avec le propriétaire (2026-10-31 et 2026-11-01) : l'enregistrement
+programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement »).
 
+- **Android seulement** : iOS et tvOS ne laissent pas une app démarrer un
+  enregistrement à heure fixe app fermée ; l'app Apple n'a pas cette
+  fonction (exception à « Android et Apple dès la première version »).
 - **Programmation depuis le guide en Direct** seulement : sur l'un des
-  4 programmes affichés, « Enregistrer » ; début et fin viennent du guide,
-  avec une marge (2 min avant, 5 min après). Pas de saisie manuelle, pas de
-  répétition, pas d'« enregistrer maintenant » en v1.
-- **Une seule connexion** : pendant un enregistrement, la lecture d'un autre
-  flux est **bloquée**, avec un message ; on peut arrêter l'enregistrement.
-  Deux enregistrements qui se chevauchent sont refusés à la programmation.
+  4 programmes affichés, « Enregistrer » ; début et fin viennent du guide au
+  moment de programmer (un décalage ultérieur du guide n'est pas suivi),
+  avec une marge de 2 min avant et 5 min après. Pas de saisie manuelle, pas
+  de répétition, pas d'« enregistrer maintenant » en v1.
+- **Programmes qui se suivent** : sur la même chaîne, ils sont fusionnés en
+  un seul enregistrement continu ; sur deux chaînes, les marges qui se
+  chevauchent sont raccourcies (fin du premier = début du second). Seul un
+  vrai chevauchement des programmes eux-mêmes est refusé.
+- **Une seule connexion** :
+  - Pendant un enregistrement, la chaîne enregistrée se regarde **depuis le
+    fichier en cours** (quelques secondes de retard, pause et retour
+    arrière possibles) ; tout autre flux (chaîne, film, épisode) est
+    bloqué, avec un message et la possibilité d'arrêter l'enregistrement.
+  - Si une lecture est en cours à l'heure de début : message 1 min avant
+    avec compte à rebours ; sans réponse, l'enregistrement gagne et la
+    lecture s'arrête (sa reprise est gardée) ; on peut annuler
+    l'enregistrement.
 - **Tous les appareils, selon l'espace** : la Mi Box S a peu de chances de
-  suffire (≈ 4 Go libres), mais rien n'est réservé à un appareil. L'app
-  vérifie l'espace libre avant de programmer et avant de démarrer, refuse si
-  c'est trop juste, et s'arrête proprement si le disque se remplit. Un
-  volume externe (clé, disque USB) peut être choisi s'il est présent.
+  suffire (≈ 4 Go libres), mais rien n'est réservé à un appareil. Le débit
+  n'étant pas connu d'avance, on compte **3 Go par heure** plus **500 Mo**
+  de réserve ; l'app vérifie avant de programmer et avant de démarrer,
+  refuse si c'est trop juste (en proposant de supprimer les enregistrements
+  déjà vus) et s'arrête proprement si le disque se remplit. Un volume
+  externe (clé, disque USB) peut être choisi s'il est présent.
+- **Pas de suppression automatique** : un enregistrement ne disparaît que
+  supprimé à la main.
 - **Local** : un enregistrement ne se regarde que sur l'appareil qui l'a
   fait (pas de partage réseau, comme « Tout en local »).
+- **Identifiant** : à la déconnexion ou au changement d'identifiant, les
+  programmations sont annulées mais les **fichiers enregistrés restent**
+  lisibles (exception à « les données appartiennent à l'identifiant »).
+- **Contrôle parental** : un enregistrement d'une chaîne verrouillée reste
+  verrouillé (absent de la liste tant que la catégorie l'est), y compris
+  après un changement d'identifiant (la marque adulte est gardée avec le
+  fichier).
 - **App fermée, écran éteint** : alarme exacte et service au premier plan
   (notification « Enregistrement en cours ») ; l'app indique quand un
   réglage de batterie du fabricant (HyperOS…) l'empêche.
-- **Coupure** : reconnexion automatique dans **un seul fichier** ; un trou de
-  plus d'une minute marque l'enregistrement « incomplet ».
+- **Coupure** : reconnexion automatique dans **un seul fichier**, avec des
+  attentes croissantes entre les essais (le fournisseur bloque les requêtes
+  en rafale) et un nombre d'essais limité ; un trou de plus d'une minute
+  marque l'enregistrement « incomplet ».
+- **Confidentialité** : le planning garde l'identifiant du flux, jamais son
+  URL (qui contient les identifiants) ; l'URL est reconstruite au démarrage
+  et jamais journalisée.
 - Le flux est copié tel quel (.ts), sans réencodage. Planning, conflits,
   espace et reprise sont dans le cœur (`core/`) ; Android ne fait que
   l'alarme, le service et l'affichage.
-- **Point ouvert** : effet sur l'examen Google Play (fonction exposée face
-  aux ayants droit, voir « Image publique et listes M3U ») ; à trancher avec
-  la publication 1.0 (`TODO.md`).
+- **Point ouvert** : la version Google Play. Fonction exposée face aux
+  ayants droit (voir « Image publique et listes M3U »), et le Play Store
+  encadre l'autorisation d'alarme exacte et les services au premier plan
+  (déclaration à justifier). À trancher avec la publication 1.0 (`TODO.md`).
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
