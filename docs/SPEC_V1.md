@@ -95,7 +95,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - Langue, mise à jour manuelle du catalogue, déconnexion.
 - Les données (catalogue, favoris, récents, reprise, vus, code PIN,
   catégories masquées) appartiennent à l'identifiant : se connecter avec un autre
-  identifiant les efface, le même identifiant sur une autre adresse du
+  identifiant les efface (sauf les fichiers enregistrés, voir
+  « Enregistrement »), le même identifiant sur une autre adresse du
   fournisseur les garde et recharge seulement le catalogue. Rien n'est
   effacé avant une connexion réussie (une faute de frappe n'efface rien).
 
@@ -128,11 +129,13 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 - Depuis le guide en Direct : « Enregistrer » sur l'un des 4 programmes
   affichés, marges réglables (2 min avant, 5 min après par défaut ;
-  horaires figés à la programmation). Rien d'autre (ni saisie manuelle, ni répétition).
+  horaires figés à la programmation). Rien d'autre (ni saisie manuelle,
+  ni répétition).
 - Programmes qui se suivent : fusionnés sur la même chaîne, marges
   raccourcies entre deux chaînes ; un vrai chevauchement est refusé.
 - Chaîne sans guide : pas d'enregistrement.
-- Démarre même app fermée et écran éteint ; une box ne passe pas en veille
+- Démarre même app fermée et écran éteint (autorisation d'alarme exacte
+  demandée à la première programmation) ; une box TV ne passe pas en veille
   profonde tant qu'un enregistrement est prévu dans les 12 h.
 - Notifications : en cours (titre, temps restant, Arrêter), terminé
   (taille, Regarder), problème (manqué, incomplet, plus de place).
@@ -148,8 +151,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   manque X Go ») et laisser libérer de la place ou programmer quand même ;
   arrêt propre en atteignant la réserve. Jauge (utilisé, heures restantes),
   taille de chaque enregistrement, notification sous une heure restante.
-  Disque interne ou externe choisi dans Réglages. Pas de suppression
-  automatique.
+  Disque interne ou externe (là où Android permet un dossier privé à
+  l'app) choisi dans Réglages. Pas de suppression automatique.
 - Coupure : reconnexion dans le même fichier (attentes croissantes, essais
   limités) ; « incomplet » si plus d'une minute manque.
 - Catégorie **Enregistrements** (dans Direct) : en cours, programmés et

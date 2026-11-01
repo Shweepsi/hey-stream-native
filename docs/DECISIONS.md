@@ -215,8 +215,7 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   moment de programmer (un décalage ultérieur du guide n'est pas suivi),
   avec une marge **réglable** proposée à chaque programmation (2 min avant
   et 5 min après par défaut, dernières valeurs retenues). Pas de saisie
-  manuelle, pas
-  de répétition, pas d'« enregistrer maintenant » en v1.
+  manuelle, pas de répétition, pas d'« enregistrer maintenant » en v1.
 - **Programmes qui se suivent** : sur la même chaîne, ils sont fusionnés en
   un seul enregistrement continu ; sur deux chaînes, les marges qui se
   chevauchent sont raccourcies (fin du premier = début du second). Seul un
@@ -256,27 +255,35 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   programmations sont annulées mais les **fichiers enregistrés restent**
   lisibles (exception à « les données appartiennent à l'identifiant »).
 - **Contrôle parental** : un enregistrement d'une chaîne verrouillée reste
-  verrouillé (absent de la liste tant que la catégorie l'est), y compris
-  après un changement d'identifiant (la marque adulte est gardée avec le
-  fichier).
+  verrouillé (absent de la liste tant que la catégorie l'est). La marque
+  adulte est gardée avec le fichier : après un changement d'identifiant
+  (catégorie inconnue, code effacé), il reste verrouillé et s'ouvre avec le
+  code en vigueur, comme tout contenu adulte.
 - **Chaîne sans guide** : pas d'enregistrement possible (bouton absent) ;
   la règle « depuis le guide seulement » est tenue (2026-11-01).
-- **App fermée, écran éteint** : alarme exacte et service au premier plan ;
-  l'app indique quand un réglage de batterie du fabricant (HyperOS…)
-  l'empêche.
-- **Box en veille** (2026-11-01) : tant qu'un enregistrement est programmé
-  dans les 12 h, l'app empêche la veille profonde de la box (télé éteinte
-  par HDMI-CEC). Là où Android ne le permet pas, l'enregistrement manqué est
-  signalé ; à vérifier sur la Mi Box S (consommation, réveil).
+- **App fermée, écran éteint** : alarme exacte et service au premier plan.
+  Depuis Android 14, l'alarme exacte est refusée par défaut : l'app demande
+  l'autorisation à la première programmation et signale les
+  enregistrements programmés si elle est retirée. Elle indique aussi quand
+  un réglage de batterie du fabricant (HyperOS…) l'empêche.
+- **Box en veille** (2026-11-01) : sur un appareil TV seulement (pas de
+  batterie), tant qu'un enregistrement est programmé dans les 12 h, l'app
+  empêche la veille profonde de la box (télé éteinte par HDMI-CEC). Là où
+  Android ne le permet pas, l'enregistrement manqué est signalé ; à
+  vérifier sur la Mi Box S (consommation, réveil, alerte « wake lock
+  excessif » des statistiques Play).
 - **Notifications** : « Enregistrement en cours » (exigée par Android : titre,
   temps restant, bouton Arrêter), « Enregistrement terminé » (taille, bouton
   Regarder), et « Problème » (manqué, incomplet, arrêté faute de place, avec
   la raison). Pas de rappel avant le début, hors compte à rebours du
   conflit avec une lecture.
 - **Fichiers privés à l'app** : lisibles seulement dans Hey Stream (stockage
-  propre à l'app, interne ou sur le volume externe choisi) ; ils survivent à
-  un changement d'identifiant mais sont effacés à la désinstallation ou si
-  les données de l'app sont vidées (à dire dans l'app, près de la jauge).
+  propre à l'app) ; ils survivent à un changement d'identifiant mais sont
+  effacés à la désinstallation ou si les données de l'app sont vidées (à
+  dire dans l'app, près de la jauge). Limite : beaucoup d'appareils
+  n'offrent pas de dossier privé sur une clé USB (seulement sur une carte
+  SD ou un disque « adopté ») ; le choix du disque ne liste que les volumes
+  où c'est possible.
 - **Coupure** : reconnexion automatique dans **un seul fichier**, avec des
   attentes croissantes entre les essais (le fournisseur bloque les requêtes
   en rafale) et un nombre d'essais limité ; un trou de plus d'une minute
@@ -290,9 +297,10 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
 - **Google Play** (2026-11-01) : l'enregistrement **reste** dans la version
   des magasins, malgré l'exposition face aux ayants droit (voir « Image
   publique et listes M3U »). À préparer pour la 1.0 : déclaration de
-  l'autorisation d'alarme exacte et du service au premier plan (type
-  `dataSync` ou `mediaProcessing`), justifiées par l'enregistrement
-  programmé.
+  l'autorisation d'alarme exacte (`SCHEDULE_EXACT_ALARM`) et du service au
+  premier plan de type `specialUse`, justifiées par l'enregistrement
+  programmé. Pas `dataSync` ni `mediaProcessing` : depuis Android 15, ils
+  sont coupés après 6 h par 24 h.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
