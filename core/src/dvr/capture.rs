@@ -3,7 +3,9 @@
 //!
 //! Après une coupure, la copie reprend **dans le même fichier**, avec des
 //! attentes croissantes entre les essais (le fournisseur bloque les requêtes
-//! en rafale) et un nombre d'essais limité. L'URL du flux contient les
+//! en rafale), puis un essai par minute jusqu'à l'heure de fin : une panne
+//! de quelques minutes du fournisseur ne fait pas perdre la suite du
+//! programme (décision du 2026-11-01). L'URL du flux contient les
 //! identifiants : elle n'est ni gardée ni journalisée, et les erreurs
 //! réseau sont remontées sans elle.
 
@@ -42,7 +44,7 @@ pub enum CaptureEnd {
     Stopped,
     /// Réserve du disque atteinte : arrêt propre, fichier gardé.
     OutOfSpace,
-    /// Trop de coupures de suite : on abandonne.
+    /// Client réseau impossible à créer : aucun essai possible.
     ConnectionLost,
     /// Fichier impossible à écrire (volume débranché, droits).
     WriteFailed,
@@ -134,14 +136,13 @@ pub type SpaceProbe = Arc<dyn Fn(&Path) -> Option<VolumeSpace> + Send + Sync>;
 pub struct CaptureOptions {
     /// Attente avant le premier nouvel essai, doublée à chaque échec.
     pub first_retry: Duration,
-    /// Attente maximale entre deux essais.
+    /// Attente maximale entre deux essais, gardée ensuite jusqu'à l'heure
+    /// de fin : jamais plus d'un essai par `max_retry` en cas de panne.
     pub max_retry: Duration,
-    /// Échecs de suite avant d'abandonner.
-    pub max_failures: u32,
     /// Sans données pendant ce temps, la connexion est refaite.
     pub stall: Duration,
-    /// Une connexion qui a fourni des données pendant ce temps remet le
-    /// compteur d'échecs à zéro.
+    /// Une connexion qui a fourni des données pendant ce temps ramène
+    /// l'attente suivante à `first_retry`.
     pub healthy_after: Duration,
     /// Place libre vérifiée tous les tant d'octets écrits.
     pub space_check_bytes: u64,
@@ -153,7 +154,6 @@ impl Default for CaptureOptions {
         Self {
             first_retry: Duration::from_secs(2),
             max_retry: Duration::from_secs(60),
-            max_failures: 8,
             stall: Duration::from_secs(20),
             healthy_after: Duration::from_secs(30),
             space_check_bytes: 32 * 1024 * 1024,
@@ -167,13 +167,13 @@ impl std::fmt::Debug for CaptureOptions {
         f.debug_struct("CaptureOptions")
             .field("first_retry", &self.first_retry)
             .field("max_retry", &self.max_retry)
-            .field("max_failures", &self.max_failures)
             .finish_non_exhaustive()
     }
 }
 
 /// Copie le flux de `job` jusqu'à son heure de fin, un arrêt à la main, la
-/// réserve du disque ou trop de coupures. Ne renvoie jamais d'erreur : tout
+/// réserve du disque ou une écriture refusée ; les coupures sont réessayées
+/// jusqu'à l'heure de fin. Ne renvoie jamais d'erreur : tout
 /// est dans le bilan, que `Recordings::finish` enregistre.
 pub async fn capture(
     client: &XtreamClient,
@@ -245,6 +245,7 @@ impl<'a> Copy<'a> {
         if self.out_of_space() {
             return CaptureEnd::OutOfSpace;
         }
+        // Échecs de suite : règlent seulement l'attente avant le prochain essai.
         let mut failures = 0u32;
         loop {
             if self.control.is_stopped() {
@@ -256,11 +257,12 @@ impl<'a> Copy<'a> {
             match self.session(&http, url.clone(), &mut file).await {
                 Session::Done(end) => return end,
                 Session::Lost { healthy } => {
-                    failures = if healthy { 1 } else { failures + 1 };
+                    failures = if healthy {
+                        1
+                    } else {
+                        failures.saturating_add(1)
+                    };
                 }
-            }
-            if failures >= self.options.max_failures {
-                return CaptureEnd::ConnectionLost;
             }
             let wait = self
                 .options

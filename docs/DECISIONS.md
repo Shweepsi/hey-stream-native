@@ -286,8 +286,9 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   où c'est possible.
 - **Coupure** : reconnexion automatique dans **un seul fichier**, avec des
   attentes croissantes entre les essais (le fournisseur bloque les requêtes
-  en rafale) et un nombre d'essais limité ; un trou de plus d'une minute
-  marque l'enregistrement « incomplet ».
+  en rafale), puis **un essai par minute jusqu'à la fin prévue** (2026-11-01 :
+  une panne de quelques minutes ne fait pas perdre la suite) ; un trou de
+  plus d'une minute marque l'enregistrement « incomplet ».
 - **Confidentialité** : le planning garde l'identifiant du flux, jamais son
   URL (qui contient les identifiants) ; l'URL est reconstruite au démarrage
   et jamais journalisée.

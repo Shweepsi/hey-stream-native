@@ -17,8 +17,9 @@ Une entrée par version, la plus récente en haut. La version vient de
     programmer, jauge et enregistrements à proposer pour libérer de la
     place ;
   - copie du flux telle quelle dans un seul fichier, reconnexion avec
-    attentes croissantes et nombre d'essais limité, arrêt propre à la
-    réserve ; enregistrement « incomplet » au-delà d'une minute de trous ;
+    attentes croissantes puis un essai par minute jusqu'à la fin, arrêt
+    propre à la réserve ; enregistrement « incomplet » au-delà d'une minute
+    de trous ;
   - enregistrements manqués ou interrompus signalés au lancement, reprise
     dans le même fichier si la fenêtre n'est pas finie.
 

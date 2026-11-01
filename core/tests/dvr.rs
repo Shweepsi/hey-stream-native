@@ -632,7 +632,6 @@ fn fast() -> CaptureOptions {
     CaptureOptions {
         first_retry: Duration::from_millis(20),
         max_retry: Duration::from_millis(50),
-        max_failures: 1_000,
         stall: Duration::from_secs(2),
         probe: Arc::new(|_| Some(ROOMY)),
         ..CaptureOptions::default()
@@ -674,27 +673,49 @@ async fn the_stream_is_copied_until_the_end_and_reconnected_in_one_file() {
 }
 
 #[tokio::test]
-async fn too_many_failures_give_up() {
+async fn a_long_outage_does_not_end_the_recording() {
+    let server = MockServer::start().await;
+    // 12 échecs de suite (au-delà des 8 de l'ancienne limite), puis le
+    // fournisseur revient : la suite est enregistrée.
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(503))
+        .up_to_n_times(12)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0x47u8; 188]))
+        .mount(&server)
+        .await;
+    let dir = temp_dir("outage");
+    let job = job(&dir, 3);
+    let report = capture(&client(&server), &job, &CaptureControl::new(), &fast()).await;
+    assert_eq!(report.end, CaptureEnd::Finished);
+    assert!(report.bytes >= 188, "{report:?}");
+    assert!(now() >= job.until);
+}
+
+#[tokio::test]
+async fn an_unreachable_provider_is_retried_until_the_end() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .respond_with(ResponseTemplate::new(403))
-        .expect(3)
         .mount(&server)
         .await;
-    let dir = temp_dir("give-up");
+    let dir = temp_dir("unreachable");
     let options = CaptureOptions {
-        max_failures: 3,
+        first_retry: Duration::from_millis(100),
+        max_retry: Duration::from_millis(200),
         ..fast()
     };
-    let report = capture(
-        &client(&server),
-        &job(&dir, 60),
-        &CaptureControl::new(),
-        &options,
-    )
-    .await;
-    assert_eq!(report.end, CaptureEnd::ConnectionLost);
+    let job = job(&dir, 3);
+    let report = capture(&client(&server), &job, &CaptureControl::new(), &options).await;
+    assert_eq!(report.end, CaptureEnd::Finished);
     assert_eq!(report.bytes, 0);
+    assert!(now() >= job.until);
+    // Fenêtre de 2 à 3 s, un essai toutes les 200 ms au plus : 10 à 16.
+    let requests = server.received_requests().await.unwrap().len();
+    assert!((8..=16).contains(&requests), "{requests} essais");
 }
 
 #[tokio::test]
@@ -708,20 +729,18 @@ async fn waits_between_attempts_grow() {
     let options = CaptureOptions {
         first_retry: Duration::from_millis(100),
         max_retry: Duration::from_secs(10),
-        max_failures: 4,
         ..fast()
     };
-    let started = std::time::Instant::now();
+    // Fenêtre de 2 à 3 s : essais à 0, 0,1, 0,3, 0,7 et 1,5 s, le suivant
+    // tomberait à 3,1 s.
     capture(
         &client(&server),
-        &job(&dir, 60),
+        &job(&dir, 3),
         &CaptureControl::new(),
         &options,
     )
     .await;
-    // 100 + 200 + 400 ms entre les 4 essais.
-    assert!(started.elapsed() >= Duration::from_millis(700));
-    assert_eq!(server.received_requests().await.unwrap().len(), 4);
+    assert_eq!(server.received_requests().await.unwrap().len(), 5);
 }
 
 #[tokio::test]
@@ -793,20 +812,21 @@ async fn a_stalled_stream_is_reconnected() {
     let dir = temp_dir("stall");
     let options = CaptureOptions {
         stall: Duration::from_millis(200),
-        max_failures: 3,
         ..fast()
     };
     let started = std::time::Instant::now();
     let report = capture(
         &client(&server),
-        &job(&dir, 60),
+        &job(&dir, 2),
         &CaptureControl::new(),
         &options,
     )
     .await;
-    assert_eq!(report.end, CaptureEnd::ConnectionLost);
+    // Fin à l'heure malgré un flux qui ne livre rien ; refait plusieurs fois.
+    assert_eq!(report.end, CaptureEnd::Finished);
+    assert_eq!(report.bytes, 0);
     assert!(started.elapsed() < Duration::from_secs(5));
-    assert_eq!(server.received_requests().await.unwrap().len(), 3);
+    assert!(server.received_requests().await.unwrap().len() >= 3);
 }
 
 #[tokio::test]

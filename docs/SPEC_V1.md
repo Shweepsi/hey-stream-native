@@ -153,8 +153,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   taille de chaque enregistrement, notification sous une heure restante.
   Disque interne ou externe (là où Android permet un dossier privé à
   l'app) choisi dans Réglages. Pas de suppression automatique.
-- Coupure : reconnexion dans le même fichier (attentes croissantes, essais
-  limités) ; « incomplet » si plus d'une minute manque.
+- Coupure : reconnexion dans le même fichier (attentes croissantes, puis un
+  essai par minute jusqu'à la fin) ; « incomplet » si plus d'une minute
+  manque.
 - Catégorie **Enregistrements** (dans Direct) : en cours, programmés et
   terminés ; lecture avec reprise, suppression. Locaux à l'appareil, gardés
   après un changement d'identifiant (programmations annulées), verrouillés

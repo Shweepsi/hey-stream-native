@@ -193,7 +193,7 @@ pub enum RecordingProblem {
     Gaps,
     /// Réserve du disque atteinte.
     OutOfSpace,
-    /// Trop de coupures de suite : abandon.
+    /// Aucune donnée reçue : fournisseur injoignable jusqu'à la fin.
     ConnectionLost,
     /// Fichier impossible à écrire.
     WriteFailed,
