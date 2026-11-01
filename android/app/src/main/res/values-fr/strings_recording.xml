@@ -46,13 +46,10 @@
     <string name="record_missing_space">Il manque environ %1$s sur le disque</string>
     <string name="record_free_space">Libérer de la place</string>
     <string name="record_anyway">Programmer quand même</string>
-    <string name="record_cleanup_title">Libérer de la place</string>
     <string name="record_cleanup_message">Supprimer ces enregistrements libérerait environ %1$s. Les déjà vus d’abord.</string>
     <string name="record_cleanup_delete">Supprimer et programmer</string>
     <string name="record_cleanup_none">Aucun enregistrement à supprimer sur ce disque.</string>
     <string name="record_unsupported">Ce fournisseur ne permet pas l’enregistrement (format TS refusé).</string>
-    <string name="record_hint_tv">OK sur un programme pour l’enregistrer.</string>
-    <string name="record_hint_touch">Touchez un programme pour l’enregistrer.</string>
     <string name="record_exact_alarm_title">Autoriser les alarmes</string>
     <string name="record_exact_alarm_message">Pour démarrer à l’heure, même app fermée, Hey Stream a besoin de l’autorisation « Alarmes et rappels ». Sans elle, un enregistrement peut démarrer en retard.</string>
     <string name="record_exact_alarm_open">Ouvrir les réglages</string>

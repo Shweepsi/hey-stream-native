@@ -23,7 +23,10 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -362,9 +365,21 @@ private fun CleanupContent(rows: List<RecordingRow>, viewModel: LiveViewModel, f
 @Composable
 internal fun RecordingOptionsDialog(row: RecordingRow, viewModel: LiveViewModel) {
     val first = remember { FocusRequester() }
-    LaunchedEffect(row.id) { runCatching { first.requestFocus() } }
+    var confirmDelete by remember(row.id) { mutableStateOf(false) }
+    LaunchedEffect(row.id, confirmDelete) { runCatching { first.requestFocus() } }
     val subtitle = row.channel
     Dialog(onDismissRequest = viewModel::onDismissRecordingOptions) {
+        if (confirmDelete) {
+            // Suppression définitive : confirmée, « Annuler » d'abord.
+            DialogPanel(stringResource(R.string.recording_delete_title), row.title) {
+                Text(stringResource(R.string.recording_delete_message), style = Hs.type.body, color = Hs.colors.textSecondary)
+                DialogButtons {
+                    HsButton(stringResource(R.string.cancel), { confirmDelete = false }, modifier = Modifier.focusRequester(first))
+                    HsButton(stringResource(R.string.recording_delete), viewModel::onDeleteRecording, icon = Lucide.Trash, style = ButtonStyle.Primary)
+                }
+            }
+            return@Dialog
+        }
         DialogPanel(row.title, subtitle) {
             row.problem?.let { problem ->
                 Text(stringResource(RecordingNotifications.problemText(problem)), style = Hs.type.body, color = Hs.colors.textSecondary)
@@ -384,7 +399,7 @@ internal fun RecordingOptionsDialog(row: RecordingRow, viewModel: LiveViewModel)
                 when (row.state) {
                     RecordingState.RECORDING -> HsButton(stringResource(R.string.recording_stop_now), viewModel::onCancelRecording, icon = Lucide.X, modifier = Modifier.firstFocus())
                     RecordingState.SCHEDULED -> HsButton(stringResource(R.string.record_cancel_action), viewModel::onCancelRecording, icon = Lucide.X, modifier = Modifier.firstFocus())
-                    else -> HsButton(stringResource(R.string.recording_delete), viewModel::onDeleteRecording, icon = Lucide.Trash, modifier = Modifier.firstFocus())
+                    else -> HsButton(stringResource(R.string.recording_delete), { confirmDelete = true }, icon = Lucide.Trash, modifier = Modifier.firstFocus())
                 }
                 HsButton(stringResource(R.string.close), viewModel::onDismissRecordingOptions)
             }

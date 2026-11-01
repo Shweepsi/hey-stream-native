@@ -46,13 +46,10 @@
     <string name="record_missing_space">About %1$s missing on the disk</string>
     <string name="record_free_space">Free up space</string>
     <string name="record_anyway">Record anyway</string>
-    <string name="record_cleanup_title">Free up space</string>
     <string name="record_cleanup_message">Deleting these recordings would free about %1$s. Watched ones come first.</string>
     <string name="record_cleanup_delete">Delete and record</string>
     <string name="record_cleanup_none">There is no recording to delete on this disk.</string>
     <string name="record_unsupported">This provider does not allow recording (TS format refused).</string>
-    <string name="record_hint_tv">OK on a programme to record it.</string>
-    <string name="record_hint_touch">Tap a programme to record it.</string>
     <string name="record_exact_alarm_title">Allow alarms</string>
     <string name="record_exact_alarm_message">To start on time, even with the app closed, Hey Stream needs the “Alarms &amp; reminders” permission. Without it, a recording may start late.</string>
     <string name="record_exact_alarm_open">Open settings</string>
