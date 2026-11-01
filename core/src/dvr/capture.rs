@@ -112,6 +112,21 @@ impl CaptureControl {
         self.inner.bytes.load(Ordering::Relaxed)
     }
 
+    /// Début d'une copie : taille de départ et heure de fin.
+    pub(super) fn begin(&self, bytes: u64, until: i64) {
+        self.inner.bytes.store(bytes, Ordering::Relaxed);
+        self.inner.until.store(until, Ordering::SeqCst);
+    }
+
+    pub(super) fn set_bytes(&self, bytes: u64) {
+        self.inner.bytes.store(bytes, Ordering::Relaxed);
+    }
+
+    /// Arrêt ou nouvelle heure de fin.
+    pub(super) async fn wait_change(&self) {
+        self.changed().await;
+    }
+
     async fn stopped(&self) {
         loop {
             let notified = self.inner.notify.notified();
@@ -212,8 +227,7 @@ enum Session {
 impl<'a> Copy<'a> {
     fn new(job: &'a CaptureJob, control: &'a CaptureControl, options: &'a CaptureOptions) -> Self {
         let bytes = std::fs::metadata(&job.path).map(|m| m.len()).unwrap_or(0);
-        control.inner.bytes.store(bytes, Ordering::Relaxed);
-        control.inner.until.store(job.until, Ordering::SeqCst);
+        control.begin(bytes, job.until);
         Copy {
             job,
             control,
@@ -405,7 +419,7 @@ impl<'a> Copy<'a> {
     }
 }
 
-fn now() -> f64 {
+pub(super) fn now() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs_f64())

@@ -47,6 +47,7 @@ pub use dvr::{
     Margins, Recording, RecordingProblem, RecordingState, RecordingUsage, Recordings,
     SchedulePreview, ScheduleRequest, SpaceProbe, VolumeSpace, capture, volume_space,
 };
+pub use dvr::{Gap, Segment, Spot, TuneEnd, Tuner, TunerOptions, Window, purge_timeshift};
 pub use epg::{EPG_MIN_INTERVAL_SECS, LATER_MAX, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};

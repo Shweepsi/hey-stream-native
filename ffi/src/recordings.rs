@@ -422,6 +422,8 @@ impl From<ScheduleRequest> for xc::ScheduleRequest {
             is_adult: r.is_adult,
             programme: r.programme.into(),
             margins: r.margins.into(),
+            // Le différé n'est pas encore branché côté app.
+            buffered_from: None,
         }
     }
 }

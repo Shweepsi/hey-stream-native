@@ -17,6 +17,7 @@
 mod capture;
 mod plan;
 mod space;
+mod timeshift;
 
 use std::path::{Path, PathBuf};
 
@@ -26,6 +27,7 @@ pub use capture::{
     CaptureControl, CaptureEnd, CaptureJob, CaptureOptions, CaptureReport, SpaceProbe, capture,
 };
 pub use space::{DEFAULT_BYTES_PER_HOUR, VolumeSpace, volume_space};
+pub use timeshift::{Gap, Segment, Spot, TuneEnd, Tuner, TunerOptions, Window, purge_timeshift};
 
 use crate::error::{Error, Result};
 use plan::{Planned, programmes_overlap, slots, windows_touch};
@@ -119,6 +121,10 @@ pub struct ScheduleRequest {
     pub is_adult: bool,
     pub programme: GuideProgramme,
     pub margins: Margins,
+    /// Plus ancien moment du différé de cette chaîne (secondes Unix), si on
+    /// la regarde : l'enregistrement peut commencer dans le passé, jusque-là
+    /// ([`Tuner::follow`]).
+    pub buffered_from: Option<i64>,
 }
 
 /// Ce que donnerait une programmation, sans rien enregistrer.
@@ -434,6 +440,20 @@ impl Recordings {
     /// déjà atteinte, ou le volume débranché, l'enregistrement est raté et
     /// l'erreur dit pourquoi.
     pub fn begin(&mut self, id: i64, space: Option<VolumeSpace>, now: i64) -> Result<CaptureJob> {
+        self.begin_from(id, space, now, None)
+    }
+
+    /// Comme [`Self::begin`], pour un enregistrement qui suit le différé de
+    /// sa chaîne ([`Tuner::follow`]) : `buffered_from` est le plus ancien
+    /// moment du tampon. Seul le temps avant lui est perdu (début manquant,
+    /// compté comme trou).
+    pub fn begin_from(
+        &mut self,
+        id: i64,
+        space: Option<VolumeSpace>,
+        now: i64,
+        buffered_from: Option<i64>,
+    ) -> Result<CaptureJob> {
         let due = self
             .due(now)?
             .filter(|d| d.id == id)
@@ -465,7 +485,7 @@ impl Recordings {
         // du fabricant…), ou app arrêtée pendant la copie.
         let gap = match (recording.state, self.progress_at(id)?) {
             (RecordingState::Recording, Some(last)) => (now - last).max(0),
-            _ => (now - due.start).max(0),
+            _ => (buffered_from.map_or(now, |from| from.min(now)) - due.start).max(0),
         };
         self.conn.execute(
             "UPDATE recording SET state = 'recording', problem = NULL,
@@ -923,8 +943,10 @@ fn insert(tx: &Transaction, request: &ScheduleRequest, now: i64) -> Result<(i64,
     let (start, stop) = merged.iter().fold((new.start, new.stop), |(a, b), o| {
         (a.min(o.start), b.max(o.stop))
     });
-    // Programmé pendant le programme : la copie commence tout de suite.
-    let start = start.max(now);
+    // Programmé pendant le programme : la copie commence tout de suite, ou
+    // au plus tôt de ce que le différé de la chaîne contient encore.
+    let earliest = request.buffered_from.map_or(now, |from| from.min(now));
+    let start = start.max(earliest);
     let id = match merged.first() {
         Some(first) => {
             // Le premier garde son identifiant (et son fichier s'il est en

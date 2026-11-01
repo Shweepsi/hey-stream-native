@@ -49,6 +49,7 @@ fn request(stream_id: i64, title: &str, start: i64, stop: i64) -> ScheduleReques
             before_secs: 120,
             after_secs: 300,
         },
+        buffered_from: None,
     }
 }
 
