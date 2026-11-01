@@ -259,9 +259,24 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   verrouillé (absent de la liste tant que la catégorie l'est), y compris
   après un changement d'identifiant (la marque adulte est gardée avec le
   fichier).
-- **App fermée, écran éteint** : alarme exacte et service au premier plan
-  (notification « Enregistrement en cours ») ; l'app indique quand un
-  réglage de batterie du fabricant (HyperOS…) l'empêche.
+- **Chaîne sans guide** : pas d'enregistrement possible (bouton absent) ;
+  la règle « depuis le guide seulement » est tenue (2026-11-01).
+- **App fermée, écran éteint** : alarme exacte et service au premier plan ;
+  l'app indique quand un réglage de batterie du fabricant (HyperOS…)
+  l'empêche.
+- **Box en veille** (2026-11-01) : tant qu'un enregistrement est programmé
+  dans les 12 h, l'app empêche la veille profonde de la box (télé éteinte
+  par HDMI-CEC). Là où Android ne le permet pas, l'enregistrement manqué est
+  signalé ; à vérifier sur la Mi Box S (consommation, réveil).
+- **Notifications** : « Enregistrement en cours » (exigée par Android : titre,
+  temps restant, bouton Arrêter), « Enregistrement terminé » (taille, bouton
+  Regarder), et « Problème » (manqué, incomplet, arrêté faute de place, avec
+  la raison). Pas de rappel avant le début, hors compte à rebours du
+  conflit avec une lecture.
+- **Fichiers privés à l'app** : lisibles seulement dans Hey Stream (stockage
+  propre à l'app, interne ou sur le volume externe choisi) ; ils survivent à
+  un changement d'identifiant mais sont effacés à la désinstallation ou si
+  les données de l'app sont vidées (à dire dans l'app, près de la jauge).
 - **Coupure** : reconnexion automatique dans **un seul fichier**, avec des
   attentes croissantes entre les essais (le fournisseur bloque les requêtes
   en rafale) et un nombre d'essais limité ; un trou de plus d'une minute

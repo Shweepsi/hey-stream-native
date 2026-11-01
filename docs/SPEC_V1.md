@@ -131,8 +131,13 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   horaires figés à la programmation). Rien d'autre (ni saisie manuelle, ni répétition).
 - Programmes qui se suivent : fusionnés sur la même chaîne, marges
   raccourcies entre deux chaînes ; un vrai chevauchement est refusé.
-- Démarre même app fermée et écran éteint ; notification pendant
-  l'enregistrement.
+- Chaîne sans guide : pas d'enregistrement.
+- Démarre même app fermée et écran éteint ; une box ne passe pas en veille
+  profonde tant qu'un enregistrement est prévu dans les 12 h.
+- Notifications : en cours (titre, temps restant, Arrêter), terminé
+  (taille, Regarder), problème (manqué, incomplet, plus de place).
+- Fichiers privés à l'app : effacés à la désinstallation (dit près de la
+  jauge).
 - Un seul flux : pendant un enregistrement, la chaîne enregistrée se regarde
   depuis le fichier en cours ; tout autre flux est bloqué (message,
   possibilité d'arrêter l'enregistrement). Lecture en cours à l'heure de
