@@ -278,14 +278,15 @@ private fun ScheduleContent(ui: RecordDialogUi, viewModel: LiveViewModel, first:
     MarginRow(stringResource(R.string.record_margin_after), ui.margins.afterSecs, { viewModel.onAdjustMargin(false, it) })
     val preview = ui.preview
     if (preview != null) {
+        val known = preview.measured && !ui.measuring
         Text(
-            text = if (preview.measured) {
-                stringResource(R.string.record_estimate, size(preview.estimatedBytes.toLong()))
-            } else {
-                stringResource(R.string.record_estimate_pending)
+            text = when {
+                ui.measuring -> stringResource(R.string.record_estimate_pending)
+                known -> stringResource(R.string.record_estimate, size(preview.estimatedBytes.toLong()))
+                else -> stringResource(R.string.record_estimate_unknown)
             },
             style = Hs.type.body,
-            color = if (preview.measured) Hs.colors.text else Hs.colors.textSecondary,
+            color = if (known) Hs.colors.text else Hs.colors.textSecondary,
         )
         if (preview.mergedInto != null) Text(stringResource(R.string.record_merged), style = Hs.type.small, color = Hs.colors.textSecondary)
         if (preview.marginsShortened) Text(stringResource(R.string.record_shortened), style = Hs.type.small, color = Hs.colors.textSecondary)

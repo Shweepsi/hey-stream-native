@@ -87,6 +87,8 @@ data class RecordDialogUi(
     val preview: SchedulePreview? = null,
     val error: UiText? = null,
     val busy: Boolean = false,
+    /** Mesure du débit de l'aperçu en cours (ouverture du dialogue). */
+    val measuring: Boolean = false,
     /** Place manquante : enregistrements proposés à la suppression. */
     val cleanup: List<RecordingRow>? = null,
 )

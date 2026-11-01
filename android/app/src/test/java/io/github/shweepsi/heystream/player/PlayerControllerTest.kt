@@ -58,6 +58,18 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun noRateIsMeasuredWithoutALiveStreamPlaying() {
+        var result: LiveRate? = LiveRate(0, 0, 0.0)
+        controller.measureLiveRate { result = it }
+        assertEquals(null, result)
+        // Un fichier local (enregistrement) ne se mesure pas non plus.
+        controller.playRecording("/absent/1.ts")
+        result = LiveRate(0, 0, 0.0)
+        controller.measureLiveRate { result = it }
+        assertEquals(null, result)
+    }
+
+    @Test
     fun noProviderStreamReopensDuringARecording() {
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         assertEquals(1, opens.count)

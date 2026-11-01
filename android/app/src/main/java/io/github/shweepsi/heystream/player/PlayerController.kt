@@ -33,6 +33,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+/** Débit mesuré d'une chaîne : octets reçus pendant [secs] secondes de flux. */
+data class LiveRate(val streamId: Long, val bytes: Long, val secs: Double)
+
 /** Ce que le lecteur montre, pour l'interface. */
 data class PlaybackStatus(
     /** Un flux est chargé (aperçu ou plein écran). */
@@ -89,18 +92,14 @@ class PlayerController(private val context: Context) {
      */
     var recordingActive: Boolean = false
 
-    /**
-     * Débit mesuré d'une chaîne regardée (seule source de l'estimation de la
-     * place d'un enregistrement) : octets reçus sur secondes **de flux**.
-     */
-    var onLiveRate: ((streamId: Long, bytes: Long, secs: Double) -> Unit)? = null
-
     /** Octets reçus du fournisseur (fil de chargement de Media3). */
     private val received = java.util.concurrent.atomic.AtomicLong()
 
-    /** Début de la mesure en cours : octets reçus et position chargée dans le flux. */
+    /** Mesure en cours : octets reçus et position chargée au départ, et qui attend le résultat. */
     private var sampleBytes = -1L
     private var sampleMediaMs = 0L
+    private var sampleStartedAt = 0L
+    private var sampleDone: ((LiveRate?) -> Unit)? = null
     private val sampleTick = Runnable { sampleLiveRate() }
 
     private val _status = MutableStateFlow(PlaybackStatus())
@@ -306,7 +305,7 @@ class PlayerController(private val context: Context) {
             return
         }
         stats?.opening()
-        // Flux (r)ouvert : la mesure du débit repart à sa première lecture.
+        // Flux (r)ouvert : une mesure du débit en cours est abandonnée.
         resetSample()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
@@ -380,45 +379,58 @@ class PlayerController(private val context: Context) {
     }
 
     /**
-     * Mesure du débit d'une chaîne en direct : octets reçus rapportés au temps
-     * **de flux** chargé (position chargée), pas au temps réel. La rafale de
-     * chargement du départ (avant la lecture) et le tampon ne faussent donc
-     * rien. Démarre à la première lecture, puis une mesure toutes les
-     * [SAMPLE_MEDIA_MS] de flux, tant que la chaîne joue.
+     * Mesure le débit de la chaîne en direct qui joue (dialogue
+     * « Enregistrer ») : octets reçus rapportés au temps **de flux** chargé
+     * (position chargée), pas au temps réel, sur [SAMPLE_MEDIA_MS] de flux.
+     * [onDone] reçoit la mesure, ou `null` sans direct qui joue, si le flux
+     * change ou si le délai est dépassé.
      */
-    private fun startSample() {
-        handler.removeCallbacks(sampleTick)
-        val player = exoPlayer ?: return
-        if (!live || localSource != null || onLiveRate == null) return
+    fun measureLiveRate(onDone: (LiveRate?) -> Unit) {
+        finishSample(null)
+        val player = exoPlayer
+        if (player == null || current == null || !live || localSource != null || player.playbackState != Player.STATE_READY) {
+            onDone(null)
+            return
+        }
         sampleBytes = received.get()
         sampleMediaMs = player.bufferedPosition
+        sampleStartedAt = android.os.SystemClock.elapsedRealtime()
+        sampleDone = onDone
         handler.postDelayed(sampleTick, SAMPLE_TICK_MS)
     }
 
     private fun sampleLiveRate() {
-        val player = exoPlayer ?: return
-        val report = onLiveRate ?: return
-        val item = current ?: return
-        if (!live || localSource != null || sampleBytes < 0) return
+        val player = exoPlayer
+        val item = current
+        if (player == null || item == null || !live || localSource != null || sampleBytes < 0) {
+            finishSample(null)
+            return
+        }
         val mediaMs = player.bufferedPosition - sampleMediaMs
         val bytes = received.get() - sampleBytes
         if (mediaMs >= SAMPLE_MEDIA_MS && bytes > 0) {
             val streamId = item.localConfiguration?.uri?.toString()?.let { describeStreamUrl(it) }?.streamId
-            if (streamId != null) report(streamId, bytes, mediaMs / 1000.0)
-            sampleBytes = received.get()
-            sampleMediaMs = player.bufferedPosition
-        } else if (mediaMs < 0) {
-            // Position repartie en arrière (discontinuité du flux) : mesure reprise.
-            sampleBytes = received.get()
-            sampleMediaMs = player.bufferedPosition
+            finishSample(streamId?.let { LiveRate(it, bytes, mediaMs / 1000.0) })
+            return
+        }
+        if (mediaMs < 0 || android.os.SystemClock.elapsedRealtime() - sampleStartedAt > SAMPLE_TIMEOUT_MS) {
+            // Flux reparti en arrière (discontinuité) ou qui ne charge plus : abandon.
+            finishSample(null)
+            return
         }
         handler.postDelayed(sampleTick, SAMPLE_TICK_MS)
     }
 
-    private fun resetSample() {
+    /** Fin de la mesure en cours ([rate] nul : abandonnée). */
+    private fun finishSample(rate: LiveRate?) {
         handler.removeCallbacks(sampleTick)
         sampleBytes = -1
+        val done = sampleDone
+        sampleDone = null
+        done?.invoke(rate)
     }
+
+    private fun resetSample() = finishSample(null)
 
     private val listener = object : Player.Listener {
         override fun onPositionDiscontinuity(
@@ -446,8 +458,6 @@ class PlayerController(private val context: Context) {
             stats?.state(playbackState)
             when (playbackState) {
                 Player.STATE_READY -> {
-                    // Première lecture du direct : la mesure du débit commence.
-                    if (sampleBytes < 0) startSample()
                     attempt = 0
                     _status.update { it.copy(reconnectAttempt = 0, failed = false, ended = false) }
                 }
@@ -551,8 +561,9 @@ class PlayerController(private val context: Context) {
         const val SEEK_BACK_MS = 10_000L
         private const val MAX_ATTEMPTS = 6
 
-        /** Une mesure du débit toutes les 10 s de flux (le cœur ignore moins). */
+        /** Mesure du débit : 10 s de flux (le cœur ignore moins), 30 s au plus. */
         const val SAMPLE_MEDIA_MS = 10_000L
-        private const val SAMPLE_TICK_MS = 2_000L
+        private const val SAMPLE_TICK_MS = 1_000L
+        private const val SAMPLE_TIMEOUT_MS = 30_000L
     }
 }

@@ -42,6 +42,7 @@
     <string name="record_margin_more">More</string>
     <string name="record_estimate">About %1$s</string>
     <string name="record_estimate_pending">Size: measuring the preview…</string>
+    <string name="record_estimate_unknown">Size unknown: the preview could not be measured.</string>
     <string name="record_merged">Joined to the recording of the programme before or after: one single file.</string>
     <string name="record_shortened">Margins shortened: another channel is recorded right before or after.</string>
     <string name="record_missing_space">About %1$s missing on the disk</string>

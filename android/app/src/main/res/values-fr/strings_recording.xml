@@ -42,6 +42,7 @@
     <string name="record_margin_more">Plus</string>
     <string name="record_estimate">Environ %1$s</string>
     <string name="record_estimate_pending">Taille : mesure de l’aperçu en cours…</string>
+    <string name="record_estimate_unknown">Taille inconnue : l’aperçu n’a pas pu être mesuré.</string>
     <string name="record_merged">Réuni à l’enregistrement du programme d’avant ou d’après : un seul fichier.</string>
     <string name="record_shortened">Marges raccourcies : une autre chaîne est enregistrée juste avant ou après.</string>
     <string name="record_missing_space">Il manque environ %1$s sur le disque</string>

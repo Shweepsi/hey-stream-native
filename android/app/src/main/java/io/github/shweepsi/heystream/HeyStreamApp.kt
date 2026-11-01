@@ -34,14 +34,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
     }
 
     /** Le lecteur vidéo (un seul pour toute l'app : jamais deux flux). */
-    val player: PlayerController by lazy {
-        PlayerController(this).also { player ->
-            // Débit de la chaîne regardée : estimation de la place d'un enregistrement.
-            player.onLiveRate = { streamId, bytes, secs ->
-                scope.launch { runCatching { recordings.withStore { it.learnRate(streamId, bytes.toULong(), secs) } } }
-            }
-        }
-    }
+    val player: PlayerController by lazy { PlayerController(this) }
 
     /** Enregistrements programmés et faits (gardés après un changement d'identifiant). */
     val recordings: RecordingRepository by lazy { RecordingRepository(this) }
