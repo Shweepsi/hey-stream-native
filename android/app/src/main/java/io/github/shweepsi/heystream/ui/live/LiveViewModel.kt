@@ -337,8 +337,13 @@ class LiveViewModel(
     fun onLeave() {
         startJob?.cancel()
         nowNextJob?.cancel()
-        player.stop()
+        // Lecteur confié à un enregistrement (l'écran disparaît après que sa
+        // lecture a commencé) : on n'y touche plus.
+        if (!handedOver) player.stop()
     }
+
+    /** Le lecteur unique lit un enregistrement ouvert depuis cet écran. */
+    private var handedOver = false
 
     /**
      * L'app a quitté l'écran ([PlayerController.hold]) : une fois le
@@ -382,6 +387,7 @@ class LiveViewModel(
     }
 
     private fun startPreview(preview: LivePreview, addRecent: Boolean) {
+        handedOver = false
         val id = preview.id
         previewError = null
         // Une chaîne choisie remplace la précédente avant même son ouverture : l'ancien
@@ -689,8 +695,10 @@ class LiveViewModel(
 
     override fun onRecordingClick(row: RecordingRow) {
         if (row.playable) {
-            // Le lecteur des enregistrements remplace l'aperçu : le flux est fermé.
+            // Le lecteur des enregistrements remplace l'aperçu : le flux est fermé,
+            // puis le lecteur lui appartient.
             onLeave()
+            handedOver = true
             _openRecording.value = row.id
         } else {
             onRecordingOptions(row)
