@@ -20,8 +20,8 @@ ligne quand sa PR est fusionnée.
    essais sur la Mi Box S et la Xiaomi Pad 7 (veille, batterie HyperOS).
 5. **1.0.0** : APK signé pour la publication ; comptes développeur à
    décider ; sort des outils de test et de la mise à jour intégrée
-   (interdite par le Play Store) dans la version des magasins ; décider si
-   l'enregistrement y reste.
+   (interdite par le Play Store) dans la version des magasins ; déclarations
+   Play Store de l'enregistrement (alarme exacte, service au premier plan).
 
 ## Cœur (acceptables pour l'instant)
 

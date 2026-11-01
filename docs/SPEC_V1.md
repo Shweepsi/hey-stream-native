@@ -127,8 +127,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 ## Enregistrement (2026-10-31, Android seulement)
 
 - Depuis le guide en Direct : « Enregistrer » sur l'un des 4 programmes
-  affichés (marge de 2 min avant, 5 min après ; horaires figés à la
-  programmation). Rien d'autre (ni saisie manuelle, ni répétition).
+  affichés, marges réglables (2 min avant, 5 min après par défaut ;
+  horaires figés à la programmation). Rien d'autre (ni saisie manuelle, ni répétition).
 - Programmes qui se suivent : fusionnés sur la même chaîne, marges
   raccourcies entre deux chaînes ; un vrai chevauchement est refusé.
 - Démarre même app fermée et écran éteint ; notification pendant
@@ -138,9 +138,13 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   possibilité d'arrêter l'enregistrement). Lecture en cours à l'heure de
   début : compte à rebours d'1 min, puis l'enregistrement gagne, sauf
   annulation.
-- Espace : 3 Go/h + 500 Mo de réserve, vérifié avant de programmer et de
-  démarrer ; arrêt propre si le disque se remplit ; volume externe au choix
-  s'il est présent. Pas de suppression automatique.
+- Espace : estimation apprise par chaîne (3 Go/h au départ) ; au moins 1 Go
+  ou 10 % du disque toujours laissés libres. Trop juste : prévenir (« il
+  manque X Go ») et laisser libérer de la place ou programmer quand même ;
+  arrêt propre en atteignant la réserve. Jauge (utilisé, heures restantes),
+  taille de chaque enregistrement, notification sous une heure restante.
+  Disque interne ou externe choisi dans Réglages. Pas de suppression
+  automatique.
 - Coupure : reconnexion dans le même fichier (attentes croissantes, essais
   limités) ; « incomplet » si plus d'une minute manque.
 - Catégorie **Enregistrements** (dans Direct) : en cours, programmés et

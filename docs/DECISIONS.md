@@ -213,7 +213,9 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
 - **Programmation depuis le guide en Direct** seulement : sur l'un des
   4 programmes affichés, « Enregistrer » ; début et fin viennent du guide au
   moment de programmer (un décalage ultérieur du guide n'est pas suivi),
-  avec une marge de 2 min avant et 5 min après. Pas de saisie manuelle, pas
+  avec une marge **réglable** proposée à chaque programmation (2 min avant
+  et 5 min après par défaut, dernières valeurs retenues). Pas de saisie
+  manuelle, pas
   de répétition, pas d'« enregistrer maintenant » en v1.
 - **Programmes qui se suivent** : sur la même chaîne, ils sont fusionnés en
   un seul enregistrement continu ; sur deux chaînes, les marges qui se
@@ -228,13 +230,24 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
     avec compte à rebours ; sans réponse, l'enregistrement gagne et la
     lecture s'arrête (sa reprise est gardée) ; on peut annuler
     l'enregistrement.
-- **Tous les appareils, selon l'espace** : la Mi Box S a peu de chances de
-  suffire (≈ 4 Go libres), mais rien n'est réservé à un appareil. Le débit
-  n'étant pas connu d'avance, on compte **3 Go par heure** plus **500 Mo**
-  de réserve ; l'app vérifie avant de programmer et avant de démarrer,
-  refuse si c'est trop juste (en proposant de supprimer les enregistrements
-  déjà vus) et s'arrête proprement si le disque se remplit. Un volume
-  externe (clé, disque USB) peut être choisi s'il est présent.
+- **Tous les appareils, selon l'espace** (2026-11-01) : la Mi Box S a peu
+  de chances de suffire (≈ 4 Go libres), mais rien n'est réservé à un
+  appareil.
+  - **Estimation apprise par chaîne** : 3 Go/h au départ, puis le débit
+    réel mesuré pendant l'aperçu ou un enregistrement de cette chaîne.
+  - **Réserve système fixe** : toujours au moins 1 Go ou 10 % du disque
+    (le plus grand) laissés libres ; pas d'autre plafond.
+  - **Trop juste à la programmation** : « Il manque environ X Go », avec
+    deux choix : libérer de la place (enregistrements déjà vus en premier)
+    ou programmer quand même. Revérifié au démarrage ; pendant
+    l'enregistrement, arrêt propre en atteignant la réserve (fichier gardé,
+    marqué « incomplet »).
+  - **Affichage** : jauge en haut de « Enregistrements » (« 12 Go utilisés ·
+    environ 6 h restantes »), taille de chaque enregistrement, notification
+    quand il reste moins d'une heure possible.
+  - **Disque** : interne ou volume externe (clé, disque USB) choisi dans
+    Réglages, avec la place libre de chacun ; si le volume choisi est
+    débranché, les enregistrements programmés dessus sont signalés.
 - **Pas de suppression automatique** : un enregistrement ne disparaît que
   supprimé à la main.
 - **Local** : un enregistrement ne se regarde que sur l'appareil qui l'a
@@ -259,10 +272,12 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
 - Le flux est copié tel quel (.ts), sans réencodage. Planning, conflits,
   espace et reprise sont dans le cœur (`core/`) ; Android ne fait que
   l'alarme, le service et l'affichage.
-- **Point ouvert** : la version Google Play. Fonction exposée face aux
-  ayants droit (voir « Image publique et listes M3U »), et le Play Store
-  encadre l'autorisation d'alarme exacte et les services au premier plan
-  (déclaration à justifier). À trancher avec la publication 1.0 (`TODO.md`).
+- **Google Play** (2026-11-01) : l'enregistrement **reste** dans la version
+  des magasins, malgré l'exposition face aux ayants droit (voir « Image
+  publique et listes M3U »). À préparer pour la 1.0 : déclaration de
+  l'autorisation d'alarme exacte et du service au premier plan (type
+  `dataSync` ou `mediaProcessing`), justifiées par l'enregistrement
+  programmé.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
