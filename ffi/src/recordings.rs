@@ -46,6 +46,8 @@ pub struct SchedulePreview {
     pub start: i64,
     pub stop: i64,
     pub margins_shortened: bool,
+    /// Chaîne mesurée pendant l'aperçu ; sinon taille et place manquante à 0.
+    pub measured: bool,
     pub estimated_bytes: u64,
     /// Place qui manquerait sur le disque choisi ; 0 si tout tient.
     pub missing_bytes: u64,
@@ -317,7 +319,9 @@ impl RecordingStore {
             .collect())
     }
 
-    /// Débit mesuré pendant l'aperçu d'une chaîne.
+    /// Débit mesuré pendant l'aperçu d'une chaîne (octets sur secondes de
+    /// flux) : seule source de l'estimation, la dernière mesure remplace la
+    /// précédente.
     pub fn learn_rate(&self, stream_id: i64, bytes: u64, secs: f64) -> Result<()> {
         Ok(self.lock().learn_rate(stream_id, bytes, secs)?)
     }
@@ -429,6 +433,7 @@ impl From<xc::SchedulePreview> for SchedulePreview {
             start: p.start,
             stop: p.stop,
             margins_shortened: p.margins_shortened,
+            measured: p.measured,
             estimated_bytes: p.estimated_bytes,
             missing_bytes: p.missing_bytes,
         }

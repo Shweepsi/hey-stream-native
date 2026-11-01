@@ -247,6 +247,9 @@ fn no_merge_around_another_channel() {
 fn missing_space_is_announced_before_scheduling() {
     let dir = temp_dir("space");
     let mut rec = store(&dir);
+    // Aperçu des deux chaînes mesuré à 3 Go/h.
+    rec.learn_rate(1, 3 * GB, 3600.0).unwrap();
+    rec.learn_rate(2, 3 * GB, 3600.0).unwrap();
     // 1 h + 7 min de marges à 3 Go/h : 3,35 Go ; 2 Go utilisables.
     let space = VolumeSpace {
         total_bytes: 8 * GB,
@@ -255,6 +258,7 @@ fn missing_space_is_announced_before_scheduling() {
     let preview = rec
         .preview(&request(1, "Film", 10_000, 10_000 + HOUR), space, 0)
         .unwrap();
+    assert!(preview.measured);
     assert_eq!(preview.estimated_bytes, 3_350_000_000);
     assert_eq!(preview.missing_bytes, 1_350_000_000);
     assert!(rec.scheduled(true).unwrap().is_empty(), "aperçu sans effet");
@@ -272,23 +276,34 @@ fn missing_space_is_announced_before_scheduling() {
 }
 
 #[test]
-fn the_estimate_learns_each_channel() {
+fn the_estimate_comes_only_from_the_preview() {
     let dir = temp_dir("rate");
     let mut rec = store(&dir);
-    let default = rec.bytes_per_sec(1).unwrap();
-    assert!((default - 3e9 / 3600.0).abs() < 1.0);
+    // Jamais mesurée : ni taille, ni place manquante, même sur un disque plein.
+    assert_eq!(rec.bytes_per_sec(1).unwrap(), None);
+    let full = VolumeSpace {
+        total_bytes: 8 * GB,
+        free_bytes: GB,
+    };
+    let unknown = rec
+        .preview(&request(1, "Film", 10_000, 10_000 + HOUR), full, 0)
+        .unwrap();
+    assert!(!unknown.measured);
+    assert_eq!((unknown.estimated_bytes, unknown.missing_bytes), (0, 0));
     // Trop court : ignoré.
-    rec.learn_rate(1, 1_000, 10.0).unwrap();
-    assert_eq!(rec.bytes_per_sec(1).unwrap(), default);
-    rec.learn_rate(1, 500_000 * 60, 60.0).unwrap();
-    assert!((rec.bytes_per_sec(1).unwrap() - 500_000.0).abs() < 1.0);
-    rec.learn_rate(1, 1_000_000 * 60, 60.0).unwrap();
-    assert!((rec.bytes_per_sec(1).unwrap() - 750_000.0).abs() < 1.0);
-    assert_eq!(rec.bytes_per_sec(2).unwrap(), default);
+    rec.learn_rate(1, 1_000, 5.0).unwrap();
+    assert_eq!(rec.bytes_per_sec(1).unwrap(), None);
+    // La dernière mesure remplace la précédente (chaîne passée en UHD).
+    rec.learn_rate(1, 500_000 * 20, 20.0).unwrap();
+    assert!((rec.bytes_per_sec(1).unwrap().unwrap() - 500_000.0).abs() < 1.0);
+    rec.learn_rate(1, 2_000_000 * 20, 20.0).unwrap();
+    assert!((rec.bytes_per_sec(1).unwrap().unwrap() - 2_000_000.0).abs() < 1.0);
+    assert_eq!(rec.bytes_per_sec(2).unwrap(), None);
     let preview = rec
         .preview(&request(1, "Film", 10_000, 10_000 + HOUR), ROOMY, 0)
         .unwrap();
-    assert_eq!(preview.estimated_bytes, 750_000 * (HOUR as u64 + 420));
+    assert!(preview.measured);
+    assert_eq!(preview.estimated_bytes, 2_000_000 * (HOUR as u64 + 420));
 }
 
 #[test]
@@ -320,9 +335,9 @@ fn usage_and_cleanup_follow_the_files() {
         )
         .unwrap();
     assert_eq!(usage.used_bytes, 3 * GB);
-    // 0,5 Go au débit appris (1 Go/h) : 30 min.
+    // 0,5 Go à 3 Go/h (aucune chaîne mesurée : valeur de la jauge) : 10 min.
     assert_eq!(usage.usable_bytes, GB / 2);
-    assert_eq!(usage.remaining_secs, 1800);
+    assert_eq!(usage.remaining_secs, 600);
     assert!(usage.low);
     assert!(!rec.usage(&dir, ROOMY).unwrap().low);
 
@@ -423,8 +438,8 @@ fn the_capture_report_decides_the_final_state() {
         assert_eq!(r.started_at, Some(start - 120));
         assert_eq!(r.ended_at, Some(start + 1_300));
     }
-    // Débit appris par l'enregistrement : 1 Go en 1 h.
-    assert!((rec.bytes_per_sec(1).unwrap() - GB as f64 / 3600.0).abs() < 1.0);
+    // Seul l'aperçu mesure le débit : un enregistrement ne le change pas.
+    assert_eq!(rec.bytes_per_sec(1).unwrap(), None);
 }
 
 #[test]

@@ -146,7 +146,7 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   possibilité d'arrêter l'enregistrement). Lecture en cours à l'heure de
   début : compte à rebours d'1 min, puis l'enregistrement gagne, sauf
   annulation.
-- Espace : estimation apprise par chaîne (3 Go/h au départ) ; 10 % du
+- Espace : estimation par la mesure de l'aperçu de la chaîne ; 10 % du
   disque toujours laissés libres, entre 1 Go et 3 Go. Trop juste :
   prévenir (« il manque X Go ») et laisser libérer de la place ou
   programmer quand même ;

@@ -578,8 +578,12 @@ class LiveViewModel(
 
     private var previewJob: Job? = null
 
-    /** Taille, fusion et place manquante, recalculées à chaque changement de marge. */
-    private fun refreshRecordPreview() {
+    /**
+     * Taille, fusion et place manquante, recalculées à chaque changement de
+     * marge. Chaîne pas encore mesurée : relu toutes les 3 s, le temps que
+     * l'aperçu donne sa mesure (10 s de flux), une minute au plus.
+     */
+    private fun refreshRecordPreview(attemptsLeft: Int = MEASURE_POLLS) {
         val repo = recordings ?: return
         val dialog = _state.value.recordDialog ?: return
         previewJob?.cancel()
@@ -596,6 +600,10 @@ class LiveViewModel(
                         error = result.exceptionOrNull()?.toUiText(),
                     ),
                 )
+            }
+            if (result.getOrNull()?.measured == false && attemptsLeft > 0) {
+                delay(MEASURE_POLL_MS)
+                if (_state.value.recordDialog?.margins == dialog.margins) refreshRecordPreview(attemptsLeft - 1)
             }
         }
     }
@@ -728,6 +736,10 @@ class LiveViewModel(
     }
 
     private companion object {
+        /** Dialogue « Enregistrer » : attente de la mesure de l'aperçu. */
+        const val MEASURE_POLL_MS = 3_000L
+        const val MEASURE_POLLS = 20
+
         /** Aperçu depuis le fichier en cours : environ 5 s avant la fin (à 3 Go/h). */
         const val LIVE_EDGE_BYTES = 4L * 1024 * 1024
 

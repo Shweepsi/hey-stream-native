@@ -20,8 +20,6 @@ import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.LoadEventInfo
-import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
@@ -91,11 +89,19 @@ class PlayerController(private val context: Context) {
      */
     var recordingActive: Boolean = false
 
-    /** Débit mesuré d'une chaîne regardée (estimation de la place d'un enregistrement). */
+    /**
+     * Débit mesuré d'une chaîne regardée (seule source de l'estimation de la
+     * place d'un enregistrement) : octets reçus sur secondes **de flux**.
+     */
     var onLiveRate: ((streamId: Long, bytes: Long, secs: Double) -> Unit)? = null
-    private var liveBytes = 0L
-    private var livePlayingMs = 0L
-    private var livePlayingSince = 0L
+
+    /** Octets reçus du fournisseur (fil de chargement de Media3). */
+    private val received = java.util.concurrent.atomic.AtomicLong()
+
+    /** Début de la mesure en cours : octets reçus et position chargée dans le flux. */
+    private var sampleBytes = -1L
+    private var sampleMediaMs = 0L
+    private val sampleTick = Runnable { sampleLiveRate() }
 
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
@@ -144,7 +150,7 @@ class PlayerController(private val context: Context) {
         if (current == null || localSource != null) return
         cancelRetry()
         if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
-        reportLiveRate()
+        resetSample()
         exoPlayer?.stop()
         resumeOnForeground = false
         _status.value = PlaybackStatus(active = true, live = live, blocked = true)
@@ -161,7 +167,7 @@ class PlayerController(private val context: Context) {
     fun stop() {
         stats?.finish(exoPlayer)
         stats = null
-        reportLiveRate()
+        resetSample()
         cancelRetry()
         current = null
         localSource = null
@@ -250,7 +256,7 @@ class PlayerController(private val context: Context) {
             // Une seule connexion : celle de l'enregistrement. Rien ne s'ouvre.
             stats?.finish(exoPlayer)
             stats = null
-            reportLiveRate()
+            resetSample()
             cancelRetry()
             exoPlayer?.run {
                 stop()
@@ -270,7 +276,7 @@ class PlayerController(private val context: Context) {
     private fun start(item: MediaItem, live: Boolean, startMs: Long, local: DataSource.Factory?) {
         stats?.finish(exoPlayer)
         stats = if (Telemetry.active && local == null) PlaybackStats(item, live, startMs) else null
-        reportLiveRate()
+        resetSample()
         cancelRetry()
         localSource = local
         this.live = live
@@ -300,6 +306,8 @@ class PlayerController(private val context: Context) {
             return
         }
         stats?.opening()
+        // Flux (r)ouvert : la mesure du débit repart à sa première lecture.
+        resetSample()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
         player.stop()
@@ -318,6 +326,7 @@ class PlayerController(private val context: Context) {
 
     private fun create(): ExoPlayer {
         val http = DefaultHttpDataSource.Factory()
+            .setTransferListener(counter)
             .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
             .setConnectTimeoutMs(10_000)
             .setReadTimeoutMs(15_000)
@@ -357,24 +366,58 @@ class PlayerController(private val context: Context) {
         .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
         .setConstantBitrateSeekingEnabled(true)
 
-    /**
-     * Débit de la chaîne regardée : octets chargés rapportés au temps lu
-     * plus le tampon (ce qui est chargé d'avance). Une mesure de moins de
-     * 30 s est ignorée par le cœur.
-     */
-    private fun reportLiveRate() {
-        val item = current
-        val player = exoPlayer
-        val report = onLiveRate
-        if (report != null && item != null && live && localSource == null && player != null) {
-            if (livePlayingSince > 0) livePlayingMs += android.os.SystemClock.elapsedRealtime() - livePlayingSince
-            val secs = (livePlayingMs + player.totalBufferedDuration.coerceAtLeast(0)) / 1000.0
-            val streamId = item.localConfiguration?.uri?.toString()?.let { describeStreamUrl(it) }?.streamId
-            if (streamId != null && liveBytes > 0) report(streamId, liveBytes, secs)
+    /** Compte les octets reçus du fournisseur, pour la mesure du débit. */
+    private val counter = object : androidx.media3.datasource.TransferListener {
+        override fun onTransferInitializing(source: DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) = Unit
+
+        override fun onTransferStart(source: DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) = Unit
+
+        override fun onBytesTransferred(source: DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
+            received.addAndGet(bytesTransferred.toLong())
         }
-        liveBytes = 0
-        livePlayingMs = 0
-        livePlayingSince = 0
+
+        override fun onTransferEnd(source: DataSource, dataSpec: androidx.media3.datasource.DataSpec, isNetwork: Boolean) = Unit
+    }
+
+    /**
+     * Mesure du débit d'une chaîne en direct : octets reçus rapportés au temps
+     * **de flux** chargé (position chargée), pas au temps réel. La rafale de
+     * chargement du départ (avant la lecture) et le tampon ne faussent donc
+     * rien. Démarre à la première lecture, puis une mesure toutes les
+     * [SAMPLE_MEDIA_MS] de flux, tant que la chaîne joue.
+     */
+    private fun startSample() {
+        handler.removeCallbacks(sampleTick)
+        val player = exoPlayer ?: return
+        if (!live || localSource != null || onLiveRate == null) return
+        sampleBytes = received.get()
+        sampleMediaMs = player.bufferedPosition
+        handler.postDelayed(sampleTick, SAMPLE_TICK_MS)
+    }
+
+    private fun sampleLiveRate() {
+        val player = exoPlayer ?: return
+        val report = onLiveRate ?: return
+        val item = current ?: return
+        if (!live || localSource != null || sampleBytes < 0) return
+        val mediaMs = player.bufferedPosition - sampleMediaMs
+        val bytes = received.get() - sampleBytes
+        if (mediaMs >= SAMPLE_MEDIA_MS && bytes > 0) {
+            val streamId = item.localConfiguration?.uri?.toString()?.let { describeStreamUrl(it) }?.streamId
+            if (streamId != null) report(streamId, bytes, mediaMs / 1000.0)
+            sampleBytes = received.get()
+            sampleMediaMs = player.bufferedPosition
+        } else if (mediaMs < 0) {
+            // Position repartie en arrière (discontinuité du flux) : mesure reprise.
+            sampleBytes = received.get()
+            sampleMediaMs = player.bufferedPosition
+        }
+        handler.postDelayed(sampleTick, SAMPLE_TICK_MS)
+    }
+
+    private fun resetSample() {
+        handler.removeCallbacks(sampleTick)
+        sampleBytes = -1
     }
 
     private val listener = object : Player.Listener {
@@ -388,15 +431,6 @@ class PlayerController(private val context: Context) {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             stats?.playing(isPlaying)
-            if (live && localSource == null) {
-                val now = android.os.SystemClock.elapsedRealtime()
-                if (isPlaying) {
-                    livePlayingSince = now
-                } else if (livePlayingSince > 0) {
-                    livePlayingMs += now - livePlayingSince
-                    livePlayingSince = 0
-                }
-            }
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
@@ -412,6 +446,8 @@ class PlayerController(private val context: Context) {
             stats?.state(playbackState)
             when (playbackState) {
                 Player.STATE_READY -> {
+                    // Première lecture du direct : la mesure du débit commence.
+                    if (sampleBytes < 0) startSample()
                     attempt = 0
                     _status.update { it.copy(reconnectAttempt = 0, failed = false, ended = false) }
                 }
@@ -432,10 +468,6 @@ class PlayerController(private val context: Context) {
     private var stats: PlaybackStats? = null
 
     private val analytics = object : AnalyticsListener {
-        override fun onLoadCompleted(eventTime: AnalyticsListener.EventTime, loadEventInfo: LoadEventInfo, mediaLoadData: MediaLoadData) {
-            if (live && localSource == null) liveBytes += loadEventInfo.bytesLoaded.coerceAtLeast(0)
-        }
-
         override fun onVideoInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
             format: Format,
@@ -518,5 +550,9 @@ class PlayerController(private val context: Context) {
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
         private const val MAX_ATTEMPTS = 6
+
+        /** Une mesure du débit toutes les 10 s de flux (le cœur ignore moins). */
+        const val SAMPLE_MEDIA_MS = 10_000L
+        private const val SAMPLE_TICK_MS = 2_000L
     }
 }

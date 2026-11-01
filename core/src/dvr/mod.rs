@@ -44,10 +44,7 @@ pub const LOW_SPACE_SECS: i64 = 60 * 60;
 /// Lu au-delà de 95 %, un enregistrement est vu.
 const WATCHED_RATIO: f64 = 0.95;
 /// Une mesure de débit plus courte n'est pas retenue.
-const MIN_RATE_SAMPLE_SECS: f64 = 30.0;
-/// Poids maximal de l'historique d'une chaîne : les mesures récentes
-/// comptent autant que les trois dernières heures.
-const MAX_RATE_WEIGHT_SECS: f64 = 3.0 * 3600.0;
+const MIN_RATE_SAMPLE_SECS: f64 = 10.0;
 
 const MIGRATIONS: &[&str] = &["
     CREATE TABLE recording (
@@ -134,10 +131,13 @@ pub struct SchedulePreview {
     pub stop: i64,
     /// Marges raccourcies à cause d'un autre enregistrement.
     pub margins_shortened: bool,
-    /// Taille estimée de l'enregistrement (fusion comprise).
+    /// La chaîne a été mesurée pendant l'aperçu : sans mesure, ni taille
+    /// estimée ni place manquante pour cet enregistrement.
+    pub measured: bool,
+    /// Taille estimée de l'enregistrement (fusion comprise) ; 0 sans mesure.
     pub estimated_bytes: u64,
-    /// Place qui manquerait pour tous les enregistrements programmés sur ce
-    /// disque ; 0 si tout tient.
+    /// Place qui manquerait pour les enregistrements programmés sur ce disque
+    /// dont la chaîne est mesurée ; 0 si tout tient.
     pub missing_bytes: u64,
 }
 
@@ -542,12 +542,6 @@ impl Recordings {
                 now
             ],
         )?;
-        learn_rate(
-            &tx,
-            recording.stream_id,
-            report.written,
-            report.received_secs as f64,
-        )?;
         tx.commit()?;
         self.recording(id)?.ok_or(Error::RecordingNotFound)
     }
@@ -721,15 +715,15 @@ impl Recordings {
         Ok(picked)
     }
 
-    /// Débit mesuré d'une chaîne pendant l'aperçu en Direct : améliore
-    /// l'estimation de ses enregistrements. Une mesure de moins de 30 s
-    /// est ignorée.
+    /// Débit mesuré d'une chaîne pendant l'aperçu en Direct, seule source de
+    /// l'estimation : la dernière mesure remplace la précédente. Une mesure
+    /// de moins de 10 s de flux est ignorée.
     pub fn learn_rate(&mut self, stream_id: i64, bytes: u64, secs: f64) -> Result<()> {
         learn_rate(&self.conn, stream_id, bytes, secs)
     }
 
-    /// Débit estimé d'une chaîne, en octets par seconde.
-    pub fn bytes_per_sec(&self, stream_id: i64) -> Result<f64> {
+    /// Débit mesuré d'une chaîne, en octets par seconde ; `None` sans mesure.
+    pub fn bytes_per_sec(&self, stream_id: i64) -> Result<Option<f64>> {
         rate(&self.conn, stream_id)
     }
 
@@ -1004,9 +998,11 @@ fn describe(
     let dir: String = tx.query_row("SELECT dir FROM recording WHERE id = ?1", [id], |r| {
         r.get(0)
     })?;
-    // Place nécessaire : la suite de tous les enregistrements de ce disque.
+    // Place nécessaire : la suite des enregistrements de ce disque dont la
+    // chaîne est mesurée (sans mesure, rien d'estimé).
     let mut needed = 0u64;
     let mut estimated = 0u64;
+    let mut measured = false;
     for p in &planned {
         let Some(s) = windows.iter().find(|s| s.id == p.id) else {
             continue;
@@ -1016,9 +1012,13 @@ fn describe(
             params![p.id, dir],
             |r| r.get(0),
         )?;
-        let bytes = space::estimate(rate(tx, p.stream_id)?, s.stop - s.start.max(now));
+        let Some(rate) = rate(tx, p.stream_id)? else {
+            continue;
+        };
+        let bytes = space::estimate(rate, s.stop - s.start.max(now));
         if p.id == id {
-            estimated = space::estimate(rate(tx, p.stream_id)?, s.stop - s.start);
+            measured = true;
+            estimated = space::estimate(rate, s.stop - s.start);
         }
         if same_dir {
             needed += bytes;
@@ -1029,6 +1029,7 @@ fn describe(
         start: slot.start,
         stop: slot.stop,
         margins_shortened: slot.start > this.start || slot.stop < this.stop,
+        measured,
         estimated_bytes: estimated,
         missing_bytes: needed.saturating_sub(space.usable_bytes()),
     })
@@ -1063,7 +1064,7 @@ fn state_of(conn: &Connection, id: i64) -> Result<Option<RecordingState>> {
     Ok(state.as_deref().and_then(RecordingState::from_key))
 }
 
-fn rate(conn: &Connection, stream_id: i64) -> Result<f64> {
+fn rate(conn: &Connection, stream_id: i64) -> Result<Option<f64>> {
     let rate: Option<f64> = conn
         .query_row(
             "SELECT bytes_per_sec FROM channel_rate WHERE stream_id = ?1",
@@ -1071,39 +1072,18 @@ fn rate(conn: &Connection, stream_id: i64) -> Result<f64> {
             |r| r.get(0),
         )
         .optional()?;
-    Ok(rate
-        .filter(|r| r.is_finite() && *r > 0.0)
-        .unwrap_or_else(space::default_bytes_per_sec))
+    Ok(rate.filter(|r| r.is_finite() && *r > 0.0))
 }
 
-/// Moyenne pondérée par la durée des mesures, l'historique plafonné à 3 h
-/// pour suivre un changement de qualité de la chaîne.
+/// Dernière mesure de l'aperçu : elle remplace la précédente.
 fn learn_rate(conn: &Connection, stream_id: i64, bytes: u64, secs: f64) -> Result<()> {
     if !secs.is_finite() || secs < MIN_RATE_SAMPLE_SECS || bytes == 0 {
         return Ok(());
     }
-    let sample = bytes as f64 / secs;
-    let previous: Option<(f64, f64)> = conn
-        .query_row(
-            "SELECT bytes_per_sec, weight_secs FROM channel_rate WHERE stream_id = ?1",
-            [stream_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    let (rate, weight) = match previous {
-        Some((rate, weight)) if rate.is_finite() && weight.is_finite() && weight > 0.0 => {
-            let weight = weight.min(MAX_RATE_WEIGHT_SECS);
-            (
-                (rate * weight + sample * secs) / (weight + secs),
-                weight + secs,
-            )
-        }
-        _ => (sample, secs),
-    };
     conn.execute(
         "INSERT OR REPLACE INTO channel_rate (stream_id, bytes_per_sec, weight_secs)
          VALUES (?1, ?2, ?3)",
-        params![stream_id, rate, weight.min(MAX_RATE_WEIGHT_SECS)],
+        params![stream_id, bytes as f64 / secs, secs],
     )?;
     Ok(())
 }

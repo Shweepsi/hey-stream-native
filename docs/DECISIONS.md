@@ -232,8 +232,14 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
 - **Tous les appareils, selon l'espace** (2026-11-01) : la Mi Box S a peu
   de chances de suffire (≈ 4 Go libres), mais rien n'est réservé à un
   appareil.
-  - **Estimation apprise par chaîne** : 3 Go/h au départ, puis le débit
-    réel mesuré pendant l'aperçu ou un enregistrement de cette chaîne.
+  - **Estimation par la mesure de l'aperçu seulement** (2026-11-01) : octets
+    reçus rapportés au temps de flux chargé (pas au temps réel, faussé par
+    la rafale du départ et le tampon), une mesure toutes les 10 s de flux ;
+    la dernière remplace la précédente. Le dialogue « Enregistrer » attend
+    la mesure de l'aperçu de la chaîne ; sans mesure, ni taille ni place
+    manquante (plus de 3 Go/h par défaut, qui comptait une chaîne UHD comme
+    une HD). La jauge (« environ X h restantes ») prend la moyenne des
+    chaînes mesurées, 3 Go/h tant qu'aucune ne l'est.
   - **Réserve système fixe** : toujours 10 % du disque laissés libres, au
     moins 1 Go et au plus 3 Go (plafond du 2026-11-01 : sur une tablette de
     256 Go, 10 % interdirait d'enregistrer avec 20 Go libres) ; pas d'autre

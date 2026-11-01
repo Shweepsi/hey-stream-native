@@ -32,7 +32,7 @@ Une entrée par version, la plus récente en haut. La version vient de
     gardés.
 - Cœur (`core/src/dvr/`) : planning dans sa propre base (fusion sur une même
   chaîne, marges partagées entre deux chaînes, vrai chevauchement refusé),
-  estimation de la place (3 Go/h puis débit appris par chaîne, réserve de
+  estimation de la place (débit mesuré pendant l'aperçu, réserve de
   10 % du disque entre 1 et 3 Go), copie du flux telle quelle dans un seul fichier
   (reconnexion avec attentes croissantes puis un essai par minute jusqu'à la
   fin, arrêt propre à la réserve, « incomplet » au-delà d'une minute de
