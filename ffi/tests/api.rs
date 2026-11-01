@@ -676,8 +676,9 @@ fn a_recording_is_scheduled_copied_and_listed() {
             before_secs: 0,
             after_secs: 0,
         },
+        buffered_from: None,
     };
-    assert_eq!(store.preview(request.clone()).unwrap().merged_into, None);
+    assert_eq!(store.preview(request.clone(), 0).unwrap().merged_into, None);
     let id = store.schedule(request).unwrap();
     let due = store
         .due()
@@ -717,6 +718,96 @@ fn a_recording_is_scheduled_copied_and_listed() {
     core.sign_out().unwrap();
     assert_eq!(store.cancel_all_scheduled().unwrap(), 0);
     assert!(std::path::Path::new(&recording.path).exists());
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_timeshift_buffer_is_played_and_recorded_from_its_past() {
+    use heystream::{
+        CaptureEnd, GuideProgramme, RecordingControl, RecordingMargins, RecordingStore,
+        ScheduleRequest, TuneEnd,
+    };
+    let panel = panel(vec![]);
+    panel.runtime.block_on(
+        Mock::given(method("GET"))
+            .and(wiremock::matchers::path("/live/u/p/5.ts"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0x47u8; 188 * 4]))
+            .mount(&panel.server),
+    );
+    let dir = temp_dir("timeshift");
+    let core = open(&panel, &dir);
+    let store = RecordingStore::new(dir.to_string_lossy().into()).unwrap();
+    let files = dir.join("enregistrements");
+    store.set_directory(files.to_string_lossy().into()).unwrap();
+    let timeshift = core
+        .open_timeshift(5, files.to_string_lossy().into())
+        .unwrap();
+    let run = {
+        let core = core.clone();
+        let timeshift = timeshift.clone();
+        std::thread::spawn(move || core.run_timeshift(timeshift).unwrap())
+    };
+    let started = std::time::Instant::now();
+    let window = loop {
+        if let Some(window) = timeshift.window() {
+            break window;
+        }
+        assert!(started.elapsed().as_secs() < 10, "aucune donnée");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    let spot = timeshift.locate(window.oldest).unwrap();
+    let segment = timeshift.segment(spot.seq).unwrap();
+    assert!(segment.path.starts_with(&*files.to_string_lossy()));
+    assert!(std::path::Path::new(&spot.path).exists());
+
+    // « Enregistrer » pendant le différé : depuis le passé du tampon.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let request = ScheduleRequest {
+        stream_id: 5,
+        channel: "France Info".into(),
+        is_adult: false,
+        programme: GuideProgramme {
+            title: "Journal".into(),
+            description: None,
+            start: now - 600,
+            stop: now + 2,
+        },
+        margins: RecordingMargins {
+            before_secs: 0,
+            after_secs: 0,
+        },
+        buffered_from: Some(window.oldest as i64),
+    };
+    let preview = store.preview(request.clone(), timeshift.bytes()).unwrap();
+    assert_eq!(preview.start, window.oldest as i64);
+    let id = store.schedule(request).unwrap();
+    let due = store.due().unwrap().unwrap();
+    let follower = timeshift.attach(due.start).expect("copie en cours");
+    // Le spectateur s'en va : l'enregistrement garde la copie en vie.
+    timeshift.set_viewing(false);
+    match store.begin_from(id, Some(follower.start())) {
+        Ok(job) => {
+            let control = RecordingControl::new();
+            let report = core
+                .record_following(follower, job, control.clone())
+                .unwrap();
+            assert_eq!(report.end, CaptureEnd::Finished);
+            assert!(control.bytes() >= 188 * 4);
+            store.finish(id, report).unwrap();
+        }
+        // Disque de test trop plein (réserve) : seul le refus est vérifié.
+        Err(HeyStreamError::NotEnoughSpace) => follower.release(),
+        Err(other) => panic!("{other:?}"),
+    }
+    assert_eq!(run.join().unwrap(), TuneEnd::Stopped);
+    drop(timeshift);
+    heystream::purge_timeshift(files.to_string_lossy().into());
+    assert!(!files.join(".timeshift").exists());
     drop(core);
     drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();

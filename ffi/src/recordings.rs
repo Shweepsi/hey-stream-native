@@ -38,6 +38,10 @@ pub struct ScheduleRequest {
     pub is_adult: bool,
     pub programme: GuideProgramme,
     pub margins: RecordingMargins,
+    /// Plus ancien moment du différé de cette chaîne, si on la regarde :
+    /// l'enregistrement peut commencer dans ce passé.
+    #[uniffi(default = None)]
+    pub buffered_from: Option<i64>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -199,12 +203,14 @@ impl RecordingStore {
     }
 
     /// Ce que donnerait `schedule` (fusion, marges, taille, place manquante
-    /// sur le disque choisi). Rien n'est enregistré.
-    pub fn preview(&self, request: ScheduleRequest) -> Result<SchedulePreview> {
+    /// sur le disque choisi). Rien n'est enregistré. `buffer_bytes` : place
+    /// prise par le différé sur ce disque, comptée comme libre (il la cède).
+    pub fn preview(&self, request: ScheduleRequest, buffer_bytes: u64) -> Result<SchedulePreview> {
         let mut store = self.lock();
         let dir = store.directory()?.ok_or(HeyStreamError::VolumeMissing)?;
         let _ = std::fs::create_dir_all(&dir);
-        let space = xc::volume_space(&dir).ok_or(HeyStreamError::VolumeMissing)?;
+        let mut space = xc::volume_space(&dir).ok_or(HeyStreamError::VolumeMissing)?;
+        space.free_bytes = space.free_bytes.saturating_add(buffer_bytes);
         Ok(store.preview(&request.into(), space, now())?.into())
     }
 
@@ -235,12 +241,19 @@ impl RecordingStore {
     /// Démarre ou reprend la copie : la place est revérifiée sur le disque
     /// de l'enregistrement.
     pub fn begin(&self, id: i64) -> Result<CaptureJob> {
+        self.begin_from(id, None)
+    }
+
+    /// Comme `begin`, pour un enregistrement qui suit le différé de sa
+    /// chaîne : `buffered_from` est `TimeshiftFollower::start` (seul le temps
+    /// avant lui est perdu).
+    pub fn begin_from(&self, id: i64, buffered_from: Option<i64>) -> Result<CaptureJob> {
         let mut store = self.lock();
         let recording = store
             .recording(id)?
             .ok_or(HeyStreamError::RecordingNotFound)?;
         let space = recording.path.parent().and_then(xc::volume_space);
-        Ok(store.begin(id, space, now())?.into())
+        Ok(store.begin_from(id, space, now(), buffered_from)?.into())
     }
 
     pub fn update_progress(&self, id: i64, bytes: u64) -> Result<()> {
@@ -424,8 +437,7 @@ impl From<ScheduleRequest> for xc::ScheduleRequest {
             is_adult: r.is_adult,
             programme: r.programme.into(),
             margins: r.margins.into(),
-            // Le différé n'est pas encore branché côté app.
-            buffered_from: None,
+            buffered_from: r.buffered_from,
         }
     }
 }

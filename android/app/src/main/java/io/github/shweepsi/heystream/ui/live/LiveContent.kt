@@ -264,9 +264,20 @@ private fun fullscreenKey(event: KeyEvent, actions: LiveActions): Boolean = when
         if (event.type == KeyEventType.KeyDown) actions.onFullscreenKey(ok = false)
         true
     }
-    // Pas de zapping en plein écran (spec). Menu et Espace iraient à la ligne qui garde le
-    // focus derrière la vidéo (favori ou lecture d'une autre chaîne, sans rien montrer).
-    Key.DirectionLeft, Key.DirectionRight, Key.ChannelUp, Key.ChannelDown, Key.PageUp, Key.PageDown, Key.Tab,
+    // Différé : −10 s et +30 s, comme les films (pas de zapping en plein écran, spec).
+    Key.DirectionLeft, Key.DirectionRight, Key.MediaRewind, Key.MediaFastForward -> {
+        if (event.type == KeyEventType.KeyDown) {
+            actions.onTimeshiftSeek(forward = event.key == Key.DirectionRight || event.key == Key.MediaFastForward)
+        }
+        true
+    }
+    Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> {
+        if (event.type == KeyEventType.KeyUp) actions.onTimeshiftPause()
+        true
+    }
+    // Menu et Espace iraient à la ligne qui garde le focus derrière la vidéo (favori ou
+    // lecture d'une autre chaîne, sans rien montrer).
+    Key.ChannelUp, Key.ChannelDown, Key.PageUp, Key.PageDown, Key.Tab,
     Key.Menu, Key.Spacebar, Key.MoveHome, Key.MoveEnd,
     -> true
     else -> false

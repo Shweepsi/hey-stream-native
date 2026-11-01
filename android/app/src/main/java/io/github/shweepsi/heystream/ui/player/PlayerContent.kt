@@ -449,7 +449,7 @@ private fun BoxScope.SeekRipple(flash: TapFlash) {
  * en fondu, grossit un instant à chaque appui ; reste du côté du saut.
  */
 @Composable
-private fun BoxScope.SeekPill(offsetMs: Long?) {
+internal fun BoxScope.SeekPill(offsetMs: Long?) {
     // Dernière valeur gardée pendant le fondu de sortie.
     var shown by remember { mutableLongStateOf(0L) }
     if (offsetMs != null) shown = offsetMs

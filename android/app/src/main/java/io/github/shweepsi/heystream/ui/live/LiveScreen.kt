@@ -51,6 +51,7 @@ fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit, onOpenRecording: (Lo
             initialChannelId,
             recordings = graph.recordings,
             canScheduleExact = { RecordingScheduler.canScheduleExact(context.applicationContext) },
+            timeshift = graph.timeshift,
         )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()

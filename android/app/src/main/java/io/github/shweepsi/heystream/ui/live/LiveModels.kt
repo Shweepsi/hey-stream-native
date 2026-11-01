@@ -133,6 +133,8 @@ data class LiveUiState(
     /** Plein écran : bandeau d'information (chaîne et programme). */
     val overlayVisible: Boolean = false,
     val playback: LivePlayback = LivePlayback.Idle,
+    /** Direct lu depuis le différé : barre de temps du plein écran. */
+    val timeshift: TimeshiftUi? = null,
     /** Confirmation brève (favori ajouté ou retiré). */
     val message: UiText? = null,
     val pinRequest: PinRequest? = null,
@@ -170,6 +172,15 @@ interface LiveActions {
 
     /** Télécommande en plein écran : OK, haut ou bas. */
     fun onFullscreenKey(ok: Boolean) {}
+
+    /** Différé : −10 s (gauche) ou +30 s (droite), appuis cumulés. */
+    fun onTimeshiftSeek(forward: Boolean) {}
+
+    /** Différé : pause ou lecture (touche lecture / pause). */
+    fun onTimeshiftPause() {}
+
+    /** Différé : retour au direct. */
+    fun onTimeshiftLive() {}
 
     fun onExitFullscreen() {}
 

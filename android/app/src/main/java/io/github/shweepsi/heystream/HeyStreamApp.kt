@@ -15,6 +15,7 @@ import io.github.shweepsi.heystream.data.RefreshWorker
 import io.github.shweepsi.heystream.data.Telemetry
 import io.github.shweepsi.heystream.data.TelemetryWorker
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.player.TimeshiftHolder
 import io.github.shweepsi.heystream.recording.RecordingNotifications
 import io.github.shweepsi.heystream.recording.RecordingRepository
 import io.github.shweepsi.heystream.recording.RecordingScheduler
@@ -35,6 +36,9 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
 
     /** Le lecteur vidéo (un seul pour toute l'app : jamais deux flux). */
     val player: PlayerController by lazy { PlayerController(this) }
+
+    /** Différé du direct (un seul : une seule connexion). */
+    val timeshift: TimeshiftHolder by lazy { TimeshiftHolder() }
 
     /** Enregistrements programmés et faits (gardés après un changement d'identifiant). */
     val recordings: RecordingRepository by lazy { RecordingRepository(this) }
@@ -57,6 +61,14 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
                 runCatching { recordings.withStore { it.recover() } }.getOrNull()
                     ?.forEach { RecordingNotifications.result(this@HeyStreamApp, it) }
             }
+            // Tampons du différé laissés par un arrêt brutal : effacés (aucun en cours au lancement).
+            if (timeshift.current.value == null) {
+                runCatching {
+                    recordings.withStore { store ->
+                        store.directory()?.let { io.github.shweepsi.heystream.core.purgeTimeshift(it) }
+                    }
+                }
+            }
             recordings.changed()
         }
         // Enregistrement en cours : aucun autre flux ne s'ouvre (une seule connexion).
@@ -69,6 +81,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
      */
     private fun onAccountChanged() {
         recordings.active.value?.control?.stop()
+        timeshift.current.value?.stop()
         scope.launch {
             runCatching { recordings.withStore { it.cancelAllScheduled() } }
             recordings.changed()

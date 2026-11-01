@@ -16,4 +16,11 @@
     <string name="live_recents_empty_message">Les chaînes que vous regardez apparaissent ici.</string>
     <string name="live_fullscreen">Plein écran</string>
     <string name="live_exit_fullscreen">Quitter le plein écran</string>
+    <!-- Différé sur le direct -->
+    <string name="timeshift_live">Direct</string>
+    <string name="timeshift_behind">−%1$s</string>
+    <string name="timeshift_paused">En pause · %1$s</string>
+    <string name="timeshift_go_live">Revenir au direct</string>
+    <string name="timeshift_bar">Différé : %1$s, %2$s disponibles</string>
+    <string name="timeshift_resume_soon">Tampon plein : la lecture reprend dans %1$d s</string>
 </resources>

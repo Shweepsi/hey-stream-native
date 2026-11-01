@@ -148,13 +148,11 @@ async fn the_buffer_indexes_runs_and_gaps() {
     // Plus personne ne regarde : la copie s'arrête.
     tuner.set_viewing(false);
     assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+    // Le tampon s'efface aussitôt, même si l'app garde l'objet.
     let folder = tuner.directory().to_path_buf();
-    assert!(folder.exists());
-    drop(tuner);
-    assert!(
-        !folder.exists(),
-        "le tampon est effacé avec le dernier Tuner"
-    );
+    assert!(!folder.exists(), "tampon effacé à la fin de la copie");
+    assert!(tuner.window().is_none());
+    assert_eq!(tuner.bytes(), 0);
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -45,6 +45,7 @@ import io.github.shweepsi.heystream.ui.components.HsButton
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.LiveBadge
 import io.github.shweepsi.heystream.ui.currentLocale
+import io.github.shweepsi.heystream.ui.player.SeekPill
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -100,11 +101,17 @@ internal fun LiveVideo(
                     .size(if (isTv) 36.dp else 48.dp),
             )
         } else if (!fullscreen) {
+            val timeshift = state.timeshift
             LiveBadge(
                 Modifier
                     .align(Alignment.TopStart)
                     .padding(inset),
-                text = if (state.fromRecording) stringResource(R.string.recording_from_file) else null,
+                text = when {
+                    state.fromRecording -> stringResource(R.string.recording_from_file)
+                    // Aperçu en retard sur le direct (revenu du plein écran en différé).
+                    timeshift != null && !timeshift.atLive -> stringResource(R.string.timeshift_behind, Formats.clock(timeshift.behindSecs * 1000))
+                    else -> null
+                },
             )
         }
         PlaybackMessage(
@@ -115,11 +122,27 @@ internal fun LiveVideo(
                 .align(Alignment.Center)
                 .padding(inset),
         )
-        if (fullscreen && state.overlayVisible && preview != null) {
+        val timeshift = state.timeshift
+        if (fullscreen && timeshift != null) {
+            SeekPill(timeshift.pendingSeekSecs?.let { it * 1000 })
+            timeshift.resumeInSecs?.let { secs ->
+                MediaText(
+                    stringResource(R.string.timeshift_resume_soon, secs.toInt()),
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(top = dimens.screenVertical),
+                )
+            }
+        }
+        // En pause dans le différé, le bandeau reste : on voit où l'on est.
+        if (fullscreen && (state.overlayVisible || timeshift?.paused == true) && preview != null) {
             // Plein écran : barres du système masquées, mais pas l'encoche de la caméra.
             FullscreenInfo(
                 preview = preview,
                 nowSecs = nowSecs,
+                timeshift = timeshift,
+                onLive = actions::onTimeshiftLive,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -192,9 +215,15 @@ private fun MediaText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Bandeau du plein écran : chaîne, programme en cours et sa progression. */
+/** Bandeau du plein écran : chaîne, programme en cours et sa progression, et la barre du différé. */
 @Composable
-private fun FullscreenInfo(preview: LivePreview, nowSecs: Long, modifier: Modifier = Modifier) {
+private fun FullscreenInfo(
+    preview: LivePreview,
+    nowSecs: Long,
+    timeshift: TimeshiftUi?,
+    onLive: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val dimens = Hs.dimens
     val locale = currentLocale()
     Row(
@@ -237,6 +266,75 @@ private fun FullscreenInfo(preview: LivePreview, nowSecs: Long, modifier: Modifi
                         .width(if (dimens.isTv) 240.dp else 280.dp),
                 )
             }
+            if (timeshift != null) TimeshiftBar(timeshift, onLive)
+        }
+    }
+}
+
+/**
+ * Barre du différé : la dernière heure, le direct à droite. La partie
+ * disponible grandit puis glisse ; le curseur montre où l'on regarde, et le
+ * retard sur le direct s'affiche à côté (« Direct » à jour).
+ */
+@Composable
+private fun TimeshiftBar(timeshift: TimeshiftUi, onLive: () -> Unit) {
+    val dimens = Hs.dimens
+    val height = dimens.progressHeight
+    val shape = RoundedCornerShape(height / 2)
+    val behind = if (timeshift.atLive) {
+        stringResource(R.string.timeshift_live)
+    } else {
+        stringResource(R.string.timeshift_behind, Formats.clock(timeshift.behindSecs * 1000))
+    }
+    val label = stringResource(R.string.timeshift_bar, behind, Formats.clock(timeshift.availableSecs * 1000))
+    Row(
+        Modifier
+            .padding(top = 8.dp)
+            .semantics(mergeDescendants = true) { contentDescription = label },
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .width(if (dimens.isTv) 240.dp else 280.dp)
+                .height(height)
+                .clip(shape)
+                .background(OnMediaTrack.copy(alpha = 0.15f)),
+        ) {
+            // Partie disponible, collée au direct (à droite).
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(timeshift.availableFraction)
+                    .align(Alignment.CenterEnd)
+                    .clip(shape)
+                    .background(OnMediaTrack),
+            )
+            // Regardé : du début de la partie disponible au curseur.
+            val start = 1f - timeshift.availableFraction
+            val cursor = timeshift.cursorFraction.coerceAtLeast(start)
+            if (cursor > 0f) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(cursor)) {
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(((cursor - start) / cursor).coerceIn(0f, 1f))
+                            .align(Alignment.CenterEnd)
+                            .clip(shape)
+                            .background(HsColors.OnMedia),
+                    )
+                }
+            }
+        }
+        Text(
+            text = if (timeshift.paused) stringResource(R.string.timeshift_paused, behind) else behind,
+            style = Hs.type.small,
+            color = if (timeshift.atLive) HsColors.OnMedia else OnMediaSecondary,
+            maxLines = 1,
+        )
+        // Au doigt : retour au direct (à la télécommande, droite jusqu'au direct).
+        if (!dimens.isTv && !timeshift.atLive) {
+            HsButton(text = stringResource(R.string.timeshift_go_live), onClick = onLive, icon = Lucide.SkipForward)
         }
     }
 }

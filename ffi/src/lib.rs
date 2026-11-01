@@ -19,12 +19,17 @@ use xtream_core as xc;
 uniffi::setup_scaffolding!();
 
 mod recordings;
+mod timeshift;
 
 pub use recordings::{
     CaptureEnd, CaptureJob, CaptureReport, DueRecording, GuideProgramme, Recording,
     RecordingControl, RecordingMargins, RecordingProblem, RecordingState, RecordingStore,
     RecordingUsage, SchedulePreview, ScheduleRequest, VolumeSpace, default_recording_margins,
     volume_space,
+};
+pub use timeshift::{
+    Timeshift, TimeshiftFollower, TimeshiftGap, TimeshiftRate, TimeshiftSegment, TimeshiftSpot,
+    TimeshiftWindow, TuneEnd, purge_timeshift,
 };
 
 // --- Erreurs -----------------------------------------------------------------
@@ -827,6 +832,54 @@ impl HeyStreamCore {
         let job = xc::CaptureJob::from(job);
         let report = self.runtime.block_on(xc::capture(
             &self.client,
+            &job,
+            &control.inner,
+            &xc::CaptureOptions::default(),
+        ));
+        Ok(report.into())
+    }
+
+    /// Différé de la chaîne `stream_id`, dans le dossier des enregistrements
+    /// `dir` (même disque). La copie démarre avec [`Self::run_timeshift`].
+    pub fn open_timeshift(
+        &self,
+        stream_id: i64,
+        dir: String,
+    ) -> Result<std::sync::Arc<timeshift::Timeshift>> {
+        self.check_signed_in()?;
+        let inner = xc::Tuner::new(
+            stream_id,
+            std::path::Path::new(&dir),
+            xc::TunerOptions::default(),
+        )?;
+        Ok(std::sync::Arc::new(timeshift::Timeshift { inner }))
+    }
+
+    /// Copie le flux dans le tampon jusqu'à ce que plus personne ne regarde
+    /// ni n'enregistre, un arrêt, la réserve ou une écriture refusée. Bloque
+    /// tout ce temps : à appeler depuis un fil à part.
+    pub fn run_timeshift(
+        &self,
+        timeshift: std::sync::Arc<timeshift::Timeshift>,
+    ) -> Result<timeshift::TuneEnd> {
+        self.check_signed_in()?;
+        Ok(self
+            .runtime
+            .block_on(timeshift.inner.run(&self.client))
+            .into())
+    }
+
+    /// Comme [`Self::record`], depuis le tampon que `follower` suit : le
+    /// passé qu'il contient, puis la suite, sans seconde connexion.
+    pub fn record_following(
+        &self,
+        follower: std::sync::Arc<timeshift::TimeshiftFollower>,
+        job: recordings::CaptureJob,
+        control: std::sync::Arc<recordings::RecordingControl>,
+    ) -> Result<recordings::CaptureReport> {
+        let job = xc::CaptureJob::from(job);
+        let follower = follower.take().ok_or(HeyStreamError::RecordingNotFound)?;
+        let report = self.runtime.block_on(follower.copy(
             &job,
             &control.inner,
             &xc::CaptureOptions::default(),

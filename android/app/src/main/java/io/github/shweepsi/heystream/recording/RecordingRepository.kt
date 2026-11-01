@@ -21,6 +21,11 @@ data class ActiveRecording(
     /** Fichier en cours d'écriture, lisible pendant l'enregistrement. */
     val path: String,
     val control: RecordingControl,
+    /**
+     * Suit le différé de sa chaîne (même connexion) : la chaîne se regarde
+     * depuis le différé, pas depuis le fichier.
+     */
+    val following: Boolean = false,
 )
 
 /**

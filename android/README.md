@@ -47,7 +47,7 @@ n'est versionné. `-Pheystream.abis=x86_64` compile pour un émulateur.
 ```
 app/src/main/java/io/github/shweepsi/heystream/
   data/        session du cœur, identifiants chiffrés, pagination, mise à jour quotidienne
-  player/      lecteur unique (Media3), image vidéo, lecture d'un fichier en cours d'écriture
+  player/      lecteur unique (Media3), image vidéo, fichier en cours d'écriture, différé du direct
   recording/   enregistrement programmé : alarme, service au premier plan, notifications, disques
   ui/theme/    couleurs, police Inter, tailles TV et tactiles, icônes Lucide
   ui/components/  éléments communs (focus, boutons, affiches, code PIN…)

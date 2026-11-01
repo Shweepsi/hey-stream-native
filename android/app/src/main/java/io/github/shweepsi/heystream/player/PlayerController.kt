@@ -54,6 +54,19 @@ data class PlaybackStatus(
      * (la chaîne enregistrée se regarde depuis son fichier).
      */
     val blocked: Boolean = false,
+    /** Direct lu depuis le différé (retour en arrière possible). */
+    val timeshift: Boolean = false,
+)
+
+/** Position dans le différé, pour la barre de temps (secondes Unix du tampon). */
+data class TimeshiftPosition(
+    /** Moment affiché. */
+    val at: Double,
+    val oldest: Double,
+    val newest: Double,
+    val playing: Boolean,
+    /** Temps avant que ce moment ne soit effacé du tampon (pause longue). */
+    val eraseInSecs: Double? = null,
 )
 
 /**
@@ -85,6 +98,19 @@ class PlayerController(private val context: Context) {
 
     /** Fichier local (enregistrement) au lieu d'une URL du fournisseur. */
     private var localSource: DataSource.Factory? = null
+
+    /** Différé lu (direct depuis le tampon), et ce qu'en attend l'écran du direct. */
+    private var timeshift: LiveTimeshift? = null
+    private var timeshiftReopen: (() -> Unit)? = null
+    private var timeshiftLost: (() -> Unit)? = null
+
+    /** Moment du tampon au début de la lecture en cours, et dernier fichier lu. */
+    private var timeshiftStartAt = 0.0
+    private val timeshiftSeq = java.util.concurrent.atomic.AtomicLong(-1)
+
+    /** App passée en arrière-plan pendant le différé : l'écran le rouvrira au retour. */
+    private var pendingTimeshiftReopen: (() -> Unit)? = null
+    private var nextRunCheck: Runnable? = null
 
     /**
      * Un enregistrement est en cours : aucun flux du fournisseur ne s'ouvre
@@ -136,7 +162,168 @@ class PlayerController(private val context: Context) {
      */
     fun playRecording(path: String, startMs: Long = 0, growing: (() -> Boolean)? = null, startOffset: Long = 0, live: Boolean = false) {
         val factory = if (growing != null) GrowingFileDataSource.Factory(growing, startOffset) else FileDataSource.Factory()
+        dropTimeshift()
         start(MediaItem.fromUri(android.net.Uri.fromFile(File(path))), live = live, startMs = startMs, local = factory)
+    }
+
+    /**
+     * Direct depuis le différé [session] : au direct ([at] nul) ou au moment
+     * [at] du tampon. [reopen] rouvre la chaîne au retour au premier plan (le
+     * tampon s'efface en arrière-plan) ; [lost] la passe en lecture réseau si
+     * le tampon ne peut plus servir (disque débranché, réserve atteinte).
+     */
+    fun playTimeshift(session: LiveTimeshift, at: Double?, reopen: () -> Unit, lost: () -> Unit) {
+        if (timeshift !== session) dropTimeshift()
+        timeshift = session
+        timeshiftReopen = reopen
+        timeshiftLost = lost
+        if (inBackground) {
+            // Choisie juste avant l'arrière-plan : rien ne se copie en cachette.
+            leaveTimeshiftForBackground()
+            return
+        }
+        val spot = (if (at == null) session.liveSpot() else session.locate(at))
+        if (spot == null) {
+            lostTimeshift()
+            return
+        }
+        openTimeshift(spot, playWhenReady = true, fresh = true)
+    }
+
+    /** Chaîne en cours d'ouverture (différé qui attend ses premières données). */
+    fun opening() {
+        stop()
+        _status.value = PlaybackStatus(active = true, live = true, buffering = true)
+    }
+
+    /** Position dans le différé, `null` hors différé. */
+    fun timeshiftPosition(): TimeshiftPosition? {
+        val session = timeshift ?: return null
+        val window = session.window() ?: return null
+        val player = exoPlayer ?: return null
+        val raw = timeshiftStartAt + player.currentPosition.coerceAtLeast(0) / 1000.0
+        val at = raw.coerceIn(window.oldest, window.newest)
+        // Moment déjà effacé (place manquante) : à reprendre tout de suite.
+        val eraseIn = if (raw < window.oldest) 0.0 else session.eraseIn(at)
+        return TimeshiftPosition(at, window.oldest, window.newest, player.playWhenReady, eraseIn)
+    }
+
+    /** Saut dans le différé, borné au plus ancien gardé et au direct. */
+    fun seekTimeshift(at: Double) {
+        val session = timeshift ?: return
+        val window = session.window() ?: return
+        val target = at.coerceIn(window.oldest, (window.newest - LiveTimeshift.LIVE_DELAY_SECS).coerceAtLeast(window.oldest))
+        val spot = session.locate(target) ?: return
+        openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
+    }
+
+    /** Pause ou lecture du différé. */
+    fun toggleTimeshiftPause() {
+        val player = exoPlayer ?: return
+        if (timeshift == null) return
+        player.playWhenReady = !player.playWhenReady
+    }
+
+    /** Pause longue : reprise au plus ancien moment encore gardé. */
+    fun resumeTimeshiftFromOldest() {
+        val session = timeshift ?: return
+        val window = session.window() ?: return
+        val raw = timeshiftStartAt + (exoPlayer?.currentPosition ?: 0).coerceAtLeast(0) / 1000.0
+        if (raw >= window.oldest) {
+            exoPlayer?.play()
+            return
+        }
+        val spot = session.locate(window.oldest) ?: return
+        openTimeshift(spot, playWhenReady = true, fresh = false)
+    }
+
+    /** Retour au direct. */
+    fun timeshiftLive() {
+        val spot = timeshift?.liveSpot() ?: return
+        openTimeshift(spot, playWhenReady = true, fresh = false)
+    }
+
+    private fun openTimeshift(spot: io.github.shweepsi.heystream.core.TimeshiftSpot, playWhenReady: Boolean, fresh: Boolean) {
+        val session = timeshift ?: return
+        cancelNextRunCheck()
+        timeshiftStartAt = spot.at
+        timeshiftSeq.set(spot.seq.toLong())
+        val factory = TimeshiftDataSource.Factory(session, spot.seq.toLong(), spot.offset.toLong()) { timeshiftSeq.set(it) }
+        val item = MediaItem.fromUri(android.net.Uri.fromFile(File(spot.path)))
+        if (fresh) {
+            start(item, live = true, startMs = 0, local = factory, playWhenReady = playWhenReady)
+        } else {
+            // Saut : même lecture, autre point de départ (l'état affiché reste).
+            localSource = factory
+            current = item
+            open(item, 0, playWhenReady)
+        }
+        _status.update { it.copy(timeshift = true) }
+    }
+
+    /** Fin d'une série (reconnexion du flux) : la suivante, dès qu'elle arrive. */
+    private fun nextRun() {
+        val session = timeshift ?: return
+        cancelNextRunCheck()
+        val last = timeshiftSeq.get()
+        val lastRun = session.file(last)?.run
+        var seq = last + 1
+        // Déjà effacé (lecture restée en pause) : au plus ancien gardé.
+        session.oldestSeq()?.takeIf { session.file(seq) == null && it > seq }?.let { seq = it }
+        while (true) {
+            val file = session.file(seq) ?: break
+            if (file.run != lastRun) {
+                // Début de la série suivante : son premier point d'index.
+                val spot = session.locate(file.start) ?: break
+                openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
+                return
+            }
+            seq += 1
+        }
+        if (session.finished()) {
+            lostTimeshift()
+            return
+        }
+        // Reconnexion du cœur en cours : la suite arrivera.
+        _status.update { it.copy(reconnectAttempt = 1, buffering = true) }
+        val check = Runnable { nextRun() }
+        nextRunCheck = check
+        handler.postDelayed(check, NEXT_RUN_POLL_MS)
+    }
+
+    private fun cancelNextRunCheck() {
+        nextRunCheck?.let(handler::removeCallbacks)
+        nextRunCheck = null
+    }
+
+    /** Le tampon ne sert plus : l'écran passe en lecture réseau. */
+    private fun lostTimeshift() {
+        val lost = timeshiftLost
+        dropTimeshift()
+        exoPlayer?.stop()
+        current = null
+        localSource = null
+        _status.value = PlaybackStatus(active = true, live = true, buffering = true)
+        lost?.invoke()
+    }
+
+    /** Arrière-plan : le tampon s'efface (décision), la chaîne sera rouverte au retour. */
+    private fun leaveTimeshiftForBackground() {
+        pendingTimeshiftReopen = timeshiftReopen
+        dropTimeshift()
+        current = null
+        localSource = null
+        resumeOnForeground = false
+    }
+
+    /** Fin du différé lu : plus personne ne regarde (il s'arrête, sauf enregistrement). */
+    private fun dropTimeshift() {
+        cancelNextRunCheck()
+        timeshift?.release()
+        timeshift = null
+        timeshiftReopen = null
+        timeshiftLost = null
+        timeshiftSeq.set(-1)
     }
 
     /**
@@ -168,6 +355,8 @@ class PlayerController(private val context: Context) {
         stats = null
         resetSample()
         cancelRetry()
+        dropTimeshift()
+        pendingTimeshiftReopen = null
         current = null
         localSource = null
         resumeOnForeground = false
@@ -183,6 +372,11 @@ class PlayerController(private val context: Context) {
         inBackground = true
         val player = exoPlayer ?: return
         cancelRetry()
+        if (timeshift != null) {
+            player.stop()
+            leaveTimeshiftForBackground()
+            return
+        }
         // Flux pas encore rouvert (retenu) : sa reprise et sa position restent.
         // Refusé (enregistrement en cours) : rien à rouvrir au retour.
         if (!resumeOnForeground && !_status.value.blocked) {
@@ -220,6 +414,11 @@ class PlayerController(private val context: Context) {
     }
 
     private fun resume() {
+        pendingTimeshiftReopen?.let { reopen ->
+            pendingTimeshiftReopen = null
+            reopen()
+            return
+        }
         val item = current ?: return
         when {
             resumeOnForeground -> {
@@ -240,8 +439,25 @@ class PlayerController(private val context: Context) {
             return
         }
         attempt = 0
+        if (timeshift != null) {
+            retryTimeshift()
+            return
+        }
         if (!live) resumeMs = exoPlayer?.currentPosition ?: resumeMs
         open(item, if (live) 0 else resumeMs)
+    }
+
+    /** Erreur de lecture du tampon : reprise au même moment (ou au plus ancien gardé). */
+    private fun retryTimeshift() {
+        val session = timeshift ?: return
+        val window = session.window()
+        if (session.finished() || window == null) {
+            lostTimeshift()
+            return
+        }
+        val at = (timeshiftStartAt + (exoPlayer?.currentPosition ?: 0).coerceAtLeast(0) / 1000.0).coerceAtLeast(window.oldest)
+        val spot = session.locate(at.coerceAtMost(window.newest)) ?: return lostTimeshift()
+        openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
     }
 
     fun release() {
@@ -251,6 +467,7 @@ class PlayerController(private val context: Context) {
     }
 
     private fun startRemote(item: MediaItem, live: Boolean, startMs: Long) {
+        dropTimeshift()
         if (recordingActive) {
             // Une seule connexion : celle de l'enregistrement. Rien ne s'ouvre.
             stats?.finish(exoPlayer)
@@ -272,7 +489,7 @@ class PlayerController(private val context: Context) {
         start(item, live, startMs, local = null)
     }
 
-    private fun start(item: MediaItem, live: Boolean, startMs: Long, local: DataSource.Factory?) {
+    private fun start(item: MediaItem, live: Boolean, startMs: Long, local: DataSource.Factory?, playWhenReady: Boolean = true) {
         stats?.finish(exoPlayer)
         stats = if (Telemetry.active && local == null) PlaybackStats(item, live, startMs) else null
         resetSample()
@@ -292,7 +509,7 @@ class PlayerController(private val context: Context) {
             resumeOnForeground = true
             return
         }
-        open(item, resumeMs)
+        open(item, resumeMs, playWhenReady)
     }
 
     private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
@@ -462,7 +679,12 @@ class PlayerController(private val context: Context) {
                     _status.update { it.copy(reconnectAttempt = 0, failed = false, ended = false) }
                 }
                 // Un flux en direct qui « se termine » est une coupure du serveur.
-                Player.STATE_ENDED -> if (live) scheduleRetry() else _status.update { it.copy(ended = true) }
+                Player.STATE_ENDED -> when {
+                    // Différé : fin d'une série, la suivante s'ouvre.
+                    timeshift != null -> nextRun()
+                    live -> scheduleRetry()
+                    else -> _status.update { it.copy(ended = true) }
+                }
                 else -> Unit
             }
         }
@@ -539,6 +761,16 @@ class PlayerController(private val context: Context) {
         attempt += 1
         _status.update { it.copy(reconnectAttempt = attempt, buffering = true) }
         if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
+        if (timeshift != null) {
+            // Différé : rien à redemander au fournisseur, le tampon est relu.
+            val retry = Runnable {
+                pendingRetry = null
+                retryTimeshift()
+            }
+            pendingRetry = retry
+            handler.postDelayed(retry, TIMESHIFT_RETRY_MS)
+            return
+        }
         val retry = Runnable {
             pendingRetry = null
             // Un film en pause le reste (état lu maintenant : « Lecture » a pu
@@ -560,6 +792,10 @@ class PlayerController(private val context: Context) {
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
         private const val MAX_ATTEMPTS = 6
+
+        /** Différé : nouvelle lecture du tampon après une erreur, et attente de la série suivante. */
+        private const val TIMESHIFT_RETRY_MS = 500L
+        private const val NEXT_RUN_POLL_MS = 500L
 
         /** Mesure du débit : 10 s de flux (le cœur ignore moins), 30 s au plus. */
         const val SAMPLE_MEDIA_MS = 10_000L

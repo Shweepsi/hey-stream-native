@@ -412,7 +412,23 @@ impl Tuner {
             state.end = Some(end);
         }
         self.shared.data.notify_waiters();
+        self.erase_if_unused();
         end
+    }
+
+    /// Copie finie et plus aucun enregistrement à servir : les fichiers
+    /// s'effacent tout de suite (chaîne adulte reverrouillée, place rendue),
+    /// sans attendre que le dernier [`Tuner`] disparaisse.
+    fn erase_if_unused(&self) {
+        {
+            let mut state = self.lock();
+            if state.end.is_none() || !state.followers.is_empty() {
+                return;
+            }
+            state.bytes = 0;
+            state.segments.clear();
+        }
+        let _ = std::fs::remove_dir_all(&self.shared.dir);
     }
 
     async fn copy(&self, client: &XtreamClient) -> TuneEnd {
@@ -831,6 +847,8 @@ impl Drop for Follower {
     fn drop(&mut self) {
         self.tuner.lock().followers.remove(&self.id);
         self.tuner.shared.control.notify_waiters();
+        // Dernier enregistrement d'une copie déjà finie : le tampon part.
+        self.tuner.erase_if_unused();
     }
 }
 

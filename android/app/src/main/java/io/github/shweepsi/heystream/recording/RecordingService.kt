@@ -146,7 +146,9 @@ class RecordingService : Service() {
     /** Compte à rebours si une lecture est en cours : elle s'arrêtera au début. */
     private fun announce(upcoming: Recording?, startsAt: Long) {
         val status = app.player.status.value
-        if (upcoming == null || !status.active || status.blocked) {
+        // Chaîne regardée en différé : l'enregistrement suivra son tampon, la lecture continue.
+        val watched = app.timeshift.current.value?.takeIf { it.alive }?.streamId
+        if (upcoming == null || !status.active || status.blocked || upcoming.streamId == watched) {
             app.recordings.setCountdown(null)
             return
         }
@@ -165,11 +167,18 @@ class RecordingService : Service() {
             withContext(Dispatchers.IO) { store.cancelAllScheduled() }
             return false
         }
+        // Chaîne regardée en différé : l'enregistrement suit son tampon (même
+        // connexion), depuis son début s'il y est encore.
+        val follower = app.timeshift.current.value
+            ?.takeIf { it.streamId == due.streamId && it.alive }
+            ?.attach(due.start)
         val job = try {
-            withContext(Dispatchers.IO) { store.begin(due.id) }
+            withContext(Dispatchers.IO) { store.beginFrom(due.id, follower?.start()) }
         } catch (cancelled: CancellationException) {
+            follower?.release()
             throw cancelled
         } catch (_: Throwable) {
+            follower?.release()
             // Disque absent ou plein : le cœur a marqué l'enregistrement raté.
             withContext(Dispatchers.IO) { store.recording(due.id) }?.let { RecordingNotifications.result(this, it) }
             // Connexion gardée pour cet enregistrement (voir plus bas) : libérée.
@@ -177,10 +186,17 @@ class RecordingService : Service() {
             return true
         }
         val recording = withContext(Dispatchers.IO) { store.recording(due.id) }
-        // La seule connexion va à l'enregistrement : la lecture d'un autre flux s'arrête.
-        app.player.preemptForRecording()
+        if (follower == null) {
+            // La seule connexion va à l'enregistrement : la lecture d'un autre flux
+            // s'arrête, et le différé d'une autre chaîne aussi.
+            app.player.preemptForRecording()
+            app.timeshift.stopFor(due.streamId)
+        } else {
+            // Même connexion : la lecture du différé continue ; aucun autre flux.
+            app.player.recordingActive = true
+        }
         val control = RecordingControl()
-        recordings.setActive(ActiveRecording(due.id, due.streamId, job.path, control))
+        recordings.setActive(ActiveRecording(due.id, due.streamId, job.path, control, following = follower != null))
         show(RecordingNotifications.ongoing(this, recording, job.until, 0))
         Telemetry.event("recording_start", "secs" to job.until - nowSecs())
         val follow = scope.launch {
@@ -201,7 +217,9 @@ class RecordingService : Service() {
         var report: CaptureReport? = null
         try {
             report = try {
-                withContext(copyThread) { core.record(job, control) }
+                withContext(copyThread) {
+                    if (follower != null) core.recordFollowing(follower, job, control) else core.record(job, control)
+                }
             } catch (cancelled: CancellationException) {
                 control.stop()
                 throw cancelled

@@ -16,7 +16,9 @@ import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
 import io.github.shweepsi.heystream.data.countFavorites
+import io.github.shweepsi.heystream.player.LiveTimeshift
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.player.TimeshiftHolder
 import io.github.shweepsi.heystream.core.GuideProgramme
 import io.github.shweepsi.heystream.core.Recording
 import io.github.shweepsi.heystream.core.ScheduleRequest
@@ -44,7 +46,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Direct : catégories, chaînes (paginées) et aperçu. L'aperçu et le plein
@@ -62,6 +66,8 @@ class LiveViewModel(
     private val recordings: RecordingRepository? = null,
     /** L'alarme exacte est autorisée (sinon, explication à la première programmation). */
     private val canScheduleExact: () -> Boolean = { true },
+    /** Différé (Android, avec le disque des enregistrements) ; absent dans les tests sans cœur natif. */
+    private val timeshift: TimeshiftHolder? = null,
 ) : ViewModel(), LiveActions {
     private val _state = MutableStateFlow(LiveUiState(recordingEnabled = recordings != null))
     val state: StateFlow<LiveUiState> = _state.asStateFlow()
@@ -141,7 +147,8 @@ class LiveViewModel(
                 // fichier remplace le flux, puis le flux revient.
                 repo.active.drop(1).collect { active ->
                     val preview = _state.value.preview ?: return@collect
-                    val fromFile = active?.streamId == preview.id
+                    // Un enregistrement qui suit le différé de cette chaîne ne change rien.
+                    val fromFile = active?.streamId == preview.id && !active.following
                     if (fromFile != _state.value.fromRecording || (active == null && player.status.value.blocked)) {
                         startPreview(preview, addRecent = false)
                     }
@@ -150,6 +157,14 @@ class LiveViewModel(
         }
         viewModelScope.launch {
             player.held.collect { hold -> if (hold != 0L) checkHeld() }
+        }
+        if (timeshift != null) {
+            viewModelScope.launch {
+                while (isActive) {
+                    tickTimeshift()
+                    delay(TIMESHIFT_TICK_MS)
+                }
+            }
         }
         viewModelScope.launch {
             combine(visibleIds.debounce(VISIBLE_DEBOUNCE_MS), epgChanges, minuteTicks()) { ids, _, _ -> ids }
@@ -308,7 +323,110 @@ class LiveViewModel(
     }
 
     override fun onFullscreenKey(ok: Boolean) {
-        if (ok && _state.value.playback is LivePlayback.Failed) onRetryPlayback() else showOverlay()
+        when {
+            ok && _state.value.playback is LivePlayback.Failed -> onRetryPlayback()
+            // Différé : OK met en pause, comme les films.
+            ok && player.status.value.timeshift -> onTimeshiftPause()
+            else -> showOverlay()
+        }
+    }
+
+    // Différé ------------------------------------------------------------------
+
+    /** Saut cumulé en attente (secondes), appliqué après le dernier appui. */
+    private var pendingSeekSecs: Long? = null
+    private var seekJob: Job? = null
+
+    override fun onTimeshiftSeek(forward: Boolean) {
+        if (!player.status.value.timeshift) return
+        val step = if (forward) PlayerController.SEEK_FORWARD_MS / 1000 else -PlayerController.SEEK_BACK_MS / 1000
+        pendingSeekSecs = (pendingSeekSecs ?: 0L) + step
+        showOverlay()
+        tickTimeshift()
+        seekJob?.cancel()
+        seekJob = viewModelScope.launch {
+            delay(io.github.shweepsi.heystream.ui.player.SEEK_COMMIT_MS)
+            val delta = pendingSeekSecs ?: return@launch
+            pendingSeekSecs = null
+            val position = player.timeshiftPosition()
+            if (position != null && delta != 0L) player.seekTimeshift(timeshiftTarget(position, delta))
+            tickTimeshift()
+        }
+    }
+
+    override fun onTimeshiftPause() {
+        if (!player.status.value.timeshift) return
+        player.toggleTimeshiftPause()
+        showOverlay()
+        tickTimeshift()
+    }
+
+    override fun onTimeshiftLive() {
+        seekJob?.cancel()
+        pendingSeekSecs = null
+        player.timeshiftLive()
+        showOverlay()
+        tickTimeshift()
+    }
+
+    /**
+     * Barre du différé, et pause longue : une minute avant que le moment en
+     * pause ne soit effacé, l'avertissement ; puis la lecture reprend seule
+     * au plus ancien moment gardé.
+     */
+    private fun tickTimeshift() {
+        val position = if (player.status.value.timeshift) player.timeshiftPosition() else null
+        if (position == null) {
+            if (_state.value.timeshift != null) _state.update { it.copy(timeshift = null) }
+            return
+        }
+        val eraseIn = position.eraseInSecs
+        if (!position.playing && eraseIn != null && eraseIn <= 0.0) {
+            player.resumeTimeshiftFromOldest()
+        }
+        val ui = timeshiftUi(position, pendingSeekSecs, eraseIn)
+        if (ui != _state.value.timeshift) _state.update { it.copy(timeshift = ui) }
+    }
+
+    /**
+     * Direct depuis le différé quand c'est possible : TS autorisé, disque des
+     * enregistrements, connexion libre. `false` : lecture réseau à la place
+     * (compte HLS seul, pas de disque, premières données qui n'arrivent pas).
+     */
+    private suspend fun startTimeshift(id: Long, url: String): Boolean {
+        val holder = timeshift ?: return false
+        val repo = recordings ?: return false
+        var handed = false
+        var live: LiveTimeshift? = holder.reuse(id)
+        try {
+            if (live == null) {
+                if (player.recordingActive) return false
+                if (!attempt { session.withCore { it.canRecord() } }.getOrDefault(false)) return false
+                val dir = attempt { repo.ensureDirectory() }.getOrNull() ?: return false
+                val core = session.openedCore() ?: return false
+                player.opening()
+                live = attempt { holder.start(core, id, dir) }.getOrNull() ?: return false
+            }
+            val session = live
+            val ready = withTimeoutOrNull(TIMESHIFT_FIRST_DATA_MS) {
+                while (session.window() == null && session.alive) delay(TIMESHIFT_POLL_MS)
+                session.window() != null
+            } == true
+            // Une autre chaîne a été choisie entre-temps : celle-ci ne s'ouvre pas.
+            if (_state.value.preview?.id != id) return true
+            if (!ready) return false
+            player.playTimeshift(
+                session,
+                at = null,
+                reopen = { _state.value.preview?.takeIf { it.id == id }?.let { startPreview(it, addRecent = false) } },
+                lost = { if (_state.value.preview?.id == id) player.playLive(url) },
+            )
+            handed = true
+            return true
+        } finally {
+            // Pas confié au lecteur (autre chaîne, échec, annulation) : relâché.
+            if (!handed) live?.release()
+        }
     }
 
     override fun onExitFullscreen() {
@@ -398,8 +516,8 @@ class LiveViewModel(
         _state.update { it.copy(preview = preview) }
         updatePlayback()
         val active = recordings?.active?.value
-        _state.update { it.copy(fromRecording = active?.streamId == id) }
-        if (active != null && active.streamId == id) {
+        _state.update { it.copy(fromRecording = active?.streamId == id && !active.following) }
+        if (active != null && active.streamId == id && !active.following) {
             // La chaîne enregistrée se regarde depuis son fichier (quelques secondes de
             // retard), sans seconde connexion.
             startJob = viewModelScope.launch {
@@ -430,7 +548,7 @@ class LiveViewModel(
                 dropPreview()
                 return@launch
             }
-            url.onSuccess { player.playLive(it) }
+            url.onSuccess { liveUrl -> if (!startTimeshift(id, liveUrl)) player.playLive(liveUrl) }
                 .onFailure { error ->
                     previewError = error.toUiText()
                     player.stop()
@@ -558,6 +676,11 @@ class LiveViewModel(
             }
             val margins = attempt { repo.withStore { it.lastMargins() } }.getOrNull()
                 ?: io.github.shweepsi.heystream.core.defaultRecordingMargins()
+            // Différé de cette chaîne : son débit est mesuré en continu.
+            val bufferRate = if (existing == null) bufferFor(preview.id)?.rate() else null
+            if (bufferRate != null) {
+                attempt { repo.withStore { it.learnRate(preview.id, bufferRate.first.toULong(), bufferRate.second) } }
+            }
             _state.update {
                 it.copy(
                     recordDialog = RecordDialogUi(
@@ -566,11 +689,13 @@ class LiveViewModel(
                         programme,
                         margins,
                         scheduledId = existing?.id,
-                        measuring = existing == null,
+                        measuring = existing == null && bufferRate == null,
                     ),
                 )
             }
-            if (existing == null) {
+            if (existing == null && bufferRate != null) {
+                refreshRecordPreview()
+            } else if (existing == null) {
                 refreshRecordPreview()
                 // Mesure du débit sur l'aperçu de cette chaîne, à l'ouverture du
                 // dialogue : 10 s de flux, puis la taille est recalculée.
@@ -597,7 +722,13 @@ class LiveViewModel(
         isAdult = adult,
         programme = GuideProgramme(dialog.programme.title, null, dialog.programme.start, dialog.programme.stop),
         margins = dialog.margins,
+        // « Enregistrer » pendant le différé : le début déjà passé vient du tampon.
+        bufferedFrom = bufferFor(dialog.channelId)?.window()?.oldest?.toLong(),
     )
+
+    /** Différé encore en vie de la chaîne [channelId]. */
+    private fun bufferFor(channelId: Long): LiveTimeshift? =
+        timeshift?.current?.value?.takeIf { it.streamId == channelId && it.alive }
 
     private suspend fun isAdult(channelId: Long): Boolean =
         attempt { session.withCore { it.isAdult(Section.LIVE, channelId) } }.getOrDefault(true)
@@ -615,7 +746,8 @@ class LiveViewModel(
         previewJob = viewModelScope.launch {
             attempt { repo.ensureDirectory() }
             val adult = isAdult(dialog.channelId)
-            val result = attempt { repo.withStore { it.preview(request(dialog, adult)) } }
+            val bufferBytes = bufferFor(dialog.channelId)?.bytes() ?: 0L
+            val result = attempt { repo.withStore { it.preview(request(dialog, adult), bufferBytes.toULong()) } }
             _state.update { current ->
                 val shown = current.recordDialog ?: return@update current
                 if (shown.margins != dialog.margins) return@update current
@@ -764,6 +896,11 @@ class LiveViewModel(
         const val FAVORITES_LIMIT = 2_000
         const val VISIBLE_DEBOUNCE_MS = 150L
         const val OVERLAY_MS = 4_000L
+
+        /** Différé : barre relue, premières données attendues au plus. */
+        const val TIMESHIFT_TICK_MS = 500L
+        const val TIMESHIFT_FIRST_DATA_MS = 15_000L
+        const val TIMESHIFT_POLL_MS = 100L
         const val MESSAGE_MS = 2_500L
 
         /** Le programme en cours change avec l'heure : relu chaque minute. */
