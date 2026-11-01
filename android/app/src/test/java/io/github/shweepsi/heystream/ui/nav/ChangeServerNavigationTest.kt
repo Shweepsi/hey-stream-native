@@ -52,7 +52,7 @@ class ChangeServerNavigationTest {
             FakeCore(checking = checking)
         })
         runBlocking { session.start() }
-        val graph = AppGraph(session, PlayerController(context))
+        val graph = AppGraph(session, PlayerController(context), io.github.shweepsi.heystream.recording.RecordingRepository(context))
         compose.setContent {
             nav = rememberNavController()
             CompositionLocalProvider(LocalAppGraph provides graph) {

@@ -15,6 +15,10 @@ import io.github.shweepsi.heystream.data.RefreshWorker
 import io.github.shweepsi.heystream.data.Telemetry
 import io.github.shweepsi.heystream.data.TelemetryWorker
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.recording.RecordingNotifications
+import io.github.shweepsi.heystream.recording.RecordingRepository
+import io.github.shweepsi.heystream.recording.RecordingScheduler
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,10 +29,22 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** Le cœur de l'abonnement (un seul pour toute l'app). */
-    val session: CoreSession by lazy { CoreSession(this, CredentialStore(this), scope) }
+    val session: CoreSession by lazy {
+        CoreSession(this, CredentialStore(this), scope, onAccountChanged = ::onAccountChanged)
+    }
 
     /** Le lecteur vidéo (un seul pour toute l'app : jamais deux flux). */
-    val player: PlayerController by lazy { PlayerController(this) }
+    val player: PlayerController by lazy {
+        PlayerController(this).also { player ->
+            // Débit de la chaîne regardée : estimation de la place d'un enregistrement.
+            player.onLiveRate = { streamId, bytes, secs ->
+                scope.launch { runCatching { recordings.withStore { it.learnRate(streamId, bytes.toULong(), secs) } } }
+            }
+        }
+    }
+
+    /** Enregistrements programmés et faits (gardés après un changement d'identifiant). */
+    val recordings: RecordingRepository by lazy { RecordingRepository(this) }
 
     /** Mises à jour de l'app depuis les releases GitHub. */
     val updater: AppUpdater by lazy { AppUpdater(this, scope) }
@@ -39,6 +55,31 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
         Telemetry.start(this)
         RefreshWorker.schedule(this)
         TelemetryWorker.schedule(this)
+        RecordingNotifications.createChannels(this)
+        // Manqués (appareil éteint) ou interrompus (app arrêtée) : signalés dès le
+        // lancement. Sans risque pour une copie qui démarre : seuls les
+        // enregistrements dont la fenêtre est passée changent.
+        scope.launch {
+            if (recordings.active.value == null) {
+                runCatching { recordings.withStore { it.recover() } }.getOrNull()
+                    ?.forEach { RecordingNotifications.result(this@HeyStreamApp, it) }
+            }
+            recordings.changed()
+        }
+        // Enregistrement en cours : aucun autre flux ne s'ouvre (une seule connexion).
+        scope.launch { recordings.active.collect { player.recordingActive = it != null } }
+    }
+
+    /**
+     * Déconnexion ou nouvelle connexion : programmations annulées, copie en
+     * cours arrêtée ; les fichiers restent (`docs/DECISIONS.md`).
+     */
+    private fun onAccountChanged() {
+        recordings.active.value?.control?.stop()
+        scope.launch {
+            runCatching { recordings.withStore { it.cancelAllScheduled() } }
+            recordings.changed()
+        }
     }
 
     /**

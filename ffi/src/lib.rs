@@ -18,6 +18,15 @@ use xtream_core as xc;
 
 uniffi::setup_scaffolding!();
 
+mod recordings;
+
+pub use recordings::{
+    CaptureEnd, CaptureJob, CaptureReport, DueRecording, GuideProgramme, Recording,
+    RecordingControl, RecordingMargins, RecordingProblem, RecordingState, RecordingStore,
+    RecordingUsage, SchedulePreview, ScheduleRequest, VolumeSpace, default_recording_margins,
+    volume_space,
+};
+
 // --- Erreurs -----------------------------------------------------------------
 
 /// Erreurs remontées aux interfaces, qui les traduisent. Aucune ne contient
@@ -52,6 +61,19 @@ pub enum HeyStreamError {
     WrongPin,
     #[error("trop de codes incorrects")]
     TooManyAttempts { retry_in_secs: i64 },
+    /// Le programme chevauche l'enregistrement `recording_id`, sur une autre
+    /// chaîne (une seule connexion).
+    #[error("chevauche un autre enregistrement")]
+    RecordingConflict { recording_id: i64 },
+    #[error("programme déjà terminé")]
+    RecordingEnded,
+    #[error("enregistrement introuvable")]
+    RecordingNotFound,
+    #[error("plus de place pour enregistrer")]
+    NotEnoughSpace,
+    /// Disque d'enregistrement débranché ou pas encore choisi.
+    #[error("disque d'enregistrement absent")]
+    VolumeMissing,
     /// Après `sign_out`, ou cache repris par un autre objet (connexion à un
     /// autre identifiant ou à une autre adresse) : l'objet ne sert plus, en
     /// créer un nouveau.
@@ -81,13 +103,11 @@ impl From<xc::Error> for HeyStreamError {
             E::InvalidPin => Self::InvalidPin,
             E::WrongPin => Self::WrongPin,
             E::TooManyAttempts { retry_in_secs } => Self::TooManyAttempts { retry_in_secs },
-            // Enregistrement programmé : pas encore exposé aux interfaces
-            // (étape Android). Ces erreurs ne peuvent pas arriver ici.
-            E::RecordingConflict { .. }
-            | E::RecordingEnded
-            | E::RecordingNotFound
-            | E::NotEnoughSpace
-            | E::VolumeMissing => Self::Storage,
+            E::RecordingConflict { recording_id } => Self::RecordingConflict { recording_id },
+            E::RecordingEnded => Self::RecordingEnded,
+            E::RecordingNotFound => Self::RecordingNotFound,
+            E::NotEnoughSpace => Self::NotEnoughSpace,
+            E::VolumeMissing => Self::VolumeMissing,
         }
     }
 }
@@ -790,6 +810,40 @@ impl HeyStreamCore {
         store.account = AccountState::SignedOut;
         *self.last_series_lock() = None;
         Ok(store.clear_all()?)
+    }
+
+    // Enregistrement --------------------------------------------------------
+
+    /// Copie le flux de `job` jusqu'à sa fin, un arrêt (`control`), la
+    /// réserve du disque ou une écriture refusée ; les coupures sont
+    /// réessayées. Bloque pendant tout l'enregistrement : à appeler depuis
+    /// un fil à part. Les écritures sur le disque se font sur ce fil.
+    pub fn record(
+        &self,
+        job: recordings::CaptureJob,
+        control: std::sync::Arc<recordings::RecordingControl>,
+    ) -> Result<recordings::CaptureReport> {
+        self.check_signed_in()?;
+        let job = xc::CaptureJob::from(job);
+        let report = self.runtime.block_on(xc::capture(
+            &self.client,
+            &job,
+            &control.inner,
+            &xc::CaptureOptions::default(),
+        ));
+        Ok(report.into())
+    }
+
+    /// Marque adulte d'une entrée, quel que soit le verrou : gardée avec un
+    /// enregistrement.
+    pub fn is_adult(&self, section: Section, id: i64) -> Result<bool> {
+        Ok(self.lock()?.is_adult(section.into(), id)?)
+    }
+
+    /// Le fournisseur autorise le `.ts`, seul format enregistré (copie telle
+    /// quelle). Inconnu (jamais connecté) : oui.
+    pub fn can_record(&self) -> Result<bool> {
+        Ok(self.lock()?.live_format(xc::LiveFormat::Ts)? == xc::LiveFormat::Ts)
     }
 
     /// URL d'une chaîne en direct, dans le format que préfère le lecteur si

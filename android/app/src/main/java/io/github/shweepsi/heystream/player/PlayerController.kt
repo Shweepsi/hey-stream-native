@@ -11,18 +11,25 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.FileDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import io.github.shweepsi.heystream.BuildConfig
 import io.github.shweepsi.heystream.data.CrashReports
+import io.github.shweepsi.heystream.core.describeStreamUrl
 import io.github.shweepsi.heystream.data.Telemetry
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +48,11 @@ data class PlaybackStatus(
     val failed: Boolean = false,
     /** Fin d'un film ou d'un épisode. */
     val ended: Boolean = false,
+    /**
+     * Flux refusé : un enregistrement a la seule connexion de l'abonnement
+     * (la chaîne enregistrée se regarde depuis son fichier).
+     */
+    val blocked: Boolean = false,
 )
 
 /**
@@ -70,6 +82,21 @@ class PlayerController(private val context: Context) {
     /** App en arrière-plan : aucun flux ne s'ouvre avant son retour. */
     private var inBackground = false
 
+    /** Fichier local (enregistrement) au lieu d'une URL du fournisseur. */
+    private var localSource: DataSource.Factory? = null
+
+    /**
+     * Un enregistrement est en cours : aucun flux du fournisseur ne s'ouvre
+     * (une seule connexion). Tenu à jour par l'app.
+     */
+    var recordingActive: Boolean = false
+
+    /** Débit mesuré d'une chaîne regardée (estimation de la place d'un enregistrement). */
+    var onLiveRate: ((streamId: Long, bytes: Long, secs: Double) -> Unit)? = null
+    private var liveBytes = 0L
+    private var livePlayingMs = 0L
+    private var livePlayingSince = 0L
+
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
 
@@ -91,10 +118,41 @@ class PlayerController(private val context: Context) {
         get() = exoPlayer ?: create().also { exoPlayer = it }
 
     /** Chaîne en direct (aperçu ou plein écran) ; reconnexion automatique. */
-    fun playLive(url: String) = start(MediaItem.fromUri(url), live = true, startMs = 0)
+    fun playLive(url: String) = startRemote(MediaItem.fromUri(url), live = true, startMs = 0)
 
     /** Film ou épisode, à partir de [startMs]. */
-    fun playVod(url: String, startMs: Long) = start(MediaItem.fromUri(url), live = false, startMs = startMs)
+    fun playVod(url: String, startMs: Long) = startRemote(MediaItem.fromUri(url), live = false, startMs = startMs)
+
+    /**
+     * Enregistrement : fichier fini (comme un film, à partir de [startMs]) ou
+     * en cours d'écriture ([growing] non nul, lu à partir de l'octet
+     * [startOffset], suivi tant qu'il grandit). Aucune connexion au
+     * fournisseur.
+     */
+    fun playRecording(path: String, startMs: Long = 0, growing: (() -> Boolean)? = null, startOffset: Long = 0, live: Boolean = false) {
+        val factory = if (growing != null) GrowingFileDataSource.Factory(growing, startOffset) else FileDataSource.Factory()
+        start(MediaItem.fromUri(android.net.Uri.fromFile(File(path))), live = live, startMs = startMs, local = factory)
+    }
+
+    /**
+     * Un enregistrement commence : le flux du fournisseur est fermé (sa
+     * position gardée pour la reprise) et marqué refusé. Un fichier local
+     * continue.
+     */
+    fun preemptForRecording() {
+        recordingActive = true
+        if (current == null || localSource != null) return
+        cancelRetry()
+        if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
+        reportLiveRate()
+        exoPlayer?.stop()
+        resumeOnForeground = false
+        _status.value = PlaybackStatus(active = true, live = live, blocked = true)
+    }
+
+    /** Position du flux en cours (ou retenue), pour enregistrer la reprise. */
+    val positionMs: Long
+        get() = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
 
     /**
      * Arrête et ferme le flux. Une retenue reste : un écran ouvert ensuite
@@ -103,8 +161,10 @@ class PlayerController(private val context: Context) {
     fun stop() {
         stats?.finish(exoPlayer)
         stats = null
+        reportLiveRate()
         cancelRetry()
         current = null
+        localSource = null
         resumeOnForeground = false
         exoPlayer?.run {
             stop()
@@ -169,6 +229,10 @@ class PlayerController(private val context: Context) {
     fun retry() {
         val item = current ?: return
         if (isHeld) return
+        if (localSource == null && recordingActive) {
+            _status.value = PlaybackStatus(active = true, live = live, blocked = true)
+            return
+        }
         attempt = 0
         if (!live) resumeMs = exoPlayer?.currentPosition ?: resumeMs
         open(item, if (live) 0 else resumeMs)
@@ -180,10 +244,34 @@ class PlayerController(private val context: Context) {
         exoPlayer = null
     }
 
-    private fun start(item: MediaItem, live: Boolean, startMs: Long) {
+    private fun startRemote(item: MediaItem, live: Boolean, startMs: Long) {
+        if (recordingActive) {
+            // Une seule connexion : celle de l'enregistrement. Rien ne s'ouvre.
+            stats?.finish(exoPlayer)
+            stats = null
+            reportLiveRate()
+            cancelRetry()
+            exoPlayer?.run {
+                stop()
+                clearMediaItems()
+            }
+            this.live = live
+            current = item
+            localSource = null
+            resumeMs = startMs.coerceAtLeast(0)
+            resumeOnForeground = false
+            _status.value = PlaybackStatus(active = true, live = live, blocked = true)
+            return
+        }
+        start(item, live, startMs, local = null)
+    }
+
+    private fun start(item: MediaItem, live: Boolean, startMs: Long, local: DataSource.Factory?) {
         stats?.finish(exoPlayer)
-        stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
+        stats = if (Telemetry.active && local == null) PlaybackStats(item, live, startMs) else null
+        reportLiveRate()
         cancelRetry()
+        localSource = local
         this.live = live
         attempt = 0
         lastError = null
@@ -206,7 +294,15 @@ class PlayerController(private val context: Context) {
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
         player.stop()
-        if (live) player.setMediaItem(item) else player.setMediaItem(item, startMs)
+        val local = localSource
+        when {
+            local != null -> player.setMediaSource(
+                ProgressiveMediaSource.Factory(local, extractors).createMediaSource(item),
+                if (live) 0 else startMs,
+            )
+            live -> player.setMediaItem(item)
+            else -> player.setMediaItem(item, startMs)
+        }
         player.playWhenReady = playWhenReady
         player.prepare()
     }
@@ -218,10 +314,6 @@ class PlayerController(private val context: Context) {
             .setReadTimeoutMs(15_000)
             // Les panneaux redirigent souvent vers un serveur de flux (http ↔ https).
             .setAllowCrossProtocolRedirects(true)
-        val extractors = DefaultExtractorsFactory()
-            // Flux TS continus : démarrer sans attendre une image clé IDR.
-            .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
-            .setConstantBitrateSeekingEnabled(true)
         val renderers = DefaultRenderersFactory(context)
             // FFmpeg seulement pour l'audio que l'appareil ne décode pas (MP2, AC-3).
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
@@ -251,6 +343,31 @@ class PlayerController(private val context: Context) {
             }
     }
 
+    private val extractors = DefaultExtractorsFactory()
+        // Flux TS continus : démarrer sans attendre une image clé IDR.
+        .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
+        .setConstantBitrateSeekingEnabled(true)
+
+    /**
+     * Débit de la chaîne regardée : octets chargés rapportés au temps lu
+     * plus le tampon (ce qui est chargé d'avance). Une mesure de moins de
+     * 30 s est ignorée par le cœur.
+     */
+    private fun reportLiveRate() {
+        val item = current
+        val player = exoPlayer
+        val report = onLiveRate
+        if (report != null && item != null && live && localSource == null && player != null) {
+            if (livePlayingSince > 0) livePlayingMs += android.os.SystemClock.elapsedRealtime() - livePlayingSince
+            val secs = (livePlayingMs + player.totalBufferedDuration.coerceAtLeast(0)) / 1000.0
+            val streamId = item.localConfiguration?.uri?.toString()?.let { describeStreamUrl(it) }?.streamId
+            if (streamId != null && liveBytes > 0) report(streamId, liveBytes, secs)
+        }
+        liveBytes = 0
+        livePlayingMs = 0
+        livePlayingSince = 0
+    }
+
     private val listener = object : Player.Listener {
         override fun onPositionDiscontinuity(
             oldPosition: Player.PositionInfo,
@@ -262,6 +379,15 @@ class PlayerController(private val context: Context) {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             stats?.playing(isPlaying)
+            if (live && localSource == null) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (isPlaying) {
+                    livePlayingSince = now
+                } else if (livePlayingSince > 0) {
+                    livePlayingMs += now - livePlayingSince
+                    livePlayingSince = 0
+                }
+            }
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
@@ -297,6 +423,10 @@ class PlayerController(private val context: Context) {
     private var stats: PlaybackStats? = null
 
     private val analytics = object : AnalyticsListener {
+        override fun onLoadCompleted(eventTime: AnalyticsListener.EventTime, loadEventInfo: LoadEventInfo, mediaLoadData: MediaLoadData) {
+            if (live && localSource == null) liveBytes += loadEventInfo.bytesLoaded.coerceAtLeast(0)
+        }
+
         override fun onVideoInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
             format: Format,

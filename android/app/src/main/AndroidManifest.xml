@@ -7,6 +7,16 @@
          confirmation, sauf (Android 12+) quand l'app a installé la version en place. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <!-- Enregistrement programmé (docs/DECISIONS.md) : alarme exacte (demandée à la
+         première programmation, refusée par défaut depuis Android 14), service au
+         premier plan de type specialUse (dataSync et mediaProcessing sont coupés
+         après 6 h par 24 h depuis Android 15), box éveillée, notifications. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Un seul APK pour téléphone, tablette et TV. -->
     <uses-feature
@@ -45,6 +55,34 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Enregistrement programmé : copie du flux, app fermée et écran éteint. -->
+        <service
+            android:name=".recording.RecordingService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Scheduled recording of a live TV programme chosen by the user in the guide: the stream is copied to a local file at the programmed time, even with the app closed." />
+        </service>
+
+        <!-- Alarme du prochain enregistrement. -->
+        <receiver
+            android:name=".recording.RecordingAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Alarme reprogrammée : redémarrage, mise à jour, heure, autorisation accordée. -->
+        <receiver
+            android:name=".recording.RecordingRescheduleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Réponse de l'installateur d'Android à une mise à jour. -->
         <receiver

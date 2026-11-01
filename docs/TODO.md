@@ -14,10 +14,11 @@ ligne quand sa PR est fusionnée.
    test cachés, sept appuis sur la version), utilise l'app, puis partage le
    fichier ; en faire les réponses simulées des tests
    (`core/tests/fixtures/`) et corriger ce qu'elles révèlent.
-4. **Enregistrement programmé** (`DECISIONS.md`, 2026-10-31) : cœur fait
-   (0.7.4, `core/src/dvr/`) ; reste l'exposition dans `ffi/`, puis Android
-   (alarme exacte, service au premier plan, catégorie Enregistrements) ;
-   essais sur la Mi Box S et la Xiaomi Pad 7 (veille, batterie HyperOS).
+4. **Enregistrement programmé** (`DECISIONS.md`, 2026-10-31) : cœur, `ffi/`
+   et Android faits (0.8.0) ; reste les essais sur la Mi Box S et la Xiaomi
+   Pad 7 : réveil à l'heure, veille profonde de la box (consommation,
+   alerte « wake lock excessif »), batterie HyperOS, lecture du fichier en
+   cours, clé USB.
 5. **1.0.0** : APK signé pour la publication ; comptes développeur à
    décider ; sort des outils de test et de la mise à jour intégrée
    (interdite par le Play Store) dans la version des magasins ; déclarations

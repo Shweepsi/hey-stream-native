@@ -639,3 +639,85 @@ fn recording_follows_the_requests() {
     drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_recording_is_scheduled_copied_and_listed() {
+    use heystream::{
+        CaptureEnd, GuideProgramme, RecordingControl, RecordingMargins, RecordingState,
+        RecordingStore, ScheduleRequest,
+    };
+    let panel = panel(vec![]);
+    panel.runtime.block_on(
+        Mock::given(method("GET"))
+            .and(wiremock::matchers::path("/live/u/p/5.ts"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0x47u8; 188]))
+            .mount(&panel.server),
+    );
+    let dir = temp_dir("recording");
+    let core = open(&panel, &dir);
+    let store = RecordingStore::new(dir.to_string_lossy().into()).unwrap();
+    let files = dir.join("enregistrements");
+    store.set_directory(files.to_string_lossy().into()).unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let request = ScheduleRequest {
+        stream_id: 5,
+        channel: "France Info".into(),
+        is_adult: false,
+        programme: GuideProgramme {
+            title: "Journal".into(),
+            description: None,
+            start: now - 60,
+            stop: now + 2,
+        },
+        margins: RecordingMargins {
+            before_secs: 0,
+            after_secs: 0,
+        },
+    };
+    assert_eq!(store.preview(request.clone()).unwrap().merged_into, None);
+    let id = store.schedule(request).unwrap();
+    let due = store
+        .due()
+        .unwrap()
+        .expect("programme en cours : dû tout de suite");
+    assert_eq!(due.id, id);
+    // La réserve (1 Go ou 10 % du disque) dépend de la machine de test : sur
+    // un disque trop plein, seul le refus est vérifié.
+    let space = heystream::volume_space(files.to_string_lossy().into()).unwrap();
+    let reserve = (space.total_bytes / 10).max(1_000_000_000);
+    if space.free_bytes <= reserve {
+        assert!(matches!(
+            store.begin(id),
+            Err(HeyStreamError::NotEnoughSpace)
+        ));
+        let recording = store.recording(id).unwrap().unwrap();
+        assert_eq!(recording.state, RecordingState::Failed);
+        drop(core);
+        drop(panel);
+        std::fs::remove_dir_all(&dir).unwrap();
+        return;
+    }
+    let job = store.begin(id).unwrap();
+    assert!(job.path.starts_with(&*files.to_string_lossy()));
+    let control = RecordingControl::new();
+    let report = core.record(job, control.clone()).unwrap();
+    assert_eq!(report.end, CaptureEnd::Finished);
+    assert!(control.bytes() >= 188);
+    let recording = store.finish(id, report).unwrap();
+    assert!(matches!(
+        recording.state,
+        RecordingState::Done | RecordingState::Incomplete
+    ));
+    assert_eq!(store.recorded(false).unwrap().len(), 1);
+    assert!(store.usage().unwrap().is_some());
+    // Déconnexion : rien à annuler, le fichier reste.
+    core.sign_out().unwrap();
+    assert_eq!(store.cancel_all_scheduled().unwrap(), 0);
+    assert!(std::path::Path::new(&recording.path).exists());
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

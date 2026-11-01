@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notifications -->
+    <string name="recording_channel_active">Enregistrement en cours</string>
+    <string name="recording_channel_result">Enregistrements</string>
+    <string name="recording_adult_title">Enregistrement</string>
+    <string name="recording_waiting_title">Enregistrement programmé</string>
+    <string name="recording_waiting_text">%1$s à %2$s</string>
+    <string name="recording_ongoing_title">Enregistrement : %1$s</string>
+    <string name="recording_ongoing_text">Jusqu’à %1$s · %2$s</string>
+    <string name="recording_stop">Arrêter</string>
+    <string name="recording_done_title">Enregistré : %1$s</string>
+    <string name="recording_watch">Regarder</string>
+    <string name="recording_problem_title">Problème d’enregistrement : %1$s</string>
+    <string name="recording_problem_gaps">Des passages manquent : le flux a été coupé plus d’une minute.</string>
+    <string name="recording_problem_out_of_space">Arrêté : le disque est plein.</string>
+    <string name="recording_problem_connection">La chaîne n’a pas pu être jointe.</string>
+    <string name="recording_problem_write">Le fichier n’a pas pu être écrit.</string>
+    <string name="recording_problem_volume">Le disque d’enregistrement n’est pas branché.</string>
+    <string name="recording_problem_interrupted">L’app a été arrêtée pendant l’enregistrement.</string>
+    <string name="recording_problem_not_started">Manqué : l’appareil était éteint, en veille, ou n’avait pas le droit de se réveiller.</string>
+    <string name="recording_problem_unknown">L’enregistrement a échoué.</string>
+    <string name="recording_low_space_title">Peu de place pour les enregistrements</string>
+    <string name="recording_low_space_text">Environ %1$s d’enregistrement possible.</string>
+
+    <!-- Erreurs du cœur -->
+    <string name="error_recording_conflict">Une autre chaîne est déjà enregistrée à ce moment-là.</string>
+    <string name="error_recording_ended">Ce programme est terminé.</string>
+    <string name="error_recording_not_found">Cet enregistrement n’existe plus.</string>
+    <string name="error_not_enough_space">Plus assez de place pour enregistrer.</string>
+    <string name="error_volume_missing">Le disque d’enregistrement n’est pas branché.</string>
+
+    <!-- Programmer depuis le guide -->
+    <string name="record_action">Enregistrer</string>
+    <string name="record_cancel_action">Annuler l’enregistrement</string>
+    <string name="record_scheduled">Enregistrement programmé : %1$s</string>
+    <string name="record_cancelled">Enregistrement annulé</string>
+    <string name="record_planned_badge">Enregistrement programmé</string>
+    <string name="record_margin_before">Commencer avant</string>
+    <string name="record_margin_after">Finir après</string>
+    <string name="record_margin_less">Moins</string>
+    <string name="record_margin_more">Plus</string>
+    <string name="record_estimate">Environ %1$s</string>
+    <string name="record_merged">Réuni à l’enregistrement du programme d’avant ou d’après : un seul fichier.</string>
+    <string name="record_shortened">Marges raccourcies : une autre chaîne est enregistrée juste avant ou après.</string>
+    <string name="record_missing_space">Il manque environ %1$s sur le disque</string>
+    <string name="record_free_space">Libérer de la place</string>
+    <string name="record_anyway">Programmer quand même</string>
+    <string name="record_cleanup_title">Libérer de la place</string>
+    <string name="record_cleanup_message">Supprimer ces enregistrements libérerait environ %1$s. Les déjà vus d’abord.</string>
+    <string name="record_cleanup_delete">Supprimer et programmer</string>
+    <string name="record_cleanup_none">Aucun enregistrement à supprimer sur ce disque.</string>
+    <string name="record_unsupported">Ce fournisseur ne permet pas l’enregistrement (format TS refusé).</string>
+    <string name="record_hint_tv">OK sur un programme pour l’enregistrer.</string>
+    <string name="record_hint_touch">Touchez un programme pour l’enregistrer.</string>
+    <string name="record_exact_alarm_title">Autoriser les alarmes</string>
+    <string name="record_exact_alarm_message">Pour démarrer à l’heure, même app fermée, Hey Stream a besoin de l’autorisation « Alarmes et rappels ». Sans elle, un enregistrement peut démarrer en retard.</string>
+    <string name="record_exact_alarm_open">Ouvrir les réglages</string>
+    <string name="record_exact_alarm_later">Plus tard</string>
+
+    <!-- Lecture pendant un enregistrement -->
+    <string name="recording_countdown">L’enregistrement de %1$s commence dans %2$s : la lecture s’arrêtera.</string>
+    <string name="recording_blocks_playback">Un enregistrement est en cours : un seul flux à la fois.</string>
+    <string name="recording_stop_now">Arrêter l’enregistrement</string>
+    <string name="recording_from_file">Depuis l’enregistrement</string>
+
+    <!-- Catégorie Enregistrements -->
+    <string name="recordings">Enregistrements</string>
+    <string name="recordings_empty">Aucun enregistrement</string>
+    <string name="recordings_empty_tv">Ouvrez une chaîne, puis OK sur un programme du guide pour l’enregistrer.</string>
+    <string name="recordings_empty_touch">Ouvrez une chaîne, puis touchez un programme du guide pour l’enregistrer.</string>
+    <string name="recordings_usage">%1$s utilisés · environ %2$s restantes</string>
+    <string name="recordings_private_note">Les enregistrements sont effacés si l’app est désinstallée.</string>
+    <string name="recordings_volume_missing">Disque non branché</string>
+    <string name="recordings_no_disk">Aucun disque disponible pour les enregistrements.</string>
+    <string name="recording_state_scheduled">Programmé · %1$s</string>
+    <string name="recording_state_recording">En cours · jusqu’à %1$s</string>
+    <string name="recording_state_done">%1$s</string>
+    <string name="recording_state_incomplete">Incomplet · %1$s</string>
+    <string name="recording_state_failed">Raté</string>
+    <string name="recording_state_missed">Manqué</string>
+    <string name="recording_when">%1$s, %2$s</string>
+    <string name="recording_delete">Supprimer</string>
+    <string name="recording_delete_title">Supprimer cet enregistrement ?</string>
+    <string name="recording_delete_message">Le fichier est effacé de l’appareil.</string>
+    <string name="recording_more_programmes">%1$s et %2$d autres</string>
+
+    <!-- Réglages -->
+    <string name="settings_section_recordings">Enregistrements</string>
+    <string name="settings_recordings_intro">Où ranger les enregistrements. Seuls les disques où Android permet un dossier privé à l’app sont proposés : les enregistrements ne se regardent que dans Hey Stream et sont effacés si l’app est désinstallée.</string>
+    <string name="settings_recordings_internal">Mémoire interne</string>
+    <string name="settings_recordings_free">%1$s libres sur %2$s</string>
+    <string name="settings_recordings_alarm_ok">Alarmes autorisées : les enregistrements démarrent à l’heure.</string>
+    <string name="settings_recordings_alarm_missing">Alarmes non autorisées : les enregistrements peuvent démarrer en retard.</string>
+    <string name="settings_recordings_battery">Sur certains appareils (Xiaomi HyperOS…), autorisez aussi Hey Stream à fonctionner en arrière-plan dans les réglages de batterie.</string>
+    <string name="settings_recordings_battery_open">Réglages de batterie</string>
+</resources>

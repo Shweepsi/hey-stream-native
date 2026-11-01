@@ -159,9 +159,9 @@ fun WatchedBadge(modifier: Modifier = Modifier, size: Dp = if (Hs.isTv) 22.dp el
 
 /** Badge « EN DIRECT » sur l'aperçu vidéo, hors thème. */
 @Composable
-fun LiveBadge(modifier: Modifier = Modifier) {
+fun LiveBadge(modifier: Modifier = Modifier, text: String? = null) {
     Text(
-        text = stringResource(R.string.live_badge),
+        text = text ?: stringResource(R.string.live_badge),
         style = Hs.type.badge,
         color = HsColors.OnMediaText,
         modifier = modifier

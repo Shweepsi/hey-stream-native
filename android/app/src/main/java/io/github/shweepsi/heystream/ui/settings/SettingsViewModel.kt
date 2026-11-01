@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Rubriques des réglages, dans l'ordre de la liste de gauche. */
-enum class SettingsSection { HiddenCategories, Parental, Language, Catalog, Subscription, About }
+enum class SettingsSection { HiddenCategories, Parental, Recordings, Language, Catalog, Subscription, About }
 
 /** Langue de l'app ; [tags] : liste BCP 47 pour AppCompat (vide : celle du système). */
 enum class LanguageChoice(val tags: String) {

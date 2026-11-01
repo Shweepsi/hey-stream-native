@@ -4,24 +4,40 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
-## 0.7.4 — 2026-11-01
+## 0.8.0 — 2026-11-01
 
-- Cœur de l'enregistrement programmé (`docs/DECISIONS.md`, « Enregistrement
-  programmé »), pas encore visible dans l'app :
-  - planning dans sa propre base : il survit à un changement d'identifiant,
-    qui annule seulement les programmations ;
-  - programmes qui se suivent fusionnés sur une même chaîne, marges
-    partagées entre deux chaînes, vrai chevauchement refusé ;
-  - estimation de la place (3 Go/h, puis débit appris par chaîne), réserve
-    de 1 Go ou 10 % du disque, place manquante annoncée avant de
-    programmer, jauge et enregistrements à proposer pour libérer de la
-    place ;
-  - copie du flux telle quelle dans un seul fichier, reconnexion avec
-    attentes croissantes puis un essai par minute jusqu'à la fin, arrêt
-    propre à la réserve ; enregistrement « incomplet » au-delà d'une minute
-    de trous ;
-  - enregistrements manqués ou interrompus signalés au lancement, reprise
-    dans le même fichier si la fenêtre n'est pas finie.
+- **Enregistrement programmé** (Android, `docs/DECISIONS.md`) :
+  - Direct : OK (ou toucher) sur l'un des 4 programmes du guide pour
+    l'enregistrer, avec des marges réglables (2 min avant, 5 min après la
+    première fois, puis les dernières choisies), la taille estimée et la
+    place qui manquerait (« Libérer de la place » ou « Programmer quand
+    même ») ; un programme déjà programmé est marqué, et OK l'annule ;
+  - catégorie **Enregistrements** dans le Direct : en cours, programmés et
+    faits, avec la place utilisée et le temps encore possible ; lecture comme
+    un film (+30 s, −10 s, reprise), suppression ;
+  - l'enregistrement démarre même app fermée (alarme exacte, demandée à la
+    première programmation, et service au premier plan) ; sur TV, la box
+    reste éveillée quand un enregistrement est prévu dans les 12 h ;
+  - une seule connexion : pendant un enregistrement, la chaîne enregistrée se
+    regarde depuis son fichier (pause et retour en arrière possibles) et tout
+    autre flux est bloqué, avec « Arrêter l'enregistrement » ; une lecture en
+    cours reçoit un compte à rebours d'une minute ;
+  - notifications « en cours » (Arrêter), « terminé » (Regarder) et
+    « problème » (manqué, incomplet, disque plein, avec la raison) ; jamais
+    de titre adulte ;
+  - Réglages › Enregistrements : disque (seulement ceux où Android permet un
+    dossier privé à l'app), état des alarmes, lien vers les réglages de
+    batterie ;
+  - déconnexion ou nouvel identifiant : programmations annulées, fichiers
+    gardés.
+- Cœur (`core/src/dvr/`) : planning dans sa propre base (fusion sur une même
+  chaîne, marges partagées entre deux chaînes, vrai chevauchement refusé),
+  estimation de la place (3 Go/h puis débit appris par chaîne, réserve de
+  1 Go ou 10 % du disque), copie du flux telle quelle dans un seul fichier
+  (reconnexion avec attentes croissantes puis un essai par minute jusqu'à la
+  fin, arrêt propre à la réserve, « incomplet » au-delà d'une minute de
+  trous, alarme en retard comprise), manqués et interrompus signalés au
+  lancement.
 
 ## 0.7.3 — 2026-10-31
 

@@ -11,8 +11,8 @@ from pathlib import Path
 
 ICONS = [
     "arrow-left", "audio-lines", "captions", "check", "chevron-down", "chevron-left",
-    "chevron-right", "chevron-up", "circle-alert", "circle-check", "clapperboard", "clock",
-    "delete", "ellipsis-vertical", "eye", "eye-off", "fast-forward", "film", "heart", "info",
+    "chevron-right", "chevron-up", "circle-alert", "circle-check", "circle-dot", "clapperboard", "clock",
+    "delete", "ellipsis-vertical", "eye", "eye-off", "fast-forward", "film", "hard-drive", "heart", "info",
     "key-round", "languages", "layers", "list", "list-video", "loader-circle", "lock",
     "lock-open", "log-out", "maximize", "minimize", "minus", "monitor-play", "pause", "play",
     "plus", "refresh-cw", "rewind", "rotate-ccw", "rotate-cw", "search", "server", "settings",

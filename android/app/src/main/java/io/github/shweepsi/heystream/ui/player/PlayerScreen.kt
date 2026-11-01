@@ -32,6 +32,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.C
+import io.github.shweepsi.heystream.player.PlayerController
+import kotlinx.coroutines.flow.StateFlow
 import androidx.media3.common.Player
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
@@ -76,6 +78,56 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         val handle = PlayerArgs.seed(createSavedStateHandle(), kind, id, seriesId, fromStart)
         PlayerViewModel(graph.session, controller, handle)
     }
+    PlayerHost(viewModel, controller, onExit)
+}
+
+/** Lecture d'un enregistrement (catégorie Enregistrements, notification « Regarder »). */
+@Composable
+fun RecordingPlayerScreen(id: Long, onExit: () -> Unit) {
+    val graph = appGraph()
+    val viewModel = viewModel(key = "recording-$id") { RecordingPlayerViewModel(graph.session, graph.recordings, graph.player, id) }
+    PlayerHost(viewModel, graph.player, onExit)
+}
+
+/**
+ * Ce que l'écran de lecture commande : un film ou un épisode
+ * ([PlayerViewModel]), ou un enregistrement ([RecordingPlayerViewModel]).
+ */
+interface PlayerModel {
+    val state: StateFlow<PlayerUiState>
+
+    fun togglePause()
+
+    fun nudge(forward: Boolean)
+
+    fun seekToFraction(fraction: Float)
+
+    fun selectTrack(key: TrackKey)
+
+    fun disableSubtitles()
+
+    fun retry()
+
+    fun playNextNow()
+
+    fun cancelNext()
+
+    fun close()
+
+    fun onBackground()
+
+    fun onForeground()
+
+    /** Position et durée affichées (un enregistrement en cours a sa propre échelle). */
+    fun position(player: Player): PlaybackPosition = PlaybackPosition(
+        positionMs = player.currentPosition.coerceAtLeast(0),
+        durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0,
+    )
+}
+
+/** Lecteur plein écran commun : sous-titres, commandes, sortie unique. */
+@Composable
+fun PlayerHost(viewModel: PlayerModel, controller: PlayerController, onExit: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val status by controller.status.collectAsStateWithLifecycle()
     val chrome = remember { PlayerChrome(visible = true) }
@@ -97,12 +149,9 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
 
     // Position et durée, lues seulement quand les commandes sont visibles.
     var position by remember { mutableStateOf(PlaybackPosition()) }
-    val readPosition = remember(player) {
+    val readPosition = remember(player, viewModel) {
         {
-            position = PlaybackPosition(
-                positionMs = player.currentPosition.coerceAtLeast(0),
-                durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0,
-            )
+            position = viewModel.position(player)
         }
     }
     LaunchedEffect(chrome.visible, player) {

@@ -143,6 +143,9 @@ class SettingsFocusTest {
         clickable("Parental control").assertIsFocused()
 
         press(Key.DirectionDown)
+        clickable("Recordings").assertIsFocused()
+        assertEquals(SettingsSection.Recordings, state.section)
+        press(Key.DirectionDown)
         press(Key.DirectionDown)
         clickable("Catalog").assertIsFocused()
         press(Key.DirectionRight)
@@ -162,7 +165,7 @@ class SettingsFocusTest {
 
         // Retour aux catégories masquées : l'onglet ouvert reste Films.
         back()
-        repeat(5) { press(Key.DirectionUp) }
+        repeat(6) { press(Key.DirectionUp) }
         clickable("Hidden categories").assertIsFocused()
         press(Key.DirectionRight)
         clickable("Movies").assertIsFocused()

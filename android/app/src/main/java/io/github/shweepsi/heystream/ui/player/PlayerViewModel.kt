@@ -18,6 +18,7 @@ import io.github.shweepsi.heystream.core.StreamKind
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
 import io.github.shweepsi.heystream.ui.detail.visibleItem
@@ -112,9 +113,9 @@ class PlayerViewModel(
     private val session: CoreSession,
     private val controller: PlayerController,
     handle: SavedStateHandle,
-) : ViewModel() {
+) : ViewModel(), PlayerModel {
     private val _state = MutableStateFlow(PlayerUiState())
-    val state: StateFlow<PlayerUiState> = _state.asStateFlow()
+    override val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     /** Titre en cours (et « Depuis le début »), gardé dans le handle de l'écran. */
     private val args = PlayerArgs(handle)
@@ -171,7 +172,7 @@ class PlayerViewModel(
 
     // Commandes ---------------------------------------------------------------
 
-    fun togglePause() {
+    override fun togglePause() {
         val player = player
         if (player.isPlaying || (player.playWhenReady && player.playbackState == Player.STATE_BUFFERING)) {
             player.pause()
@@ -185,7 +186,7 @@ class PlayerViewModel(
      * s'additionnent (« +1:30 » affiché), et le saut part une seule fois,
      * [SEEK_COMMIT_MS] après le dernier — une seule requête au serveur.
      */
-    fun nudge(forward: Boolean) {
+    override fun nudge(forward: Boolean) {
         val step = if (forward) FORWARD_STEP_MS else -BACK_STEP_MS
         _state.update { it.copy(pendingSeekMs = (it.pendingSeekMs ?: 0L) + step) }
         pendingSeek?.cancel()
@@ -226,19 +227,19 @@ class PlayerViewModel(
     }
 
     /** Barre de progression touchée ou glissée au doigt. */
-    fun seekToFraction(fraction: Float) {
+    override fun seekToFraction(fraction: Float) {
         // Position choisie sur la barre : les appuis en attente ne comptent plus.
         dropPendingSeek()
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         player.seekTo((duration * fraction.coerceIn(0f, 1f)).toLong())
     }
 
-    fun selectTrack(key: TrackKey) {
+    override fun selectTrack(key: TrackKey) {
         val player = player
         player.trackSelectionParameters = selectTrack(player.trackSelectionParameters, player.currentTracks, key)
     }
 
-    fun disableSubtitles() {
+    override fun disableSubtitles() {
         val player = player
         player.trackSelectionParameters = disableSubtitles(player.trackSelectionParameters)
     }
@@ -247,7 +248,7 @@ class PlayerViewModel(
      * « Réessayer » : flux coupé (lecteur) ou adresse introuvable (fiche).
      * Flux pas encore ouvert : « Depuis le début » vaut toujours (handle).
      */
-    fun retry() {
+    override fun retry() {
         if (_state.value.error != null || !started) {
             resolve()
         } else {
@@ -257,7 +258,7 @@ class PlayerViewModel(
     }
 
     /** « Lire maintenant » ou fin du compte à rebours. */
-    fun playNextNow() {
+    override fun playNextNow() {
         val next = pendingNext ?: return
         nextJob?.cancel()
         nextJob = null
@@ -269,7 +270,7 @@ class PlayerViewModel(
     }
 
     /** « Annuler » l'épisode suivant : l'écran se ferme. */
-    fun cancelNext() {
+    override fun cancelNext() {
         nextJob?.cancel()
         nextJob = null
         pendingNext = null
@@ -280,7 +281,7 @@ class PlayerViewModel(
      * Sortie de l'écran : position enregistrée, flux fermé. Sans effet la
      * seconde fois (Retour puis fin du ViewModel).
      */
-    fun close() {
+    override fun close() {
         if (closed) return
         // Saut cumulé pas encore parti : appliqué, puis enregistré avec la position.
         settleSeek()
@@ -298,7 +299,7 @@ class PlayerViewModel(
      * enregistrée, compte à rebours suspendu. Un titre fini ou pas encore
      * ouvert n'est pas rouvert par le lecteur au retour.
      */
-    fun onBackground() {
+    override fun onBackground() {
         if (closed || !foreground) return
         settleSeek()
         foreground = false
@@ -313,7 +314,7 @@ class PlayerViewModel(
      * rebours relancé ; après la vérification du contrôle parental si elle
      * n'est pas finie ([checkHeld]).
      */
-    fun onForeground() {
+    override fun onForeground() {
         if (closed || foreground) return
         foreground = true
         if (holdJob?.isActive != true) resumeScreen()
@@ -423,6 +424,8 @@ class PlayerViewModel(
     private fun open(resolved: Resolved) {
         controller.playVod(resolved.url, resolved.startMs)
         started = true
+        // Refusé tout de suite (enregistrement en cours) : le message s'affiche.
+        if (controller.status.value.blocked) onStatus(controller.status.value)
     }
 
     /**
@@ -505,6 +508,13 @@ class PlayerViewModel(
 
     private fun onStatus(status: PlaybackStatus) {
         if (!started || closed) return
+        // Un enregistrement a pris la seule connexion : position gardée, message.
+        if (status.blocked) {
+            if (wasPlaying) saveProgress()
+            wasPlaying = false
+            _state.update { it.copy(error = UiText(R.string.recording_blocks_playback), retrying = false) }
+            return
+        }
         // Le lecteur a repris la main (nouvelle tentative ou lecture).
         if (_state.value.retrying && (status.reconnectAttempt > 0 || !status.failed)) {
             _state.update { it.copy(retrying = false) }

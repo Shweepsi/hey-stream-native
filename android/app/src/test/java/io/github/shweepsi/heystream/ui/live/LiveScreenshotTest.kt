@@ -1,5 +1,9 @@
 package io.github.shweepsi.heystream.ui.live
 
+import io.github.shweepsi.heystream.core.RecordingProblem
+import io.github.shweepsi.heystream.core.RecordingState
+import io.github.shweepsi.heystream.core.RecordingUsage
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
@@ -192,6 +196,52 @@ class LiveScreenshotTest {
         LiveUiState(categories = CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), 0, 0)), downloading = true),
         items = emptyList(),
     )
+
+    // Enregistrement --------------------------------------------------------
+
+    private fun row(id: Long, title: String, state: RecordingState, start: Long, bytes: Long = 0, problem: RecordingProblem? = null) = RecordingRow(
+        id = id,
+        streamId = 1,
+        title = title,
+        more = 0,
+        channel = "Info Monde",
+        state = state,
+        problem = problem,
+        start = start,
+        stop = start + 3_600,
+        bytes = bytes,
+        volumeMissing = false,
+        watched = false,
+        progress = if (id == 3L) 0.4f else null,
+    )
+
+    private val recordings = RecordingsUi(
+        rows = listOf(
+            row(1, "Le journal du soir", RecordingState.RECORDING, now - 25 * 60),
+            row(2, "Le monde en face", RecordingState.SCHEDULED, now + 95 * 60),
+            row(3, "Grand entretien", RecordingState.DONE, now - 86_400, bytes = 2_400_000_000),
+            row(4, "Match de la semaine", RecordingState.INCOMPLETE, now - 2 * 86_400, bytes = 4_100_000_000, problem = RecordingProblem.GAPS),
+        ),
+        usage = RecordingUsage(usedBytes = 6_500_000_000u, usableBytes = 18_000_000_000u, remainingSecs = 6 * 3600 + 5 * 60, low = false),
+        loaded = true,
+    )
+
+    private val recordingState = playing.copy(
+        categories = CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), favorites = 12, recents = 5, recordings = 4)),
+        selected = CategoryKey.Recordings,
+        recordings = recordings,
+        recordingEnabled = true,
+        scheduledStarts = setOf(now + 95 * 60),
+    )
+
+    /** Catégorie Enregistrements, et programme du guide marqué « programmé ». */
+    @Test fun recordingsTv() = live("live_recordings", Device.Tv, recordingState, items = emptyList())
+
+    @Test fun recordingsPhone() = live("live_recordings", Device.Phone, recordingState, items = emptyList())
+
+    /** Un autre enregistrement a la seule connexion : flux refusé. */
+    @Test
+    fun blockedByRecordingTablet() = live("live_blocked", Device.Tablet, playing.copy(playback = LivePlayback.Blocked, recordingEnabled = true))
 
     private companion object {
         /** Télécommande (comme `capture`) : le focus de départ est visible. */

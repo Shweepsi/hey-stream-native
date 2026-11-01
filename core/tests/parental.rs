@@ -690,3 +690,33 @@ fn provider_flag_is_per_section_and_does_not_unmark_adult_names() {
         Err(Error::ParentalLock)
     ));
 }
+
+#[test]
+fn the_adult_mark_of_an_entry_ignores_the_lock() {
+    let mut c = Catalog::open_in_memory().unwrap();
+    let cats: Vec<Category> = from_value(json!([
+        {"category_id": "1", "category_name": "Infos"},
+        {"category_id": "2", "category_name": "XXX"}
+    ]))
+    .unwrap();
+    let live: Vec<LiveStream> = from_value(json!([
+        {"stream_id": 1, "name": "Infos", "category_id": "1"},
+        {"stream_id": 2, "name": "Nuit", "category_id": "2"},
+        {"stream_id": 3, "name": "Marquée", "category_id": "1", "is_adult": "1"},
+        {"stream_id": 4, "name": "Catégorie inconnue", "category_id": "9"},
+        {"stream_id": 5, "name": "Sans catégorie"}
+    ]))
+    .unwrap();
+    c.store_live(&cats, &live, 0).unwrap();
+    let adult = |c: &Catalog, id| c.is_adult(Section::Live, id).unwrap();
+    assert!(!adult(&c, 1));
+    assert!(adult(&c, 2));
+    assert!(adult(&c, 3));
+    assert!(adult(&c, 4));
+    assert!(!adult(&c, 5));
+    // Inconnue du cache : adulte par prudence.
+    assert!(adult(&c, 99));
+    c.set_pin("1234", None, 0).unwrap();
+    c.unlock_parental("1234", 0).unwrap();
+    assert!(adult(&c, 2), "le déverrouillage ne change pas la marque");
+}

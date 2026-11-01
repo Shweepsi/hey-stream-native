@@ -39,6 +39,8 @@ import io.github.shweepsi.heystream.ui.home.HomeScreen
 import io.github.shweepsi.heystream.ui.live.LiveScreen
 import io.github.shweepsi.heystream.ui.login.LoginScreen
 import io.github.shweepsi.heystream.ui.player.PlayerScreen
+import io.github.shweepsi.heystream.ui.player.RecordingPlayerScreen
+import androidx.compose.runtime.LaunchedEffect
 import io.github.shweepsi.heystream.ui.search.SearchScreen
 import io.github.shweepsi.heystream.ui.settings.SettingsScreen
 import io.github.shweepsi.heystream.ui.theme.Hs
@@ -82,6 +84,15 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     }
     // Choisi une fois : ensuite, connexion et déconnexion naviguent elles-mêmes.
     val start = remember { if (state == SessionState.Ready) Routes.HOME else Routes.LOGIN }
+    // Notification « Regarder » : l'enregistrement s'ouvre (abonnement ouvert).
+    val recordings = appGraph().recordings
+    LaunchedEffect(recordings, state) {
+        if (state != SessionState.Ready) return@LaunchedEffect
+        recordings.openRequests.collect { id ->
+            recordings.consumeOpenRequest()
+            navController.navigate(Routes.recording(id)) { launchSingleTop = true }
+        }
+    }
     // APK testeur : chaque écran ouvert (modèle de route et ses numéros).
     DisposableEffect(navController) {
         val listener = NavController.OnDestinationChangedListener { _, destination, arguments ->
@@ -144,6 +155,16 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
             LiveScreen(
                 initialChannelId = entry.arguments?.getLong("channel")?.takeIf { it >= 0 },
                 onBack = { navController.popBackStack() },
+                onOpenRecording = { id -> navController.go(entry, Routes.recording(id)) },
+            )
+        }
+        composable(
+            Routes.RECORDING,
+            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+        ) { entry ->
+            RecordingPlayerScreen(
+                id = entry.arguments?.getLong("id") ?: 0L,
+                onExit = { navController.popBackStack() },
             )
         }
         composable(

@@ -23,6 +23,11 @@ sealed interface CategoryKey {
         override val listKey: String get() = "recents"
     }
 
+    /** Enregistrements en cours, programmés et faits (Android). */
+    data object Recordings : CategoryKey {
+        override val listKey: String get() = "recordings"
+    }
+
     data class Provider(val id: String) : CategoryKey {
         override val listKey: String get() = "category:$id"
     }
@@ -102,6 +107,9 @@ sealed interface LivePlayback {
 
     /** Lecture abandonnée ; [error] : erreur du cœur avant la lecture, sinon message générique. */
     data class Failed(val error: UiText? = null) : LivePlayback
+
+    /** Un enregistrement d'une autre chaîne a la seule connexion. */
+    data object Blocked : LivePlayback
 }
 
 /** Ouverture d'une catégorie adulte : code PIN à saisir (ou à créer). */
@@ -128,6 +136,20 @@ data class LiveUiState(
     /** Confirmation brève (favori ajouté ou retiré). */
     val message: UiText? = null,
     val pinRequest: PinRequest? = null,
+    /** Catégorie Enregistrements : sa liste et la jauge. */
+    val recordings: RecordingsUi = RecordingsUi(),
+    /** Programmation en cours depuis le guide. */
+    val recordDialog: RecordDialogUi? = null,
+    /** Débuts des programmes de la chaîne en aperçu déjà programmés (marque « enregistrement »). */
+    val scheduledStarts: Set<Long> = emptySet(),
+    /** L'aperçu montre le fichier de l'enregistrement en cours de cette chaîne. */
+    val fromRecording: Boolean = false,
+    /** Options d'un enregistrement de la liste (regarder, arrêter, annuler, supprimer). */
+    val recordingOptions: RecordingRow? = null,
+    /** Première programmation sans alarme exacte : explication et lien vers le réglage. */
+    val alarmPrompt: Boolean = false,
+    /** L'enregistrement est possible ici (Android, cœur natif) : programmes du guide activables. */
+    val recordingEnabled: Boolean = false,
 )
 
 /** Actions de l'écran, pour un contenu sans état (et des captures sans cœur natif). */
@@ -157,6 +179,17 @@ interface LiveActions {
 
     /** Catalogue vide : nouveau téléchargement. */
     fun onRefreshCatalog() {}
+
+    /** OK ou toucher sur un programme du guide : programmer ou annuler son enregistrement. */
+    fun onProgrammeClick(programme: LiveProgramme) {}
+
+    /** Un enregistrement de la liste : le regarder (fait ou en cours) ou ouvrir ses options. */
+    fun onRecordingClick(row: RecordingRow) {}
+
+    fun onRecordingOptions(row: RecordingRow) {}
+
+    /** Arrête l'enregistrement en cours (le fichier est gardé). */
+    fun onStopRecording() {}
 }
 
 /** Nombre de récents affichés. */
@@ -171,9 +204,11 @@ fun liveCategories(
     counts: Map<String, Long>,
     favorites: Int,
     recents: Int,
-): List<LiveCategory> = buildList(provider.size + 2) {
+    recordings: Int = 0,
+): List<LiveCategory> = buildList(provider.size + 3) {
     add(LiveCategory(CategoryKey.Favorites, name = null, count = favorites.toLong()))
     add(LiveCategory(CategoryKey.Recents, name = null, count = recents.toLong()))
+    add(LiveCategory(CategoryKey.Recordings, name = null, count = recordings.toLong()))
     provider.forEach { entry ->
         add(
             LiveCategory(
@@ -186,7 +221,7 @@ fun liveCategories(
     }
 }
 
-/** Colonne affichée : Favoris et Récents vides sont masqués, sauf s'ils sont ouverts. */
+/** Colonne affichée : Favoris, Récents et Enregistrements vides sont masqués, sauf s'ils sont ouverts. */
 fun shownCategories(categories: List<LiveCategory>, selected: CategoryKey?): List<LiveCategory> =
     categories.filter { it.key is CategoryKey.Provider || (it.count ?: 0L) > 0L || it.key == selected }
 
@@ -228,6 +263,7 @@ fun channelClick(previewId: Long?, clickedId: Long): ChannelClick =
 fun livePlaybackOf(status: PlaybackStatus, hasPreview: Boolean, previewError: UiText?): LivePlayback = when {
     !hasPreview -> LivePlayback.Idle
     previewError != null -> LivePlayback.Failed(previewError)
+    status.blocked -> LivePlayback.Blocked
     status.failed -> LivePlayback.Failed()
     status.reconnectAttempt > 0 -> LivePlayback.Reconnecting
     status.active -> LivePlayback.Playing

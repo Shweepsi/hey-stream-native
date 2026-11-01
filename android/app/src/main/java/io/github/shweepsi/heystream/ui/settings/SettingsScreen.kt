@@ -1,5 +1,11 @@
 package io.github.shweepsi.heystream.ui.settings
 
+import androidx.lifecycle.repeatOnLifecycle
+import io.github.shweepsi.heystream.recording.RecordingScheduler
+import io.github.shweepsi.heystream.recording.RecordingVolumes
+import io.github.shweepsi.heystream.ui.live.openExactAlarmSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.activity.compose.BackHandler
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.Composable
@@ -50,6 +56,23 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
     var versionTaps by remember { mutableIntStateOf(0) }
     var devUnlocked by remember { mutableStateOf(DevTools.isUnlocked(context)) }
     var devTools by remember { mutableStateOf(DevToolsUi(recording = DevTools.isRecording(context))) }
+    var recordingSettings by remember { mutableStateOf(RecordingSettingsUi()) }
+
+    /** Disques, dossier retenu et alarme, relus à chaque ouverture de la rubrique. */
+    fun loadRecordingSettings() {
+        scope.launch {
+            val volumes = withContext(Dispatchers.IO) { RecordingVolumes.list(context) }
+            val selected = runCatching { graph.recordings.ensureDirectory() }.getOrNull()
+            recordingSettings = RecordingSettingsUi(volumes, selected, RecordingScheduler.canScheduleExact(context))
+        }
+    }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(state.section, lifecycle) {
+        // Retour du réglage d'Android (alarmes) : état relu.
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            if (state.section == SettingsSection.Recordings) loadRecordingSettings()
+        }
+    }
 
     /** Lance une action des outils de test, puis relit le nombre de réponses enregistrées. */
     fun devAction(block: suspend () -> Unit) {
@@ -143,6 +166,22 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
 
             override fun clearRecording() = devAction { DevTools.clear(context) }
 
+            override fun selectRecordingVolume(path: String) {
+                scope.launch {
+                    runCatching { graph.recordings.withStore { it.setDirectory(path) } }
+                    loadRecordingSettings()
+                }
+            }
+
+            override fun openExactAlarmSettings() = openExactAlarmSettings(context)
+
+            override fun openBatterySettings() {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData(android.net.Uri.parse("package:${context.packageName}"))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+            }
+
             override fun back() = currentOnBack()
         }
     }
@@ -155,6 +194,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
         crashReports = crashReports,
         update = update,
         devTools = devTools.takeIf { devUnlocked && DevTools.recordingOffered },
+        recordings = recordingSettings,
     )
 
     pinPurpose?.let { purpose ->

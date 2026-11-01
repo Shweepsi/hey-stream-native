@@ -19,18 +19,26 @@ class LiveLogicTest {
 
     @Test
     fun specialCategoriesComeFirstAndLockedOnesHaveNoCount() {
-        val categories = liveCategories(entries, counts = mapOf("1" to 38L, "2" to 120L, "9" to 7L), favorites = 3, recents = 0)
+        val categories = liveCategories(entries, counts = mapOf("1" to 38L, "2" to 120L, "9" to 7L), favorites = 3, recents = 0, recordings = 2)
         assertEquals(
-            listOf(CategoryKey.Favorites, CategoryKey.Recents, CategoryKey.Provider("1"), CategoryKey.Provider("9"), CategoryKey.Provider("2")),
+            listOf(
+                CategoryKey.Favorites,
+                CategoryKey.Recents,
+                CategoryKey.Recordings,
+                CategoryKey.Provider("1"),
+                CategoryKey.Provider("9"),
+                CategoryKey.Provider("2"),
+            ),
             categories.map { it.key },
         )
         assertEquals(3L, categories[0].count)
         assertEquals(0L, categories[1].count)
-        assertEquals(38L, categories[2].count)
-        assertTrue(categories[3].locked)
-        assertNull(categories[3].count)
+        assertEquals(2L, categories[2].count)
+        assertEquals(38L, categories[3].count)
+        assertTrue(categories[4].locked)
+        assertNull(categories[4].count)
         assertNull(categories[0].name)
-        assertEquals("Sport", categories[4].name)
+        assertEquals("Sport", categories[5].name)
     }
 
     @Test

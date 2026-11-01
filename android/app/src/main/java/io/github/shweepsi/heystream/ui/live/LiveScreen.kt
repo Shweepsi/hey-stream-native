@@ -1,6 +1,18 @@
 package io.github.shweepsi.heystream.ui.live
 
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import io.github.shweepsi.heystream.R
+import io.github.shweepsi.heystream.recording.RecordingScheduler
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
@@ -28,11 +40,29 @@ import io.github.shweepsi.heystream.ui.theme.Hs
  * (depuis la recherche) ouvre cette chaîne directement en plein écran.
  */
 @Composable
-fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit) {
+fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit, onOpenRecording: (Long) -> Unit = {}) {
     val graph = appGraph()
     val player = graph.player
-    val viewModel = viewModel { LiveViewModel(graph.session, graph.player, initialChannelId) }
+    val context = LocalContext.current
+    val viewModel = viewModel {
+        LiveViewModel(
+            graph.session,
+            graph.player,
+            initialChannelId,
+            recordings = graph.recordings,
+            canScheduleExact = { RecordingScheduler.canScheduleExact(context.applicationContext) },
+        )
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val openRecording by viewModel.openRecording.collectAsStateWithLifecycle()
+    LaunchedEffect(openRecording) {
+        openRecording?.let {
+            viewModel.onRecordingOpened()
+            onOpenRecording(it)
+        }
+    }
+    // Notifications (Android 13+) : demandées à la première programmation.
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val channels = viewModel.channels.collectAsLazyPagingItems()
     val now by rememberNow()
 
@@ -63,6 +93,26 @@ fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit) {
         video = { modifier -> VideoSurface(player.player, modifier, keepScreenOn = keepScreenOn) },
     )
 
+    state.recordDialog?.let { RecordDialog(it, viewModel) }
+    state.recordingOptions?.let { RecordingOptionsDialog(it, viewModel) }
+    val scheduledOnce = state.message?.id == R.string.record_scheduled
+    LaunchedEffect(scheduledOnce) {
+        if (scheduledOnce && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            runCatching { notifications.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        }
+    }
+    if (state.alarmPrompt) {
+        ExactAlarmDialog(
+            onOpen = {
+                viewModel.onAlarmPromptDone()
+                openExactAlarmSettings(context)
+            },
+            onDismiss = viewModel::onAlarmPromptDone,
+        )
+    }
+
     state.pinRequest?.let { request ->
         key(request) {
             ParentalPinDialog(
@@ -72,6 +122,14 @@ fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit) {
             )
         }
     }
+}
+
+/** Réglage « Alarmes et rappels » de l'app (Android 12+). */
+fun openExactAlarmSettings(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }
 
 /** Plein écran au doigt : barres du système masquées (un glissement les montre). */

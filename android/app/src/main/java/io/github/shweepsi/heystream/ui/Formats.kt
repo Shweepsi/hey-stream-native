@@ -28,6 +28,12 @@ object Formats {
         return DateTimeFormatter.ofPattern(pattern, locale).format(Instant.ofEpochMilli(epochMs).atZone(zone))
     }
 
+    /** Jour et date abrégés (« mer. 28 oct. »), pour une ligne de liste. */
+    fun shortDate(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String {
+        val pattern = DateFormat.getBestDateTimePattern(locale, "EEEdMMM")
+        return DateTimeFormatter.ofPattern(pattern, locale).format(Instant.ofEpochMilli(epochMs).atZone(zone))
+    }
+
     /** Date complète (« 14 mars 2027 »), à partir de secondes Unix. */
     fun longDate(epochSecs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale)

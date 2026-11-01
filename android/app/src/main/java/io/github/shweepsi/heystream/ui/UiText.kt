@@ -46,5 +46,10 @@ fun Throwable.toUiText(): UiText = when (this) {
     is HeyStreamException.WrongPin -> UiText(R.string.error_wrong_pin)
     is HeyStreamException.TooManyAttempts -> UiText(R.string.error_too_many_attempts, listOf(retryInSecs.coerceAtLeast(1)))
     is HeyStreamException.SignedOut -> UiText(R.string.error_signed_out)
+    is HeyStreamException.RecordingConflict -> UiText(R.string.error_recording_conflict)
+    is HeyStreamException.RecordingEnded -> UiText(R.string.error_recording_ended)
+    is HeyStreamException.RecordingNotFound -> UiText(R.string.error_recording_not_found)
+    is HeyStreamException.NotEnoughSpace -> UiText(R.string.error_not_enough_space)
+    is HeyStreamException.VolumeMissing -> UiText(R.string.error_volume_missing)
     else -> UiText(R.string.error_unknown)
 }

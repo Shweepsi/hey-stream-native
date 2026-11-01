@@ -354,6 +354,8 @@ private fun LivePanels(
             message = state.message?.resolve(),
             layout = layout,
             nowSecs = nowSecs,
+            scheduledStarts = state.scheduledStarts,
+            onProgramme = if (state.recordingEnabled) actions::onProgrammeClick else null,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
@@ -416,7 +418,11 @@ private fun CategoriesPanel(
                 val isSelected = category.key == selected
                 CategoryRow(
                     name = category.name ?: stringResource(
-                        if (category.key == CategoryKey.Favorites) R.string.favorites else R.string.recents,
+                        when (category.key) {
+                            CategoryKey.Favorites -> R.string.favorites
+                            CategoryKey.Recordings -> R.string.recordings
+                            else -> R.string.recents
+                        },
                     ),
                     onClick = { onSelect(category) },
                     count = category.count,
@@ -425,6 +431,7 @@ private fun CategoriesPanel(
                     icon = when (category.key) {
                         CategoryKey.Favorites -> Lucide.Heart
                         CategoryKey.Recents -> Lucide.Clock
+                        CategoryKey.Recordings -> Lucide.CircleDot
                         is CategoryKey.Provider -> null
                     },
                     modifier = if (isSelected) Modifier.focusRequester(selectedFocus) else Modifier,
@@ -463,6 +470,7 @@ private fun ChannelsPanel(
         val refresh = channels.loadState.refresh
         val selected = state.selected
         when {
+            selected == CategoryKey.Recordings -> RecordingsPanel(state.recordings, actions, compact, firstFocus)
             channels.itemCount > 0 -> ChannelList(state, channels, listState, vertical, firstFocus, previewFocus, compact, actions)
             refresh is LoadState.Error -> MessageState(
                 title = refresh.error.toUiText().resolve(),
@@ -646,6 +654,9 @@ private fun PreviewPanel(
     layout: LiveLayout,
     nowSecs: Long,
     modifier: Modifier,
+    scheduledStarts: Set<Long> = emptySet(),
+    /** Programmes activables (enregistrement) ; `null` : simple affichage. */
+    onProgramme: ((LiveProgramme) -> Unit)? = null,
 ) {
     val isTv = Hs.isTv
     Column(modifier.padding(layout.previewPadding)) {
@@ -660,10 +671,17 @@ private fun PreviewPanel(
             if (preview == null) {
                 Text(stringResource(R.string.live_preview_hint), style = Hs.type.body, color = Hs.colors.textSecondary)
             } else {
-                NowBlock(preview, nowSecs, layout.compact)
+                val now = preview.now
+                if (now != null && onProgramme != null) {
+                    ProgrammeButton(now, now.start in scheduledStarts, onProgramme) { NowBlock(preview, nowSecs, layout.compact) }
+                } else {
+                    NowBlock(preview, nowSecs, layout.compact)
+                }
                 // Lignes coupées par FitColumn quand la place manque (téléphone).
-                preview.next?.let { NextRow(it, Modifier.padding(top = if (isTv) 12.dp else 16.dp)) }
-                preview.later.forEach { NextRow(it) }
+                preview.next?.let {
+                    ProgrammeLine(it, it.start in scheduledStarts, onProgramme, Modifier.padding(top = if (isTv) 12.dp else 16.dp))
+                }
+                preview.later.forEach { ProgrammeLine(it, it.start in scheduledStarts, onProgramme) }
             }
         }
         if (!layout.compact && message != null) {
@@ -713,6 +731,52 @@ private fun NowBlock(preview: LivePreview, nowSecs: Long, compact: Boolean) {
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
+    }
+}
+
+/**
+ * Programme du guide activable : OK ou toucher pour l'enregistrer (ou
+ * annuler son enregistrement). Marqué s'il est déjà programmé.
+ */
+@Composable
+private fun ProgrammeButton(programme: LiveProgramme, scheduled: Boolean, onClick: (LiveProgramme) -> Unit, content: @Composable () -> Unit) {
+    val isTv = Hs.isTv
+    HsSurface(
+        onClick = { onClick(programme) },
+        focusScale = FocusScale.NONE,
+        onClickLabel = stringResource(if (scheduled) R.string.record_cancel_action else R.string.record_action),
+        contentPadding = PaddingValues(horizontal = if (isTv) 6.dp else 8.dp, vertical = if (isTv) 4.dp else 6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1f)) { content() }
+            RecordMark(scheduled)
+        }
+    }
+}
+
+/** Marque d'enregistrement : pleine si programmé, sinon montrée au focus (télécommande). */
+@Composable
+private fun RecordMark(scheduled: Boolean) {
+    val focused = LocalSurfaceFocused.current
+    if (!scheduled && !focused) return
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(
+            Lucide.CircleDot,
+            contentDescription = if (scheduled) stringResource(R.string.record_planned_badge) else null,
+            tint = LocalContentColor.current,
+            modifier = Modifier.size(Hs.dimens.icon * 0.9f),
+        )
+        if (focused && !scheduled) Text(stringResource(R.string.record_action), style = Hs.type.small, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ProgrammeLine(programme: LiveProgramme, scheduled: Boolean, onClick: ((LiveProgramme) -> Unit)?, modifier: Modifier = Modifier) {
+    if (onClick == null) {
+        NextRow(programme, modifier)
+    } else {
+        Box(modifier) { ProgrammeButton(programme, scheduled, onClick) { NextRow(programme) } }
     }
 }
 

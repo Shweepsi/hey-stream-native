@@ -162,6 +162,25 @@ impl Catalog {
         Ok(())
     }
 
+    /// Entrée adulte, quel que soit le verrou : marquée par le fournisseur,
+    /// ou dans une catégorie adulte ou absente du cache (même règle que les
+    /// listes). Gardée avec un enregistrement (`docs/DECISIONS.md`).
+    pub fn is_adult(&self, section: Section, id: i64) -> Result<bool> {
+        let adult: Option<bool> = self
+            .conn
+            .query_row(
+                "SELECT i.is_adult = 1 OR (i.category_id IS NOT NULL AND NOT EXISTS (
+                     SELECT 1 FROM category c WHERE c.section = i.section
+                     AND c.id = i.category_id AND c.is_adult = 0))
+                 FROM item i WHERE i.section = ?1 AND i.id = ?2",
+                params![section.key(), id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        // Chaîne inconnue du cache : traitée comme adulte, par prudence.
+        Ok(adult.unwrap_or(true))
+    }
+
     // --- Filtres SQL partagés --------------------------------------------
 
     /// Conditions de visibilité d'une entrée `alias` de la table `item`.

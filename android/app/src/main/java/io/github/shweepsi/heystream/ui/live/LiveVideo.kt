@@ -104,11 +104,13 @@ internal fun LiveVideo(
                 Modifier
                     .align(Alignment.TopStart)
                     .padding(inset),
+                text = if (state.fromRecording) stringResource(R.string.recording_from_file) else null,
             )
         }
         PlaybackMessage(
             playback = state.playback,
             onRetry = actions::onRetryPlayback,
+            onStopRecording = actions::onStopRecording,
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(inset),
@@ -138,9 +140,22 @@ internal fun LiveVideo(
 
 /** Reconnexion en cours, ou échec avec « Réessayer ». */
 @Composable
-private fun PlaybackMessage(playback: LivePlayback, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+private fun PlaybackMessage(playback: LivePlayback, onRetry: () -> Unit, onStopRecording: () -> Unit, modifier: Modifier = Modifier) {
     val focusManager = LocalFocusManager.current
     when (playback) {
+        LivePlayback.Blocked -> Column(
+            modifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(if (Hs.isTv) 10.dp else 12.dp),
+        ) {
+            MediaText(stringResource(R.string.recording_blocks_playback))
+            HsButton(
+                text = stringResource(R.string.recording_stop_now),
+                onClick = onStopRecording,
+                icon = Lucide.X,
+                style = ButtonStyle.Primary,
+            )
+        }
         LivePlayback.Reconnecting -> MediaText(stringResource(R.string.playback_reconnecting), modifier)
         is LivePlayback.Failed -> Column(
             modifier,

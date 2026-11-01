@@ -67,6 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
+import io.github.shweepsi.heystream.recording.RecordingVolume
 import io.github.shweepsi.heystream.core.AppUpdate
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.UpdateState
@@ -145,8 +146,25 @@ interface SettingsActions {
 
     fun clearRecording() {}
 
+    /** Disque des prochains enregistrements. */
+    fun selectRecordingVolume(path: String) {}
+
+    fun openExactAlarmSettings() {}
+
+    fun openBatterySettings() {}
+
     fun back() {}
 }
+
+/** Rubrique Enregistrements : disques possibles (dossier privé à l'app) et alarmes. */
+@Immutable
+data class RecordingSettingsUi(
+    val volumes: List<RecordingVolume> = emptyList(),
+    /** Dossier retenu (celui d'un des volumes, ou d'un volume débranché). */
+    val selected: String? = null,
+    /** Alarme exacte autorisée : les enregistrements démarrent à l'heure. */
+    val exactAlarm: Boolean = true,
+)
 
 /** Outils de test (cachés) : enregistrement des réponses du fournisseur. */
 @Immutable
@@ -162,6 +180,7 @@ val SettingsSection.title: Int
     get() = when (this) {
         SettingsSection.HiddenCategories -> R.string.settings_section_hidden
         SettingsSection.Parental -> R.string.settings_section_parental
+        SettingsSection.Recordings -> R.string.settings_section_recordings
         SettingsSection.Language -> R.string.settings_section_language
         SettingsSection.Catalog -> R.string.settings_section_catalog
         SettingsSection.Subscription -> R.string.settings_section_subscription
@@ -172,6 +191,7 @@ private val SettingsSection.icon: ImageVector
     get() = when (this) {
         SettingsSection.HiddenCategories -> Lucide.EyeOff
         SettingsSection.Parental -> Lucide.ShieldCheck
+        SettingsSection.Recordings -> Lucide.HardDrive
         SettingsSection.Language -> Lucide.Languages
         SettingsSection.Catalog -> Lucide.RefreshCw
         SettingsSection.Subscription -> Lucide.User
@@ -201,6 +221,7 @@ fun SettingsContent(
     update: UpdateState = UpdateState.Idle,
     /** Outils de test, `null` tant qu'ils sont cachés. */
     devTools: DevToolsUi? = null,
+    recordings: RecordingSettingsUi = RecordingSettingsUi(),
 ) {
     val dimens = Hs.dimens
     val isTv = dimens.isTv
@@ -239,6 +260,7 @@ fun SettingsContent(
                 when (state.section) {
                     SettingsSection.HiddenCategories -> HiddenCategoriesPane(state.categories, actions)
                     SettingsSection.Parental -> ParentalPane(state.parental, actions)
+                    SettingsSection.Recordings -> RecordingsPane(recordings, actions)
                     SettingsSection.Language -> LanguagePane(language, actions)
                     SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
@@ -592,6 +614,62 @@ private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true, al
             style = if (bold) Hs.type.itemTitle else Hs.type.body,
             color = Hs.colors.text,
         )
+    }
+}
+
+// Enregistrements ---------------------------------------------------------------
+
+@Composable
+private fun RecordingsPane(ui: RecordingSettingsUi, actions: SettingsActions) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dimens = Hs.dimens
+    Pane(stringResource(R.string.settings_section_recordings)) {
+        Paragraph(stringResource(R.string.settings_recordings_intro))
+        val selectedFocus = remember { FocusRequester() }
+        Column(
+            Modifier
+                .widthIn(max = 520.dp)
+                .focusGroup(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ui.volumes.forEach { volume ->
+                val name = volume.label ?: stringResource(R.string.settings_recordings_internal)
+                val space = volume.space
+                val label = if (space != null) {
+                    stringResource(
+                        R.string.live_joined,
+                        name,
+                        stringResource(
+                            R.string.settings_recordings_free,
+                            android.text.format.Formatter.formatShortFileSize(context, space.freeBytes.toLong()),
+                            android.text.format.Formatter.formatShortFileSize(context, space.totalBytes.toLong()),
+                        ),
+                    )
+                } else {
+                    name
+                }
+                val selected = volume.path == ui.selected
+                OptionRow(
+                    label = label,
+                    selected = selected,
+                    onClick = { actions.selectRecordingVolume(volume.path) },
+                    modifier = if (selected) Modifier.focusRequester(selectedFocus) else Modifier,
+                )
+            }
+        }
+        if (ui.selected != null && ui.volumes.none { it.path == ui.selected }) {
+            StatusLine(Lucide.CircleAlert, stringResource(R.string.recordings_volume_missing), bold = false, alert = true)
+        }
+        if (ui.exactAlarm) {
+            StatusLine(Lucide.CircleCheck, stringResource(R.string.settings_recordings_alarm_ok), bold = false)
+        } else {
+            StatusLine(Lucide.CircleAlert, stringResource(R.string.settings_recordings_alarm_missing), bold = false, alert = true)
+            HsButton(text = stringResource(R.string.record_exact_alarm_open), onClick = actions::openExactAlarmSettings, style = ButtonStyle.Primary)
+        }
+        if (!dimens.isTv) {
+            Paragraph(stringResource(R.string.settings_recordings_battery))
+            HsButton(text = stringResource(R.string.settings_recordings_battery_open), onClick = actions::openBatterySettings)
+        }
     }
 }
 

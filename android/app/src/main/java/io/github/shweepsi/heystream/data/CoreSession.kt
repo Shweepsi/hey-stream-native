@@ -51,6 +51,11 @@ class CoreSession(
     private val open: (Credentials) -> HeyStreamCore = { saved ->
         openNative(saved, context.filesDir.absolutePath).also { DevTools.resumeRecording(context, it) }
     },
+    /**
+     * Déconnexion ou nouvelle connexion : les enregistrements programmés
+     * sont annulés (les fichiers restent, `docs/DECISIONS.md`).
+     */
+    private val onAccountChanged: () -> Unit = {},
 ) {
     private val lock = Mutex()
 
@@ -132,6 +137,7 @@ class CoreSession(
                     credentials.save(candidate)
                     core?.close()
                     core = opened
+                    onAccountChanged()
                     account
                 } catch (error: Throwable) {
                     Telemetry.event("sign_in", "ok" to false, "error" to error.javaClass.simpleName)
@@ -159,6 +165,7 @@ class CoreSession(
                 }
                 core = null
                 credentials.clear()
+                onAccountChanged()
             }
             _refresh.value = RefreshState.Idle
             _account.value = null
@@ -172,6 +179,15 @@ class CoreSession(
      */
     suspend fun <T> withCore(block: (HeyStreamCore) -> T): T = withContext(Dispatchers.IO) {
         block(core ?: throw HeyStreamException.SignedOut())
+    }
+
+    /**
+     * Le cœur de l'abonnement, ouvert si besoin ; `null` sans abonnement.
+     * Pour un appel qui dure (copie d'un enregistrement), hors de [withCore].
+     */
+    suspend fun openedCore(): HeyStreamCore? {
+        start()
+        return core
     }
 
     /** Identifiants enregistrés, pour préremplir « Modifier l'adresse du serveur ». Jamais journalisés. */

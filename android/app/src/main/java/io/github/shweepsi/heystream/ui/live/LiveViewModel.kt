@@ -17,6 +17,10 @@ import io.github.shweepsi.heystream.data.OffsetPagingSource
 import io.github.shweepsi.heystream.data.RefreshState
 import io.github.shweepsi.heystream.data.countFavorites
 import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.core.GuideProgramme
+import io.github.shweepsi.heystream.core.Recording
+import io.github.shweepsi.heystream.core.ScheduleRequest
+import io.github.shweepsi.heystream.recording.RecordingRepository
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.components.PinPurpose
 import io.github.shweepsi.heystream.ui.detail.visibleItem
@@ -54,8 +58,12 @@ class LiveViewModel(
     private val session: CoreSession,
     private val player: PlayerController,
     private val initialChannelId: Long?,
+    /** Enregistrement programmé (Android) ; absent dans les tests sans cœur natif. */
+    private val recordings: RecordingRepository? = null,
+    /** L'alarme exacte est autorisée (sinon, explication à la première programmation). */
+    private val canScheduleExact: () -> Boolean = { true },
 ) : ViewModel(), LiveActions {
-    private val _state = MutableStateFlow(LiveUiState())
+    private val _state = MutableStateFlow(LiveUiState(recordingEnabled = recordings != null))
     val state: StateFlow<LiveUiState> = _state.asStateFlow()
 
     /** Source de la liste affichée : invalidée pour recharger sur place (défilement et focus gardés). */
@@ -124,6 +132,22 @@ class LiveViewModel(
         viewModelScope.launch {
             player.status.collect { updatePlayback() }
         }
+        recordings?.let { repo ->
+            viewModelScope.launch {
+                combine(repo.version, session.userDataVersion) { _, _ -> }.collectLatest { loadRecordings() }
+            }
+            viewModelScope.launch {
+                // Enregistrement qui commence ou finit sur la chaîne en aperçu : le
+                // fichier remplace le flux, puis le flux revient.
+                repo.active.drop(1).collect { active ->
+                    val preview = _state.value.preview ?: return@collect
+                    val fromFile = active?.streamId == preview.id
+                    if (fromFile != _state.value.fromRecording || (active == null && player.status.value.blocked)) {
+                        startPreview(preview, addRecent = false)
+                    }
+                }
+            }
+        }
         viewModelScope.launch {
             player.held.collect { hold -> if (hold != 0L) checkHeld() }
         }
@@ -146,6 +170,8 @@ class LiveViewModel(
     private fun sourceFactory(key: CategoryKey): InvalidatingPagingSourceFactory<Int, CatalogItem> =
         InvalidatingPagingSourceFactory {
             when (key) {
+                // Pas de chaînes : la liste des enregistrements s'affiche à la place.
+                CategoryKey.Recordings -> OffsetPagingSource(total = { 0 }, load = { _, _ -> emptyList() })
                 CategoryKey.Favorites -> OffsetPagingSource(
                     total = { session.withCore { countFavorites(it, Section.LIVE).toInt() } },
                     load = { offset, limit ->
@@ -179,7 +205,11 @@ class LiveViewModel(
                 val counts = entries.filter { !it.locked }.mapNotNull { entry ->
                     runCatching { entry.id to core.count(Section.LIVE, entry.id).toLong() }.getOrNull()
                 }.toMap()
-                Loaded(liveCategories(entries, counts, favorites.size, recents), favorites)
+                val recordingCount = recordings?.let { repo ->
+                    val unlocked = core.isParentalUnlocked()
+                    runCatching { repo.storeBlocking().let { it.scheduled(unlocked).size + it.recorded(unlocked).size } }.getOrDefault(0)
+                } ?: 0
+                Loaded(liveCategories(entries, counts, favorites.size, recents, recordingCount), favorites)
             }
         }
         result.onSuccess { loaded ->
@@ -361,6 +391,19 @@ class LiveViewModel(
         player.stop()
         _state.update { it.copy(preview = preview) }
         updatePlayback()
+        val active = recordings?.active?.value
+        _state.update { it.copy(fromRecording = active?.streamId == id) }
+        if (active != null && active.streamId == id) {
+            // La chaîne enregistrée se regarde depuis son fichier (quelques secondes de
+            // retard), sans seconde connexion.
+            startJob = viewModelScope.launch {
+                val start = (java.io.File(active.path).length() - LIVE_EDGE_BYTES).coerceAtLeast(0)
+                player.playRecording(active.path, growing = { recordings.active.value?.id == active.id }, startOffset = start, live = true)
+                if (addRecent) runCatching { session.withCore { core -> core.addRecent(Section.LIVE, id) } }
+            }
+            loadNowNext(id)
+            return
+        }
         startJob = viewModelScope.launch {
             // L'URL d'abord, l'écriture des récents ensuite : pendant un
             // rafraîchissement du catalogue, une écriture attendrait sa fin et
@@ -406,6 +449,7 @@ class LiveViewModel(
                 if (shown?.id == id) current.copy(preview = shown.withEpg(nowNext)) else current
             }
             epgChanges.update { it + 1 }
+            updateScheduledStarts()
         }
     }
 
@@ -454,7 +498,231 @@ class LiveViewModel(
         }
     }
 
+    // Enregistrement ----------------------------------------------------------
+
+    /** Programmés et en cours, pour marquer le guide et trouver ce qu'on annule. */
+    private var planned: List<Recording> = emptyList()
+
+    private suspend fun loadRecordings() {
+        val repo = recordings ?: return
+        val unlocked = attempt { session.withCore { it.isParentalUnlocked() } }.getOrDefault(false)
+        val loaded = attempt {
+            repo.withStore { store ->
+                // Tous les programmés (y compris adultes) : le guide d'une chaîne
+                // ouverte les marque ; la liste, elle, suit le verrou.
+                val allPlanned = store.scheduled(true)
+                val rows = (store.scheduled(unlocked) + store.recorded(unlocked)).map { it.toRow() }
+                Triple(allPlanned, rows, runCatching { store.usage() }.getOrNull())
+            }
+        }.getOrNull() ?: return
+        val (allPlanned, rows, usage) = loaded
+        planned = allPlanned
+        val noDisk = attempt { repo.ensureDirectory() }.getOrNull() == null
+        _state.update { current ->
+            val ready = current.categories as? CategoriesUi.Ready
+            val categories = ready?.let {
+                CategoriesUi.Ready(it.categories.map { c -> if (c.key == CategoryKey.Recordings) c.copy(count = rows.size.toLong()) else c })
+            } ?: current.categories
+            current.copy(
+                recordings = RecordingsUi(rows = rows, usage = usage, noDisk = noDisk, loaded = true),
+                categories = categories,
+            )
+        }
+        updateScheduledStarts()
+    }
+
+    private fun updateScheduledStarts() {
+        val id = _state.value.preview?.id
+        _state.update { it.copy(scheduledStarts = if (id == null) emptySet() else scheduledStarts(planned, id)) }
+    }
+
+    override fun onProgrammeClick(programme: LiveProgramme) {
+        val repo = recordings ?: return
+        val preview = _state.value.preview ?: return
+        val nowSecs = System.currentTimeMillis() / 1000
+        if (programme.stop <= nowSecs) return
+        viewModelScope.launch {
+            val existing = recordingFor(planned, preview.id, programme)
+            if (existing == null) {
+                // Format TS refusé par le fournisseur : rien à copier tel quel.
+                if (attempt { session.withCore { it.canRecord() } }.getOrDefault(true).not()) {
+                    showMessage(UiText(R.string.record_unsupported))
+                    return@launch
+                }
+            }
+            val margins = attempt { repo.withStore { it.lastMargins() } }.getOrNull()
+                ?: io.github.shweepsi.heystream.core.defaultRecordingMargins()
+            _state.update {
+                it.copy(recordDialog = RecordDialogUi(preview.id, preview.name, programme, margins, scheduledId = existing?.id))
+            }
+            if (existing == null) refreshRecordPreview()
+        }
+    }
+
+    private fun request(dialog: RecordDialogUi, adult: Boolean) = ScheduleRequest(
+        streamId = dialog.channelId,
+        channel = dialog.channel,
+        isAdult = adult,
+        programme = GuideProgramme(dialog.programme.title, null, dialog.programme.start, dialog.programme.stop),
+        margins = dialog.margins,
+    )
+
+    private suspend fun isAdult(channelId: Long): Boolean =
+        attempt { session.withCore { it.isAdult(Section.LIVE, channelId) } }.getOrDefault(true)
+
+    private var previewJob: Job? = null
+
+    /** Taille, fusion et place manquante, recalculées à chaque changement de marge. */
+    private fun refreshRecordPreview() {
+        val repo = recordings ?: return
+        val dialog = _state.value.recordDialog ?: return
+        previewJob?.cancel()
+        previewJob = viewModelScope.launch {
+            repo.ensureDirectory()
+            val adult = isAdult(dialog.channelId)
+            val result = attempt { repo.withStore { it.preview(request(dialog, adult)) } }
+            _state.update { current ->
+                val shown = current.recordDialog ?: return@update current
+                if (shown.margins != dialog.margins) return@update current
+                current.copy(
+                    recordDialog = shown.copy(
+                        preview = result.getOrNull(),
+                        error = result.exceptionOrNull()?.toUiText(),
+                    ),
+                )
+            }
+        }
+    }
+
+    fun onAdjustMargin(before: Boolean, delta: Long) {
+        _state.update { current ->
+            val dialog = current.recordDialog ?: return@update current
+            current.copy(recordDialog = dialog.copy(margins = dialog.margins.adjusted(before, delta), preview = null))
+        }
+        refreshRecordPreview()
+    }
+
+    /** « Enregistrer » ou « Programmer quand même ». */
+    fun onConfirmRecord() {
+        val repo = recordings ?: return
+        val dialog = _state.value.recordDialog ?: return
+        if (dialog.busy) return
+        _state.update { it.copy(recordDialog = dialog.copy(busy = true)) }
+        viewModelScope.launch {
+            val adult = isAdult(dialog.channelId)
+            val result = attempt {
+                repo.ensureDirectory()
+                repo.withStore { it.schedule(request(dialog, adult)) }
+            }
+            result.onSuccess {
+                _state.update { it.copy(recordDialog = null, alarmPrompt = !canScheduleExact()) }
+                repo.changed()
+                showMessage(UiText(R.string.record_scheduled, listOf(dialog.programme.title)))
+            }.onFailure { error ->
+                _state.update { current ->
+                    current.copy(recordDialog = current.recordDialog?.copy(busy = false, error = error.toUiText()))
+                }
+            }
+        }
+    }
+
+    /** « Libérer de la place » : enregistrements proposés, déjà vus d'abord. */
+    fun onFreeSpace() {
+        val repo = recordings ?: return
+        val dialog = _state.value.recordDialog ?: return
+        val missing = dialog.preview?.missingBytes ?: return
+        viewModelScope.launch {
+            val unlocked = attempt { session.withCore { it.isParentalUnlocked() } }.getOrDefault(false)
+            val rows = attempt { repo.withStore { it.cleanupCandidates(missing, unlocked) } }.getOrDefault(emptyList()).map { it.toRow() }
+            _state.update { current -> current.copy(recordDialog = current.recordDialog?.copy(cleanup = rows)) }
+        }
+    }
+
+    /** Supprime les enregistrements proposés, puis programme. */
+    fun onConfirmCleanup() {
+        val repo = recordings ?: return
+        val rows = _state.value.recordDialog?.cleanup ?: return
+        viewModelScope.launch {
+            rows.forEach { row -> attempt { repo.withStore { it.delete(row.id) } } }
+            repo.changed()
+            _state.update { current -> current.copy(recordDialog = current.recordDialog?.copy(cleanup = null)) }
+            onConfirmRecord()
+        }
+    }
+
+    fun onCancelCleanup() {
+        _state.update { current -> current.copy(recordDialog = current.recordDialog?.copy(cleanup = null)) }
+    }
+
+    /** Programme déjà programmé : l'enregistrement est annulé (ou arrêté s'il est en cours). */
+    fun onCancelRecording() {
+        val repo = recordings ?: return
+        val id = _state.value.recordDialog?.scheduledId ?: _state.value.recordingOptions?.id ?: return
+        viewModelScope.launch {
+            if (repo.active.value?.id == id) {
+                repo.active.value?.control?.stop()
+            } else {
+                attempt { repo.withStore { it.cancel(id) } }
+            }
+            repo.changed()
+            _state.update { it.copy(recordDialog = null, recordingOptions = null) }
+            showMessage(UiText(R.string.record_cancelled))
+        }
+    }
+
+    fun onDismissRecordDialog() {
+        previewJob?.cancel()
+        _state.update { it.copy(recordDialog = null) }
+    }
+
+    fun onAlarmPromptDone() {
+        _state.update { it.copy(alarmPrompt = false) }
+    }
+
+    /** Enregistrement à ouvrir dans le lecteur (consommé par l'écran). */
+    private val _openRecording = MutableStateFlow<Long?>(null)
+    val openRecording: StateFlow<Long?> = _openRecording.asStateFlow()
+
+    fun onRecordingOpened() {
+        _openRecording.value = null
+    }
+
+    override fun onRecordingClick(row: RecordingRow) {
+        if (row.playable) {
+            // Le lecteur des enregistrements remplace l'aperçu : le flux est fermé.
+            onLeave()
+            _openRecording.value = row.id
+        } else {
+            onRecordingOptions(row)
+        }
+    }
+
+    override fun onRecordingOptions(row: RecordingRow) {
+        _state.update { it.copy(recordingOptions = row) }
+    }
+
+    fun onDismissRecordingOptions() {
+        _state.update { it.copy(recordingOptions = null) }
+    }
+
+    fun onDeleteRecording() {
+        val repo = recordings ?: return
+        val row = _state.value.recordingOptions ?: return
+        viewModelScope.launch {
+            attempt { repo.withStore { it.delete(row.id) } }.onFailure { showMessage(it.toUiText()) }
+            repo.changed()
+            _state.update { it.copy(recordingOptions = null) }
+        }
+    }
+
+    override fun onStopRecording() {
+        recordings?.active?.value?.control?.stop()
+    }
+
     private companion object {
+        /** Aperçu depuis le fichier en cours : environ 5 s avant la fin (à 3 Go/h). */
+        const val LIVE_EDGE_BYTES = 4L * 1024 * 1024
+
         /** Favoris lus pour le cœur en bout de ligne et leur nombre. */
         const val FAVORITES_LIMIT = 2_000
         const val VISIBLE_DEBOUNCE_MS = 150L

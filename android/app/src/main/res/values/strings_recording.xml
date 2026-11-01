@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notifications -->
+    <string name="recording_channel_active">Recording in progress</string>
+    <string name="recording_channel_result">Recordings</string>
+    <string name="recording_adult_title">Recording</string>
+    <string name="recording_waiting_title">Recording scheduled</string>
+    <string name="recording_waiting_text">%1$s at %2$s</string>
+    <string name="recording_ongoing_title">Recording: %1$s</string>
+    <string name="recording_ongoing_text">Until %1$s · %2$s</string>
+    <string name="recording_stop">Stop</string>
+    <string name="recording_done_title">Recorded: %1$s</string>
+    <string name="recording_watch">Watch</string>
+    <string name="recording_problem_title">Recording problem: %1$s</string>
+    <string name="recording_problem_gaps">Parts are missing: the stream was cut for more than a minute.</string>
+    <string name="recording_problem_out_of_space">Stopped: the disk is full.</string>
+    <string name="recording_problem_connection">The channel could not be reached.</string>
+    <string name="recording_problem_write">The file could not be written.</string>
+    <string name="recording_problem_volume">The recording disk is not connected.</string>
+    <string name="recording_problem_interrupted">The app was stopped during the recording.</string>
+    <string name="recording_problem_not_started">Missed: the device was off, asleep, or not allowed to wake up.</string>
+    <string name="recording_problem_unknown">The recording failed.</string>
+    <string name="recording_low_space_title">Little space left for recordings</string>
+    <string name="recording_low_space_text">About %1$s of recording left.</string>
+
+    <!-- Erreurs du cœur -->
+    <string name="error_recording_conflict">Another channel is already being recorded at that time.</string>
+    <string name="error_recording_ended">This programme is over.</string>
+    <string name="error_recording_not_found">This recording no longer exists.</string>
+    <string name="error_not_enough_space">Not enough space to record.</string>
+    <string name="error_volume_missing">The recording disk is not connected.</string>
+
+    <!-- Programmer depuis le guide -->
+    <string name="record_action">Record</string>
+    <string name="record_cancel_action">Cancel the recording</string>
+    <string name="record_scheduled">Recording scheduled: %1$s</string>
+    <string name="record_cancelled">Recording cancelled</string>
+    <string name="record_planned_badge">Recording scheduled</string>
+    <string name="record_margin_before">Start earlier</string>
+    <string name="record_margin_after">Stop later</string>
+    <string name="record_margin_less">Less</string>
+    <string name="record_margin_more">More</string>
+    <string name="record_estimate">About %1$s</string>
+    <string name="record_merged">Joined to the recording of the programme before or after: one single file.</string>
+    <string name="record_shortened">Margins shortened: another channel is recorded right before or after.</string>
+    <string name="record_missing_space">About %1$s missing on the disk</string>
+    <string name="record_free_space">Free up space</string>
+    <string name="record_anyway">Record anyway</string>
+    <string name="record_cleanup_title">Free up space</string>
+    <string name="record_cleanup_message">Deleting these recordings would free about %1$s. Watched ones come first.</string>
+    <string name="record_cleanup_delete">Delete and record</string>
+    <string name="record_cleanup_none">There is no recording to delete on this disk.</string>
+    <string name="record_unsupported">This provider does not allow recording (TS format refused).</string>
+    <string name="record_hint_tv">OK on a programme to record it.</string>
+    <string name="record_hint_touch">Tap a programme to record it.</string>
+    <string name="record_exact_alarm_title">Allow alarms</string>
+    <string name="record_exact_alarm_message">To start on time, even with the app closed, Hey Stream needs the “Alarms &amp; reminders” permission. Without it, a recording may start late.</string>
+    <string name="record_exact_alarm_open">Open settings</string>
+    <string name="record_exact_alarm_later">Not now</string>
+
+    <!-- Lecture pendant un enregistrement -->
+    <string name="recording_countdown">The recording of %1$s starts in %2$s: playback will stop.</string>
+    <string name="recording_blocks_playback">A recording is in progress: only one stream at a time.</string>
+    <string name="recording_stop_now">Stop the recording</string>
+    <string name="recording_from_file">From the recording</string>
+
+    <!-- Catégorie Enregistrements -->
+    <string name="recordings">Recordings</string>
+    <string name="recordings_empty">No recordings</string>
+    <string name="recordings_empty_tv">Open a channel, then press OK on a programme of the guide to record it.</string>
+    <string name="recordings_empty_touch">Open a channel, then tap a programme of the guide to record it.</string>
+    <string name="recordings_usage">%1$s used · about %2$s left</string>
+    <string name="recordings_private_note">Recordings are erased if the app is uninstalled.</string>
+    <string name="recordings_volume_missing">Disk not connected</string>
+    <string name="recordings_no_disk">No disk available for recordings.</string>
+    <string name="recording_state_scheduled">Scheduled · %1$s</string>
+    <string name="recording_state_recording">Recording · until %1$s</string>
+    <string name="recording_state_done">%1$s</string>
+    <string name="recording_state_incomplete">Incomplete · %1$s</string>
+    <string name="recording_state_failed">Failed</string>
+    <string name="recording_state_missed">Missed</string>
+    <string name="recording_when">%1$s, %2$s</string>
+    <string name="recording_delete">Delete</string>
+    <string name="recording_delete_title">Delete this recording?</string>
+    <string name="recording_delete_message">The file is erased from the device.</string>
+    <string name="recording_more_programmes">%1$s and %2$d more</string>
+
+    <!-- Réglages -->
+    <string name="settings_section_recordings">Recordings</string>
+    <string name="settings_recordings_intro">Where recordings are stored. Only disks where Android allows a private folder for the app are listed: recordings can be watched only in Hey Stream, and are erased if the app is uninstalled.</string>
+    <string name="settings_recordings_internal">Internal storage</string>
+    <string name="settings_recordings_free">%1$s free of %2$s</string>
+    <string name="settings_recordings_alarm_ok">Alarms allowed: recordings start on time.</string>
+    <string name="settings_recordings_alarm_missing">Alarms not allowed: recordings may start late.</string>
+    <string name="settings_recordings_battery">On some devices (Xiaomi HyperOS…), also allow Hey Stream to run in the background in the battery settings.</string>
+    <string name="settings_recordings_battery_open">Battery settings</string>
+</resources>

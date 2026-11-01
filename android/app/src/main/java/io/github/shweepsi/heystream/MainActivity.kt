@@ -6,11 +6,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import android.content.Intent
 import androidx.compose.runtime.CompositionLocalProvider
 import io.github.shweepsi.heystream.data.Telemetry
 import io.github.shweepsi.heystream.data.TelemetryWorker
+import io.github.shweepsi.heystream.recording.RecordingNotifications
 import io.github.shweepsi.heystream.ui.LocalAppGraph
 import io.github.shweepsi.heystream.ui.graph
+import io.github.shweepsi.heystream.ui.live.RecordingCountdownPrompt
 import io.github.shweepsi.heystream.ui.nav.AppNavigation
 import io.github.shweepsi.heystream.ui.update.UpdatePrompt
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
@@ -27,14 +30,30 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         app.session.ensureStarted()
+        if (savedInstanceState == null) openRecording(intent)
         val graph = app.graph()
         setContent {
             CompositionLocalProvider(LocalAppGraph provides graph) {
                 HeyStreamTheme {
                     AppNavigation()
                     UpdatePrompt(app.updater)
+                    RecordingCountdownPrompt(app.recordings)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openRecording(intent)
+    }
+
+    /** Notification « Regarder » : l'enregistrement s'ouvre. */
+    private fun openRecording(intent: Intent?) {
+        val id = intent?.getLongExtra(RecordingNotifications.EXTRA_OPEN, -1L) ?: -1L
+        if (id >= 0) {
+            intent?.removeExtra(RecordingNotifications.EXTRA_OPEN)
+            app.recordings.requestOpen(id)
         }
     }
 

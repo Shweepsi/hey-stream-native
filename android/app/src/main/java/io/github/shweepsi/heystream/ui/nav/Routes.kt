@@ -31,4 +31,8 @@ object Routes {
     const val PLAYER = "player/{kind}/{id}?seriesId={seriesId}&fromStart={fromStart}"
     fun player(kind: PlaybackKind, id: Long, seriesId: Long? = null, fromStart: Boolean = false) =
         "player/${kind.name}/$id?seriesId=${seriesId ?: -1}&fromStart=$fromStart"
+
+    /** Lecture d'un enregistrement (fini, ou en cours depuis son fichier). */
+    const val RECORDING = "recording/{id}"
+    fun recording(id: Long) = "recording/$id"
 }
