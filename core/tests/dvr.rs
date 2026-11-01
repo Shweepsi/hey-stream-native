@@ -300,7 +300,7 @@ fn usage_and_cleanup_follow_the_files() {
         let id = rec
             .schedule(&request(1, &format!("P{i}"), start, start + 1_000), 0)
             .unwrap();
-        rec.begin(id, Some(ROOMY), start).unwrap();
+        rec.begin(id, Some(ROOMY), start - 120).unwrap();
         rec.finish(id, &report(CaptureEnd::Finished, GB, 0), start + 1_300)
             .unwrap();
         done.push(id);
@@ -329,10 +329,10 @@ fn usage_and_cleanup_follow_the_files() {
     // Déjà vus d'abord, puis les plus anciens, jusqu'à la place manquante.
     let ids = |list: Vec<xtream_core::Recording>| list.iter().map(|r| r.id).collect::<Vec<_>>();
     assert_eq!(
-        ids(rec.cleanup_candidates(&dir, GB + 1).unwrap()),
+        ids(rec.cleanup_candidates(&dir, GB + 1, false).unwrap()),
         [done[2], done[0]]
     );
-    assert!(rec.cleanup_candidates(&dir, 0).unwrap().is_empty());
+    assert!(rec.cleanup_candidates(&dir, 0, false).unwrap().is_empty());
 }
 
 // --- Cycle de vie ------------------------------------------------------------
@@ -411,7 +411,7 @@ fn the_capture_report_decides_the_final_state() {
         let id = rec
             .schedule(&request(1, "P", start, start + 1_000), 0)
             .unwrap();
-        let job = rec.begin(id, Some(ROOMY), start).unwrap();
+        let job = rec.begin(id, Some(ROOMY), start - 120).unwrap();
         assert_eq!((job.recording_id, job.stream_id), (id, 1));
         assert_eq!(job.until, start + 1_300);
         assert_eq!(
@@ -420,11 +420,54 @@ fn the_capture_report_decides_the_final_state() {
         );
         let r = rec.finish(id, &report, start + 1_300).unwrap();
         assert_eq!((r.state, r.problem), (state, problem), "cas {i}");
-        assert_eq!(r.started_at, Some(start));
+        assert_eq!(r.started_at, Some(start - 120));
         assert_eq!(r.ended_at, Some(start + 1_300));
     }
     // Débit appris par l'enregistrement : 1 Go en 1 h.
     assert!((rec.bytes_per_sec(1).unwrap() - GB as f64 / 3600.0).abs() < 1.0);
+}
+
+#[test]
+fn a_late_alarm_counts_as_a_gap() {
+    let dir = temp_dir("late");
+    let mut rec = store(&dir);
+    let id = rec.schedule(&request(1, "A", 10_000, 11_000), 0).unwrap();
+    // Alarme retardée de 3 min (réglage de batterie du fabricant…).
+    rec.begin(id, Some(ROOMY), 10_060).unwrap();
+    let r = rec
+        .finish(id, &report(CaptureEnd::Finished, GB, 0), 11_300)
+        .unwrap();
+    assert_eq!(r.gap_secs, 180);
+    assert_eq!(
+        (r.state, r.problem),
+        (RecordingState::Incomplete, Some(RecordingProblem::Gaps))
+    );
+}
+
+#[test]
+fn a_failed_resume_keeps_what_was_copied() {
+    let dir = temp_dir("resume-fail");
+    let mut rec = store(&dir);
+    let id = rec.schedule(&request(1, "A", 10_000, 11_000), 0).unwrap();
+    let job = rec.begin(id, Some(ROOMY), 9_880).unwrap();
+    std::fs::write(&job.path, b"ts").unwrap();
+    // L'app redémarre, mais la réserve est atteinte.
+    let full = VolumeSpace {
+        total_bytes: 8 * GB,
+        free_bytes: GB,
+    };
+    assert!(matches!(
+        rec.begin(id, Some(full), 10_500),
+        Err(Error::NotEnoughSpace)
+    ));
+    let r = rec.recording(id).unwrap().unwrap();
+    assert_eq!(
+        (r.state, r.problem),
+        (
+            RecordingState::Incomplete,
+            Some(RecordingProblem::OutOfSpace)
+        )
+    );
 }
 
 #[test]
@@ -439,7 +482,7 @@ fn recover_flags_missed_and_interrupted_recordings() {
     let job = rec.begin(cut, Some(ROOMY), 20_000).unwrap();
     std::fs::write(&job.path, b"donnees").unwrap();
     rec.update_progress(cut, 7, 20_500).unwrap();
-    rec.begin(resumed, Some(ROOMY), 30_000).unwrap();
+    rec.begin(resumed, Some(ROOMY), 29_880).unwrap();
     rec.update_progress(resumed, 7, 30_100).unwrap();
 
     // L'app redémarre à 30 400 : C est encore dans sa fenêtre.
@@ -469,7 +512,7 @@ fn recover_flags_missed_and_interrupted_recordings() {
         .finish(resumed, &report(CaptureEnd::Finished, GB, 0), 31_300)
         .unwrap();
     assert_eq!(r.problem, Some(RecordingProblem::Gaps));
-    assert_eq!(r.started_at, Some(30_000));
+    assert_eq!(r.started_at, Some(29_880));
     assert_eq!(
         rec.recording(later).unwrap().unwrap().state,
         RecordingState::Scheduled
@@ -481,7 +524,7 @@ fn signing_out_cancels_schedules_but_keeps_files() {
     let dir = temp_dir("signout");
     let mut rec = store(&dir);
     let done = rec.schedule(&request(1, "A", 10_000, 11_000), 0).unwrap();
-    rec.begin(done, Some(ROOMY), 10_000).unwrap();
+    rec.begin(done, Some(ROOMY), 9_880).unwrap();
     rec.finish(done, &report(CaptureEnd::Finished, GB, 0), 11_300)
         .unwrap();
     rec.schedule(&request(1, "B", 20_000, 21_000), 0).unwrap();
@@ -500,11 +543,14 @@ fn adult_recordings_stay_locked() {
     rec.schedule(&request(2, "JT", 20_000, 21_000), 0).unwrap();
     assert_eq!(rec.scheduled(false).unwrap().len(), 1);
     assert_eq!(rec.scheduled(true).unwrap().len(), 2);
-    rec.begin(id, Some(ROOMY), 10_000).unwrap();
+    rec.begin(id, Some(ROOMY), 9_880).unwrap();
     rec.finish(id, &report(CaptureEnd::Finished, GB, 0), 11_300)
         .unwrap();
     assert!(rec.recorded(false).unwrap().is_empty());
     assert!(rec.recorded(true).unwrap()[0].is_adult);
+    // Pas de titre adulte dans « Libérer de la place » tant que c'est verrouillé.
+    assert!(rec.cleanup_candidates(&dir, GB, false).unwrap().is_empty());
+    assert_eq!(rec.cleanup_candidates(&dir, GB, true).unwrap().len(), 1);
     // Une fusion avec un programme adulte rend tout l'enregistrement adulte.
     let mut late = request(2, "Film", 21_000, 22_000);
     late.is_adult = true;
@@ -518,13 +564,27 @@ fn deleting_removes_the_file() {
     let mut rec = store(&dir);
     let id = rec.schedule(&request(1, "A", 10_000, 11_000), 0).unwrap();
     assert!(matches!(rec.delete(id), Err(Error::RecordingNotFound)));
-    let job = rec.begin(id, Some(ROOMY), 10_000).unwrap();
+    let job = rec.begin(id, Some(ROOMY), 9_880).unwrap();
     std::fs::write(&job.path, b"ts").unwrap();
     rec.finish(id, &report(CaptureEnd::Finished, 2, 0), 11_300)
         .unwrap();
     rec.delete(id).unwrap();
     assert!(!job.path.exists());
     assert!(rec.recording(id).unwrap().is_none());
+}
+
+#[test]
+fn deleting_on_an_unplugged_volume_is_refused() {
+    let dir = temp_dir("delete-unplugged");
+    let mut rec = store(&dir);
+    let id = rec.schedule(&request(1, "A", 10_000, 11_000), 0).unwrap();
+    rec.begin(id, Some(ROOMY), 9_880).unwrap();
+    rec.finish(id, &report(CaptureEnd::Finished, 2, 0), 11_300)
+        .unwrap();
+    std::fs::remove_dir_all(&dir).unwrap();
+    // Le fichier est sur la clé débranchée : l'entrée reste.
+    assert!(matches!(rec.delete(id), Err(Error::VolumeMissing)));
+    assert!(rec.recording(id).unwrap().is_some());
 }
 
 #[test]

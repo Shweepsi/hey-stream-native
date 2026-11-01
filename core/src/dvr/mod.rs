@@ -439,8 +439,15 @@ impl Recordings {
             .filter(|d| d.id == id)
             .ok_or(Error::RecordingNotFound)?;
         let recording = self.recording(id)?.ok_or(Error::RecordingNotFound)?;
+        // Reprise impossible : ce qui est déjà copié reste lisible.
+        let has_data = std::fs::metadata(&recording.path).is_ok_and(|m| m.len() > 0);
         let fail = |this: &mut Self, problem: RecordingProblem, error: Error| {
-            this.set_end(id, RecordingState::Failed, Some(problem), now)?;
+            let state = if has_data {
+                RecordingState::Incomplete
+            } else {
+                RecordingState::Failed
+            };
+            this.set_end(id, state, Some(problem), now)?;
             Err(error)
         };
         let Some(space) = space else {
@@ -454,10 +461,11 @@ impl Recordings {
         {
             return fail(self, RecordingProblem::VolumeMissing, Error::VolumeMissing);
         }
-        // Reprise : le temps passé app arrêtée est un trou.
+        // Le temps perdu est un trou : alarme en retard (réglage de batterie
+        // du fabricant…), ou app arrêtée pendant la copie.
         let gap = match (recording.state, self.progress_at(id)?) {
             (RecordingState::Recording, Some(last)) => (now - last).max(0),
-            _ => 0,
+            _ => (now - due.start).max(0),
         };
         self.conn.execute(
             "UPDATE recording SET state = 'recording', problem = NULL,
@@ -624,10 +632,14 @@ impl Recordings {
         if recording.state.is_planned() {
             return Err(Error::RecordingNotFound);
         }
+        // Volume débranché : le fichier est encore sur la clé, l'entrée reste
+        // pour pouvoir le supprimer une fois la clé rebranchée.
+        if recording.volume_missing {
+            return Err(Error::VolumeMissing);
+        }
         match std::fs::remove_file(&recording.path) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(_) if recording.volume_missing => return Err(Error::VolumeMissing),
             Err(e) => return Err(Error::Storage(e.kind().to_string())),
         }
         self.conn
@@ -679,10 +691,21 @@ impl Recordings {
 
     /// Enregistrements à proposer pour libérer `missing_bytes` sur le disque
     /// `dir` : déjà vus d'abord, puis les plus anciens. Rien n'est supprimé.
-    pub fn cleanup_candidates(&self, dir: &Path, missing_bytes: u64) -> Result<Vec<Recording>> {
+    /// Les adultes n'y sont que si le contrôle parental est déverrouillé.
+    pub fn cleanup_candidates(
+        &self,
+        dir: &Path,
+        missing_bytes: u64,
+        parental_unlocked: bool,
+    ) -> Result<Vec<Recording>> {
+        let adult = if parental_unlocked {
+            ""
+        } else {
+            " AND is_adult = 0"
+        };
         let mut stmt = self.conn.prepare(&format!(
             "{SELECT} WHERE dir = ?1 AND state NOT IN ('scheduled', 'recording') AND bytes > 0
-             ORDER BY watched DESC, start"
+             {adult} ORDER BY watched DESC, start"
         ))?;
         let rows = stmt.query_map([dir.to_string_lossy().as_ref()], row_to_recording)?;
         let mut freed = 0u64;
