@@ -122,6 +122,8 @@ pub enum CaptureEnd {
     OutOfSpace,
     ConnectionLost,
     WriteFailed,
+    /// Copie du différé reprise par l'app : incomplet.
+    Preempted,
 }
 
 #[derive(Debug, Clone, Copy, uniffi::Record)]
@@ -535,6 +537,7 @@ impl From<xc::CaptureEnd> for CaptureEnd {
             xc::CaptureEnd::OutOfSpace => Self::OutOfSpace,
             xc::CaptureEnd::ConnectionLost => Self::ConnectionLost,
             xc::CaptureEnd::WriteFailed => Self::WriteFailed,
+            xc::CaptureEnd::Preempted => Self::Preempted,
         }
     }
 }
@@ -547,6 +550,7 @@ impl From<CaptureEnd> for xc::CaptureEnd {
             CaptureEnd::OutOfSpace => Self::OutOfSpace,
             CaptureEnd::ConnectionLost => Self::ConnectionLost,
             CaptureEnd::WriteFailed => Self::WriteFailed,
+            CaptureEnd::Preempted => Self::Preempted,
         }
     }
 }

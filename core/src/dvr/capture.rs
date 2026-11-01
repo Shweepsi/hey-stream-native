@@ -44,6 +44,9 @@ pub enum CaptureEnd {
     Stopped,
     /// Réserve du disque atteinte : arrêt propre, fichier gardé.
     OutOfSpace,
+    /// Copie du différé arrêtée par l'app (autre chaîne à regarder ou à
+    /// enregistrer) : incomplet, pas un arrêt à la main.
+    Preempted,
     /// Client réseau impossible à créer : aucun essai possible.
     ConnectionLost,
     /// Fichier impossible à écrire (volume débranché, droits).
@@ -122,9 +125,10 @@ impl CaptureControl {
         self.inner.bytes.store(bytes, Ordering::Relaxed);
     }
 
-    /// Arrêt ou nouvelle heure de fin.
-    pub(super) async fn wait_change(&self) {
-        self.changed().await;
+    /// Arrêt ou nouvelle heure de fin, à créer (et activer) avant de
+    /// vérifier l'état : aucun réveil perdu.
+    pub(super) fn changes(&self) -> tokio::sync::futures::Notified<'_> {
+        self.inner.notify.notified()
     }
 
     async fn stopped(&self) {

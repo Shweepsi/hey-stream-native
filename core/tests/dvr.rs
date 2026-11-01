@@ -421,6 +421,17 @@ fn the_capture_report_decides_the_final_state() {
             RecordingState::Done,
             None,
         ),
+        // Différé repris par l'app : incomplet, pas un arrêt à la main.
+        (
+            report(CaptureEnd::Preempted, GB, 0),
+            RecordingState::Incomplete,
+            Some(RecordingProblem::Interrupted),
+        ),
+        (
+            report(CaptureEnd::Preempted, 0, 0),
+            RecordingState::Failed,
+            Some(RecordingProblem::Interrupted),
+        ),
     ];
     for (i, (report, state, problem)) in cases.into_iter().enumerate() {
         let start = 10_000 * (i as i64 + 1);

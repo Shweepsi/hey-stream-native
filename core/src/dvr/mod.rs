@@ -27,7 +27,9 @@ pub use capture::{
     CaptureControl, CaptureEnd, CaptureJob, CaptureOptions, CaptureReport, SpaceProbe, capture,
 };
 pub use space::{DEFAULT_BYTES_PER_HOUR, VolumeSpace, volume_space};
-pub use timeshift::{Gap, Segment, Spot, TuneEnd, Tuner, TunerOptions, Window, purge_timeshift};
+pub use timeshift::{
+    Follower, Gap, Segment, Spot, TuneEnd, Tuner, TunerOptions, Window, purge_timeshift,
+};
 
 use crate::error::{Error, Result};
 use plan::{Planned, programmes_overlap, slots, windows_touch};
@@ -123,7 +125,7 @@ pub struct ScheduleRequest {
     pub margins: Margins,
     /// Plus ancien moment du différé de cette chaîne (secondes Unix), si on
     /// la regarde : l'enregistrement peut commencer dans le passé, jusque-là
-    /// ([`Tuner::follow`]).
+    /// ([`Tuner::attach`]).
     pub buffered_from: Option<i64>,
 }
 
@@ -444,8 +446,8 @@ impl Recordings {
     }
 
     /// Comme [`Self::begin`], pour un enregistrement qui suit le différé de
-    /// sa chaîne ([`Tuner::follow`]) : `buffered_from` est le plus ancien
-    /// moment du tampon. Seul le temps avant lui est perdu (début manquant,
+    /// sa chaîne ([`Tuner::attach`]) : `buffered_from` est
+    /// [`Follower::start`], le premier moment copié. Seul le temps avant lui est perdu (début manquant,
     /// compté comme trou).
     pub fn begin_from(
         &mut self,
@@ -528,6 +530,7 @@ impl Recordings {
                 Some(match report.end {
                     CaptureEnd::OutOfSpace => RecordingProblem::OutOfSpace,
                     CaptureEnd::WriteFailed => RecordingProblem::WriteFailed,
+                    CaptureEnd::Preempted => RecordingProblem::Interrupted,
                     _ => RecordingProblem::ConnectionLost,
                 }),
             ),
@@ -542,6 +545,10 @@ impl Recordings {
             CaptureEnd::ConnectionLost => (
                 RecordingState::Incomplete,
                 Some(RecordingProblem::ConnectionLost),
+            ),
+            CaptureEnd::Preempted => (
+                RecordingState::Incomplete,
+                Some(RecordingProblem::Interrupted),
             ),
             CaptureEnd::Finished if gap > MAX_GAP_SECS => {
                 (RecordingState::Incomplete, Some(RecordingProblem::Gaps))

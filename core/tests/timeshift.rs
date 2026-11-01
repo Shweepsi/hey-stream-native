@@ -12,9 +12,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 use xtream_core::{
-    CaptureControl, CaptureEnd, CaptureJob, CaptureOptions, Credentials, GuideProgramme, Margins,
-    RecordingState, Recordings, ScheduleRequest, TuneEnd, Tuner, TunerOptions, VolumeSpace,
-    XtreamClient, purge_timeshift,
+    CaptureControl, CaptureEnd, CaptureJob, CaptureOptions, CaptureReport, Credentials,
+    GuideProgramme, Margins, RecordingState, Recordings, ScheduleRequest, TuneEnd, Tuner,
+    TunerOptions, VolumeSpace, XtreamClient, purge_timeshift,
 };
 
 const GB: u64 = 1_000_000_000;
@@ -144,10 +144,6 @@ async fn the_buffer_indexes_runs_and_gaps() {
         segment.bytes
     );
     assert!(tuner.time_at(first.seq, 0).unwrap() >= window.oldest);
-    // Débit : chaque réponse simulée arrive d'un coup, donc sans durée.
-    if let Some((bytes, secs)) = tuner.rate() {
-        assert!(bytes > 0 && secs > 0.0);
-    }
 
     // Plus personne ne regarde : la copie s'arrête.
     tuner.set_viewing(false);
@@ -217,6 +213,20 @@ fn job(dir: &Path, until: f64) -> CaptureJob {
     }
 }
 
+fn follow(
+    tuner: &Tuner,
+    from: i64,
+    job: &CaptureJob,
+    control: &CaptureControl,
+) -> tokio::task::JoinHandle<CaptureReport> {
+    // Inscrit tout de suite (pas dans la tâche) : la copie ne peut plus
+    // s'arrêter avant que l'enregistrement la suive.
+    let follower = tuner.attach(from).expect("copie en cours");
+    let job = job.clone();
+    let control = control.clone();
+    tokio::spawn(async move { follower.copy(&job, &control, &capture_options()).await })
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_recording_takes_the_past_from_the_buffer_and_keeps_it_alive() {
     let server = MockServer::start().await;
@@ -231,16 +241,7 @@ async fn a_recording_takes_the_past_from_the_buffer_and_keeps_it_alive() {
     // Depuis avant le tampon : tout ce qu'il contient, puis la suite.
     let job = job(&dir, now() + 1.0);
     let control = CaptureControl::new();
-    let follower = {
-        let tuner = tuner.clone();
-        let job = job.clone();
-        let control = control.clone();
-        tokio::spawn(async move {
-            tuner
-                .follow(&job, oldest as i64 - 60, &control, &capture_options())
-                .await
-        })
-    };
+    let follower = follow(&tuner, oldest as i64 - 60, &job, &control);
     // Le spectateur s'en va : l'enregistrement garde la copie en vie.
     tuner.set_viewing(false);
     let report = follower.await.unwrap();
@@ -249,14 +250,41 @@ async fn a_recording_takes_the_past_from_the_buffer_and_keeps_it_alive() {
     assert_eq!(report.bytes, size);
     assert_eq!(size % PACKET as u64, 0);
     assert!(size > before, "le passé ({before}) puis la suite ({size})");
-    assert!(report.gap_secs >= 0);
+    // Chaque reconnexion simulée est une coupure.
+    assert!(report.gap_secs + report.received_secs >= 1);
     assert_eq!(control.bytes(), size);
     // Enregistrement fini, plus de spectateur : la copie s'arrête.
     assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn stopping_the_tuner_ends_its_recording() {
+async fn a_recording_can_wait_for_the_first_data() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/live/u/p/42.ts"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_bytes(vec![0x47u8; PACKET * 10])
+                .set_delay(Duration::from_millis(300)),
+        )
+        .mount(&server)
+        .await;
+    let dir = temp_dir("first-data");
+    let tuner = Tuner::new(42, &dir, fast()).unwrap();
+    let run = start(&tuner, &server);
+    // Rien encore dans le tampon.
+    assert!(tuner.window().is_none());
+    let job = job(&dir, now() + 1.0);
+    let follower = follow(&tuner, 0, &job, &CaptureControl::new());
+    tuner.set_viewing(false);
+    let report = follower.await.unwrap();
+    assert_eq!(report.end, CaptureEnd::Finished);
+    assert!(report.bytes > 0);
+    assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stopping_the_tuner_leaves_its_recording_incomplete() {
     let server = MockServer::start().await;
     stream(&server, 10).await;
     let dir = temp_dir("preempt");
@@ -264,20 +292,159 @@ async fn stopping_the_tuner_ends_its_recording() {
     let run = start(&tuner, &server);
     until(|| tuner.window().is_some()).await;
     let job = job(&dir, now() + 60.0);
-    let follower = {
-        let tuner = tuner.clone();
-        let job = job.clone();
-        tokio::spawn(async move {
-            tuner
-                .follow(&job, 0, &CaptureControl::new(), &capture_options())
-                .await
-        })
-    };
+    let follower = follow(&tuner, 0, &job, &CaptureControl::new());
     until(|| std::fs::metadata(&job.path).is_ok_and(|m| m.len() > 0)).await;
     tuner.stop();
     let report = follower.await.unwrap();
-    assert_eq!(report.end, CaptureEnd::Stopped);
+    // Pas un arrêt à la main : l'enregistrement sera incomplet.
+    assert_eq!(report.end, CaptureEnd::Preempted);
     assert!(report.bytes > 0);
+    assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+    // Une copie arrêtée ne prend plus d'enregistrement.
+    assert!(tuner.attach(0).is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stop_during_an_outage_ends_the_recording_at_once() {
+    let server = MockServer::start().await;
+    // Une seule réponse, puis le fournisseur refuse : coupure sans fin.
+    Mock::given(method("GET"))
+        .and(path("/live/u/p/42.ts"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0x47u8; PACKET * 10]))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&server)
+        .await;
+    let dir = temp_dir("outage");
+    let tuner = Tuner::new(42, &dir, fast()).unwrap();
+    let run = start(&tuner, &server);
+    until(|| tuner.window().is_some()).await;
+    let job = job(&dir, now() + 60.0);
+    let control = CaptureControl::new();
+    let follower = follow(&tuner, 0, &job, &control);
+    tuner.set_viewing(false);
+    until(|| control.bytes() == (PACKET * 10) as u64).await;
+    // Toujours en coupure : la copie réessaie pour l'enregistrement.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert!(!run.is_finished());
+    let stopped_at = now();
+    control.stop();
+    let report = follower.await.unwrap();
+    assert_eq!(report.end, CaptureEnd::Stopped);
+    assert!(now() - stopped_at < 1.0);
+    assert!(report.gap_secs >= 0 && report.received_secs >= 0);
+    // Plus personne : la copie s'arrête aussi.
+    assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+}
+
+/// Flux de paquets TS numérotés : l'octet de synchronisation 0x47 puis le
+/// numéro du paquet, pour vérifier alignement et continuité.
+fn packets(count: usize) -> Vec<u8> {
+    let mut body = vec![0u8; PACKET * count];
+    for (i, packet) in body.chunks_mut(PACKET).enumerate() {
+        packet[0] = 0x47;
+        packet[1..5].copy_from_slice(&(i as u32).to_be_bytes());
+    }
+    body
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_over_several_files_stays_aligned_and_continuous() {
+    let server = MockServer::start().await;
+    let body = packets(20_000);
+    Mock::given(method("GET"))
+        .and(path("/live/u/p/42.ts"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(body.clone()))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&server)
+        .await;
+    let dir = temp_dir("aligned");
+    // Un fichier par morceau reçu, un point d'index par morceau.
+    let options = TunerOptions {
+        segment_secs: 0.0,
+        mark_secs: 0.0,
+        ..fast()
+    };
+    let tuner = Tuner::new(42, &dir, options).unwrap();
+    let run = start(&tuner, &server);
+    until(|| tuner.bytes() == body.len() as u64).await;
+    let window = tuner.window().unwrap();
+    let first = tuner.locate(window.oldest).unwrap();
+    let last = tuner.locate(f64::MAX).unwrap();
+    assert!(last.seq > first.seq, "plusieurs fichiers dans la série");
+    assert_eq!(first.run, last.run);
+    // Chaque fichier : son premier point d'index tombe sur un début de paquet.
+    for seq in first.seq..=last.seq {
+        let segment = tuner.segment(seq).unwrap();
+        let spot = tuner.locate(segment.start).unwrap();
+        assert_eq!(spot.seq, seq);
+        let bytes = std::fs::read(&segment.path).unwrap();
+        if (spot.offset as usize) < bytes.len() {
+            assert_eq!(bytes[spot.offset as usize], 0x47, "fichier {seq}");
+        }
+        let at = tuner.time_at(seq, spot.offset).unwrap();
+        assert!(at >= segment.start && at <= segment.end);
+    }
+
+    // Un enregistrement depuis le début traverse les fichiers sans rien perdre.
+    let job = job(&dir, now() + 0.5);
+    let follower = follow(&tuner, 0, &job, &CaptureControl::new());
+    let report = follower.await.unwrap();
+    assert_eq!(report.end, CaptureEnd::Finished);
+    assert_eq!(std::fs::read(&job.path).unwrap(), body);
+    tuner.stop();
+    assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_lagging_recording_keeps_its_files_without_a_viewer() {
+    let server = MockServer::start().await;
+    stream(&server, 10).await;
+    let dir = temp_dir("pin");
+    let tuner = Tuner::new(42, &dir, fast()).unwrap();
+    let run = start(&tuner, &server);
+    until(|| tuner.window().is_some_and(|w| w.gaps.len() >= 3)).await;
+    let oldest = tuner.locate(0.0).unwrap();
+    // Inscrit mais pas encore parti : rien de ce qu'il doit copier ne part.
+    let follower = tuner.attach(0).unwrap();
+    tuner.set_viewing(false);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(tuner.locate(0.0).unwrap().seq, oldest.seq);
+    assert!(oldest.path.exists());
+    assert!(!run.is_finished(), "l'enregistrement garde la copie en vie");
+    drop(follower);
+    assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_following_recording_stops_at_the_reserve() {
+    let server = MockServer::start().await;
+    stream(&server, 10).await;
+    let dir = temp_dir("follow-space");
+    let tuner = Tuner::new(42, &dir, fast()).unwrap();
+    let run = start(&tuner, &server);
+    until(|| tuner.window().is_some()).await;
+    let job = job(&dir, now() + 60.0);
+    let follower = tuner.attach(0).unwrap();
+    let full = CaptureOptions {
+        probe: Arc::new(|_| {
+            Some(VolumeSpace {
+                total_bytes: 8 * GB,
+                free_bytes: GB / 2,
+            })
+        }),
+        ..CaptureOptions::default()
+    };
+    let report = follower.copy(&job, &CaptureControl::new(), &full).await;
+    assert_eq!(report.end, CaptureEnd::OutOfSpace);
+    tuner.stop();
     assert_eq!(run.await.unwrap(), TuneEnd::Stopped);
 }
 

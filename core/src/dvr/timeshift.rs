@@ -4,7 +4,7 @@
 //! tel quel (.ts), dans un tampon de fichiers d'environ une minute. Le
 //! lecteur lit toujours ces fichiers, même au direct : revenir en arrière ne
 //! demande aucune seconde connexion. Un enregistrement de la même chaîne
-//! suit le même tampon ([`Tuner::follow`]), depuis un moment déjà passé si
+//! suit le même tampon ([`Tuner::attach`]), depuis un moment déjà passé si
 //! le tampon le contient.
 //!
 //! - **Index** : heure de réception ↔ octet, chaque seconde, pour des sauts
@@ -33,7 +33,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::sync::Notify;
 
@@ -200,6 +200,8 @@ struct State {
 }
 
 struct Shared {
+    /// Heure Unix et instant monotone de la création ([`Tuner::clock`]).
+    origin: (f64, Instant),
     stream_id: i64,
     dir: PathBuf,
     options: TunerOptions,
@@ -254,6 +256,7 @@ impl Tuner {
         let created = now();
         Ok(Self {
             shared: Arc::new(Shared {
+                origin: (created, Instant::now()),
                 stream_id,
                 dir,
                 options,
@@ -376,20 +379,15 @@ impl Tuner {
     /// Moment reçu à l'octet `offset` du fichier `seq` (position affichée).
     pub fn time_at(&self, seq: u64, offset: u64) -> Option<f64> {
         let state = self.lock();
-        let seg = find(&state, seq)?;
-        let index = seg.marks.partition_point(|&(_, o)| o <= offset);
-        let (t, o) = seg.marks[index.saturating_sub(1)];
-        // Entre deux points : au prorata des octets.
-        let next = seg
-            .marks
-            .get(index)
-            .copied()
-            .unwrap_or((seg.info.end, seg.info.bytes));
-        if next.1 > o {
-            Some(t + (next.0 - t) * (offset.min(next.1) - o) as f64 / (next.1 - o) as f64)
-        } else {
-            Some(t)
-        }
+        find(&state, seq).map(|seg| time_in(seg, offset))
+    }
+
+    /// Heure du tampon (secondes Unix) : suit une horloge monotone depuis la
+    /// création, pour qu'un réglage de l'heure du système ne casse ni
+    /// l'ordre de l'index ni la profondeur.
+    pub fn clock(&self) -> f64 {
+        let (unix, instant) = self.shared.origin;
+        unix + instant.elapsed().as_secs_f64()
     }
 
     // --- Copie -------------------------------------------------------------
@@ -401,8 +399,8 @@ impl Tuner {
     pub async fn run(&self, client: &XtreamClient) -> TuneEnd {
         let end = self.copy(client).await;
         {
+            let t = self.clock();
             let mut state = self.lock();
-            let t = now();
             if let Some(last) = state.outages.last_mut()
                 && last.1.is_none()
             {
@@ -500,6 +498,9 @@ impl Tuner {
         let mut file: Option<File> = None;
         let mut connected_since: Option<f64> = None;
         let mut since_space_check = 0u64;
+        // Un seul délai depuis la dernière donnée : les réveils de contrôle
+        // (aperçu ↔ plein écran…) ne le repoussent pas.
+        let mut stall_at = tokio::time::Instant::now() + options.stall;
         loop {
             let changed = self.shared.control.notified();
             tokio::pin!(changed);
@@ -510,13 +511,13 @@ impl Tuner {
             let chunk = tokio::select! {
                 // Lire un morceau peut être abandonné et repris sans rien perdre.
                 () = &mut changed => continue,
-                chunk = tokio::time::timeout(options.stall, response.chunk()) => chunk,
+                chunk = tokio::time::timeout_at(stall_at, response.chunk()) => chunk,
             };
             let chunk = match chunk {
                 Ok(Ok(Some(chunk))) => chunk,
                 // Fin du flux, erreur ou flux qui cale : nouvelle série.
                 _ => {
-                    let t = now();
+                    let t = self.clock();
                     let healthy = connected_since
                         .is_some_and(|since| t - since >= options.healthy_after.as_secs_f64());
                     self.lose(t);
@@ -526,7 +527,8 @@ impl Tuner {
             if chunk.is_empty() {
                 continue;
             }
-            let t = now();
+            stall_at = tokio::time::Instant::now() + options.stall;
+            let t = self.clock();
             if connected_since.is_none() {
                 connected_since = Some(t);
                 self.connected(t);
@@ -570,8 +572,8 @@ impl Tuner {
     }
 
     /// Ajoute un morceau au tampon ; vrai si un nouveau fichier a commencé.
-    /// L'écriture se fait hors du verrou : un disque lent ne bloque pas
-    /// l'interface qui lit l'index.
+    /// Ouverture et écriture se font hors du verrou : un disque lent ne
+    /// bloque pas l'interface qui lit l'index.
     fn write(
         &self,
         file: &mut Option<File>,
@@ -579,7 +581,7 @@ impl Tuner {
         t: f64,
     ) -> std::result::Result<bool, TuneEnd> {
         let options = &self.shared.options;
-        let rotated = {
+        let rotation = {
             let mut state = self.lock();
             let rotate = state.new_run
                 || file.is_none()
@@ -599,45 +601,54 @@ impl Tuner {
                     }
                     None => 0,
                 };
-                if state.new_run {
-                    state.run += 1;
-                    state.new_run = false;
+                // Seule la copie avance `next_seq` : le numéro reste libre.
+                Some((state.next_seq, new_run, run_offset))
+            } else {
+                let seg = state.segments.back_mut().expect("fichier en cours");
+                let last_mark = seg.marks.last().map_or(f64::MIN, |m| m.0);
+                if t - last_mark >= options.mark_secs {
+                    // Aligné sur un paquet TS depuis le début de la série.
+                    let at = seg.info.bytes;
+                    let misalign = (seg.run_offset + at) % TS_PACKET;
+                    let first = seg.marks[0].1;
+                    seg.marks.push((t, at.saturating_sub(misalign).max(first)));
                 }
-                let seq = state.next_seq;
-                let path = self.shared.dir.join(format!("{seq:08}.ts"));
-                let handle = OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&path)
-                    .map_err(|_| TuneEnd::WriteFailed)?;
-                *file = Some(handle);
-                state.next_seq += 1;
-                let run = state.run;
-                state.segments.push_back(Seg {
-                    info: Segment {
-                        seq,
-                        run,
-                        path,
-                        start: t,
-                        end: t,
-                        bytes: 0,
-                        complete: false,
-                    },
-                    run_offset,
-                    marks: vec![(t, 0)],
-                });
+                None
             }
-            let seg = state.segments.back_mut().expect("fichier en cours");
-            let last_mark = seg.marks.last().map_or(f64::MIN, |m| m.0);
-            if t - last_mark >= options.mark_secs {
-                // Aligné sur un paquet TS depuis le début de la série.
-                let at = seg.info.bytes;
-                let misalign = (seg.run_offset + at) % TS_PACKET;
-                seg.marks.push((t, at.saturating_sub(misalign)));
-            }
-            rotate
         };
+        if let Some((seq, new_run, run_offset)) = rotation {
+            let path = self.shared.dir.join(format!("{seq:08}.ts"));
+            let handle = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&path)
+                .map_err(|_| TuneEnd::WriteFailed)?;
+            *file = Some(handle);
+            let mut state = self.lock();
+            if new_run {
+                state.run += 1;
+                state.new_run = false;
+            }
+            let run = state.run;
+            // Le fichier précédent a pu finir au milieu d'un paquet : le
+            // premier paquet entier commence ici.
+            let first = (TS_PACKET - run_offset % TS_PACKET) % TS_PACKET;
+            state.segments.push_back(Seg {
+                info: Segment {
+                    seq,
+                    run,
+                    path,
+                    start: t,
+                    end: t,
+                    bytes: 0,
+                    complete: false,
+                },
+                run_offset,
+                marks: vec![(t, first)],
+            });
+            state.next_seq += 1;
+        }
         let handle = file.as_mut().expect("fichier ouvert");
         handle.write_all(chunk).map_err(|_| TuneEnd::WriteFailed)?;
         let len = chunk.len() as u64;
@@ -646,7 +657,7 @@ impl Tuner {
         seg.info.bytes += len;
         seg.info.end = t;
         state.bytes += len;
-        Ok(rotated)
+        Ok(rotation.is_some())
     }
 
     /// Efface le plus ancien : au-delà de la profondeur, sans spectateur,
@@ -660,6 +671,7 @@ impl Tuner {
             (s.reserve_bytes() + options.headroom_bytes).saturating_sub(s.free_bytes)
         });
         let mut freed = 0u64;
+        let mut removed = Vec::new();
         let mut state = self.lock();
         let pin = state.followers.values().min().copied();
         let newest = state.segments.back().map_or(0.0, |s| s.info.end);
@@ -673,10 +685,10 @@ impl Tuner {
                 break;
             }
             let seg = state.segments.pop_front().expect("plus ancien");
-            let _ = std::fs::remove_file(&seg.info.path);
             state.bytes = state.bytes.saturating_sub(seg.info.bytes);
             need = need.saturating_sub(seg.info.bytes);
             freed += seg.info.bytes;
+            removed.push(seg.info.path);
         }
         // Coupures plus anciennes que le tampon : inutiles, sauf au bilan
         // d'un enregistrement en cours.
@@ -690,6 +702,11 @@ impl Tuner {
                 .unwrap_or(state.outages.len());
             state.outages.drain(..keep_from);
         }
+        drop(state);
+        // Hors du verrou : effacer sur une clé FAT32 peut être lent.
+        for path in removed {
+            let _ = std::fs::remove_file(path);
+        }
         match space {
             Some(s) if s.free_bytes + freed <= s.reserve_bytes() => Err(TuneEnd::OutOfSpace),
             _ => Ok(()),
@@ -698,143 +715,34 @@ impl Tuner {
 
     // --- Enregistrement qui suit le tampon ---------------------------------
 
-    /// Copie dans le fichier de `job` ce que le tampon a reçu depuis `from`
-    /// (secondes Unix, déjà passé si le tampon le contient), puis la suite
-    /// au fil de l'eau, jusqu'à l'heure de fin de `control`. Même bilan que
-    /// [`super::capture`], à passer à `Recordings::finish` ; le temps
-    /// avant le plus ancien moment du tampon est compté par
-    /// `Recordings::begin_from`.
+    /// Inscrit un enregistrement qui suivra le tampon depuis `from` (secondes
+    /// Unix, déjà passé si le tampon le contient) : dès cet appel, rien de ce
+    /// qu'il doit copier n'est effacé et la copie reste en vie, même sans
+    /// spectateur. `None` si la copie est finie ou arrêtée : l'enregistrement
+    /// copie alors le flux lui-même ([`super::capture`]).
     ///
-    /// Tant qu'il suit, l'enregistrement garde la copie en vie, même sans
-    /// spectateur, et rien de ce qu'il doit encore copier n'est effacé.
-    pub async fn follow(
-        &self,
-        job: &CaptureJob,
-        from: i64,
-        control: &CaptureControl,
-        options: &CaptureOptions,
-    ) -> CaptureReport {
-        let initial = std::fs::metadata(&job.path).map(|m| m.len()).unwrap_or(0);
-        control.begin(initial, job.until);
-        let (id, mut cursor, follow_start) = {
-            let mut state = self.lock();
-            let spot = locate(&state, from as f64);
-            let cursor = spot
-                .as_ref()
-                .map_or((state.next_seq, 0), |s| (s.seq, s.offset));
-            let follow_start = spot.map_or_else(now, |s| s.at.max(from as f64));
-            let id = state.next_follower;
-            state.next_follower += 1;
-            state.followers.insert(id, cursor.0);
-            (id, cursor, follow_start)
-        };
-        let _guard = FollowerGuard {
+    /// Déroulé : `attach`, `Recordings::begin_from` avec
+    /// [`Follower::start`], puis [`Follower::copy`].
+    pub fn attach(&self, from: i64) -> Option<Follower> {
+        let clock = self.clock();
+        let mut state = self.lock();
+        if state.end.is_some() || state.stopped {
+            return None;
+        }
+        let spot = locate(&state, from as f64);
+        let cursor = spot
+            .as_ref()
+            .map_or((state.next_seq, 0), |s| (s.seq, s.offset));
+        let start = spot.map_or(clock, |s| s.at.max(from as f64));
+        let id = state.next_follower;
+        state.next_follower += 1;
+        state.followers.insert(id, cursor.0);
+        Some(Follower {
             tuner: self.clone(),
             id,
-        };
-        let mut copy = FollowCopy {
-            bytes: initial,
-            written: 0,
-            since_space_check: 0,
-        };
-        let end = self
-            .follow_copy(job, control, options, &mut cursor, &mut copy, id)
-            .await;
-        let t = now();
-        let gap = self.outage_secs(follow_start, t);
-        CaptureReport {
-            end,
-            bytes: copy.bytes,
-            written: copy.written,
-            gap_secs: gap.round() as i64,
-            received_secs: (t - follow_start - gap).max(0.0).round() as i64,
-        }
-    }
-
-    async fn follow_copy(
-        &self,
-        job: &CaptureJob,
-        control: &CaptureControl,
-        options: &CaptureOptions,
-        cursor: &mut (u64, u64),
-        copy: &mut FollowCopy,
-        id: u64,
-    ) -> CaptureEnd {
-        let mut out = match OpenOptions::new().create(true).append(true).open(&job.path) {
-            Ok(file) => file,
-            Err(_) => return CaptureEnd::WriteFailed,
-        };
-        let dir = job.path.parent().unwrap_or(Path::new(".")).to_path_buf();
-        let out_of_space = |options: &CaptureOptions| {
-            (options.probe)(&dir).is_some_and(|s| s.free_bytes <= s.reserve_bytes())
-        };
-        if out_of_space(options) {
-            return CaptureEnd::OutOfSpace;
-        }
-        let mut reader: Option<(u64, File)> = None;
-        let mut buf = vec![0u8; FOLLOW_CHUNK];
-        loop {
-            let data = self.shared.data.notified();
-            tokio::pin!(data);
-            data.as_mut().enable();
-            if control.is_stopped() {
-                return CaptureEnd::Stopped;
-            }
-            let past_end = now() >= control.until() as f64;
-            match self.read_next(&mut reader, cursor, &mut buf) {
-                Step::Bytes(n, at) => {
-                    // Rattrapage fini au-delà de l'heure de fin.
-                    if past_end && at >= control.until() as f64 {
-                        return CaptureEnd::Finished;
-                    }
-                    if out.write_all(&buf[..n]).is_err() {
-                        return CaptureEnd::WriteFailed;
-                    }
-                    cursor.1 += n as u64;
-                    copy.bytes += n as u64;
-                    copy.written += n as u64;
-                    copy.since_space_check += n as u64;
-                    control.set_bytes(copy.bytes);
-                    if copy.since_space_check >= options.space_check_bytes {
-                        copy.since_space_check = 0;
-                        if out_of_space(options) {
-                            return CaptureEnd::OutOfSpace;
-                        }
-                    }
-                    continue;
-                }
-                Step::Next(seq) => {
-                    *cursor = (seq, 0);
-                    reader = None;
-                    let mut state = self.lock();
-                    state.followers.insert(id, seq);
-                    drop(state);
-                    // Les fichiers déjà copiés peuvent partir.
-                    self.shared.control.notify_waiters();
-                    continue;
-                }
-                Step::Ended(end) => {
-                    return match end {
-                        _ if past_end => CaptureEnd::Finished,
-                        TuneEnd::Stopped => CaptureEnd::Stopped,
-                        TuneEnd::OutOfSpace => CaptureEnd::OutOfSpace,
-                        TuneEnd::WriteFailed => CaptureEnd::WriteFailed,
-                        TuneEnd::OpenFailed | TuneEnd::ConnectionLost => CaptureEnd::ConnectionLost,
-                    };
-                }
-                Step::Wait => {
-                    if past_end {
-                        return CaptureEnd::Finished;
-                    }
-                }
-            }
-            let deadline = Duration::from_secs_f64((control.until() as f64 - now()).max(0.0));
-            tokio::select! {
-                () = &mut data => {}
-                () = control.wait_change() => {}
-                () = tokio::time::sleep(deadline) => {}
-            }
-        }
+            cursor,
+            start,
+        })
     }
 
     /// Prochain morceau à copier à `cursor` (fichier, octet).
@@ -845,7 +753,7 @@ impl Tuner {
         buf: &mut [u8],
     ) -> Step {
         let (seq, offset) = *cursor;
-        let (complete, has_next, end, path, start) = {
+        let (complete, has_next, end, path, at) = {
             let state = self.lock();
             match find(&state, seq) {
                 Some(seg) => (
@@ -853,7 +761,7 @@ impl Tuner {
                     seq + 1 < state.next_seq,
                     state.end,
                     seg.info.path.clone(),
-                    seg.info.start,
+                    time_in(seg, offset),
                 ),
                 None if seq >= state.next_seq => {
                     return state.end.map_or(Step::Wait, Step::Ended);
@@ -868,21 +776,23 @@ impl Tuner {
             }
         };
         if reader.as_ref().is_none_or(|(s, _)| *s != seq) {
+            // Fichier du tampon illisible : disque en défaut, pas un trou.
             let Ok(mut file) = File::open(&path) else {
-                return Step::Next(seq + 1);
+                return Step::Failed;
             };
             if file.seek(SeekFrom::Start(offset)).is_err() {
-                return Step::Next(seq + 1);
+                return Step::Failed;
             }
             *reader = Some((seq, file));
         }
         let (_, file) = reader.as_mut().expect("fichier ouvert");
         // `complete` lu avant la lecture : tout ce qui a été écrit est lisible.
         match file.read(buf) {
-            Ok(n) if n > 0 => Step::Bytes(n, start),
-            _ if complete && has_next => Step::Next(seq + 1),
-            _ if complete => end.map_or(Step::Wait, Step::Ended),
-            _ => Step::Wait,
+            Ok(n) if n > 0 => Step::Bytes(n, at),
+            Ok(_) if complete && has_next => Step::Next(seq + 1),
+            Ok(_) if complete => end.map_or(Step::Wait, Step::Ended),
+            Ok(_) => Step::Wait,
+            Err(_) => Step::Failed,
         }
     }
 
@@ -900,17 +810,174 @@ impl Tuner {
     }
 }
 
+/// Enregistrement inscrit sur un tampon ([`Tuner::attach`]). Le lâcher le
+/// désinscrit.
+pub struct Follower {
+    tuner: Tuner,
+    id: u64,
+    cursor: (u64, u64),
+    start: f64,
+}
+
+impl std::fmt::Debug for Follower {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Follower")
+            .field("start", &self.start)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for Follower {
+    fn drop(&mut self) {
+        self.tuner.lock().followers.remove(&self.id);
+        self.tuner.shared.control.notify_waiters();
+    }
+}
+
+impl Follower {
+    /// Premier moment copié (secondes Unix) : à passer à
+    /// `Recordings::begin_from`, qui compte le temps perdu avant lui.
+    pub fn start(&self) -> i64 {
+        self.start.floor() as i64
+    }
+
+    /// Copie dans le fichier de `job` ce que le tampon a reçu depuis
+    /// [`Self::start`], puis la suite au fil de l'eau, jusqu'à l'heure de fin
+    /// de `control`. Même bilan que [`super::capture`], à passer à
+    /// `Recordings::finish`. Copie arrêtée par l'app ([`Tuner::stop`]) :
+    /// [`CaptureEnd::Preempted`].
+    pub async fn copy(
+        mut self,
+        job: &CaptureJob,
+        control: &CaptureControl,
+        options: &CaptureOptions,
+    ) -> CaptureReport {
+        let initial = std::fs::metadata(&job.path).map(|m| m.len()).unwrap_or(0);
+        control.begin(initial, job.until);
+        let mut copy = FollowCopy {
+            bytes: initial,
+            written: 0,
+            since_space_check: 0,
+        };
+        let end = self.run(job, control, options, &mut copy).await;
+        let t = self.tuner.clock();
+        let gap = self.tuner.outage_secs(self.start, t);
+        CaptureReport {
+            end,
+            bytes: copy.bytes,
+            written: copy.written,
+            gap_secs: gap.round() as i64,
+            received_secs: (t - self.start - gap).max(0.0).round() as i64,
+        }
+    }
+
+    async fn run(
+        &mut self,
+        job: &CaptureJob,
+        control: &CaptureControl,
+        options: &CaptureOptions,
+        copy: &mut FollowCopy,
+    ) -> CaptureEnd {
+        let mut out = match OpenOptions::new().create(true).append(true).open(&job.path) {
+            Ok(file) => file,
+            Err(_) => return CaptureEnd::WriteFailed,
+        };
+        let dir = job.path.parent().unwrap_or(Path::new(".")).to_path_buf();
+        let out_of_space = |options: &CaptureOptions| {
+            (options.probe)(&dir).is_some_and(|s| s.free_bytes <= s.reserve_bytes())
+        };
+        if out_of_space(options) {
+            return CaptureEnd::OutOfSpace;
+        }
+        let tuner = self.tuner.clone();
+        let mut reader: Option<(u64, File)> = None;
+        let mut buf = vec![0u8; FOLLOW_CHUNK];
+        loop {
+            // Créés avant les vérifications : aucun réveil perdu.
+            let data = tuner.shared.data.notified();
+            tokio::pin!(data);
+            data.as_mut().enable();
+            let changes = control.changes();
+            tokio::pin!(changes);
+            changes.as_mut().enable();
+            if control.is_stopped() {
+                return CaptureEnd::Stopped;
+            }
+            let until = control.until() as f64;
+            let past_end = now() >= until;
+            match tuner.read_next(&mut reader, &self.cursor, &mut buf) {
+                Step::Bytes(n, at) => {
+                    // Rattrapage arrivé au-delà de l'heure de fin.
+                    if past_end && at >= until {
+                        return CaptureEnd::Finished;
+                    }
+                    if out.write_all(&buf[..n]).is_err() {
+                        return CaptureEnd::WriteFailed;
+                    }
+                    self.cursor.1 += n as u64;
+                    copy.bytes += n as u64;
+                    copy.written += n as u64;
+                    copy.since_space_check += n as u64;
+                    control.set_bytes(copy.bytes);
+                    if copy.since_space_check >= options.space_check_bytes {
+                        copy.since_space_check = 0;
+                        if out_of_space(options) {
+                            return CaptureEnd::OutOfSpace;
+                        }
+                    }
+                    // Rattraper une heure de tampon ne monopolise pas le fil.
+                    tokio::task::yield_now().await;
+                    continue;
+                }
+                Step::Next(seq) => {
+                    self.cursor = (seq, 0);
+                    reader = None;
+                    tuner.lock().followers.insert(self.id, seq);
+                    // Les fichiers déjà copiés peuvent partir.
+                    tuner.shared.control.notify_waiters();
+                    continue;
+                }
+                Step::Failed => return CaptureEnd::WriteFailed,
+                Step::Ended(end) => {
+                    return match end {
+                        _ if past_end => CaptureEnd::Finished,
+                        // L'app a repris la connexion : incomplet, pas un arrêt
+                        // à la main.
+                        TuneEnd::Stopped => CaptureEnd::Preempted,
+                        TuneEnd::OutOfSpace => CaptureEnd::OutOfSpace,
+                        TuneEnd::WriteFailed => CaptureEnd::WriteFailed,
+                        TuneEnd::OpenFailed | TuneEnd::ConnectionLost => CaptureEnd::ConnectionLost,
+                    };
+                }
+                Step::Wait => {
+                    if past_end {
+                        return CaptureEnd::Finished;
+                    }
+                }
+            }
+            let deadline = Duration::from_secs_f64((until - now()).max(0.0));
+            tokio::select! {
+                () = &mut data => {}
+                () = &mut changes => {}
+                () = tokio::time::sleep(deadline) => {}
+            }
+        }
+    }
+}
+
 enum Session {
     Lost { healthy: bool },
     Done(TuneEnd),
 }
 
 enum Step {
-    /// Octets lus, et début du fichier lu (heure de réception).
+    /// Octets lus, et moment reçu à l'octet de départ.
     Bytes(usize, f64),
     Next(u64),
     Wait,
     Ended(TuneEnd),
+    /// Fichier du tampon impossible à lire.
+    Failed,
 }
 
 struct FollowCopy {
@@ -919,23 +986,27 @@ struct FollowCopy {
     since_space_check: u64,
 }
 
-/// Retire l'enregistrement des suiveurs, quoi qu'il arrive.
-struct FollowerGuard {
-    tuner: Tuner,
-    id: u64,
-}
-
-impl Drop for FollowerGuard {
-    fn drop(&mut self) {
-        self.tuner.lock().followers.remove(&self.id);
-        self.tuner.shared.control.notify_waiters();
-    }
-}
-
 fn find(state: &State, seq: u64) -> Option<&Seg> {
     let first = state.segments.front()?.info.seq;
     let seg = state.segments.get(seq.checked_sub(first)? as usize)?;
     (seg.info.seq == seq).then_some(seg)
+}
+
+/// Moment reçu à l'octet `offset` d'un fichier : au prorata des octets
+/// entre deux points d'index.
+fn time_in(seg: &Seg, offset: u64) -> f64 {
+    let index = seg.marks.partition_point(|&(_, o)| o <= offset);
+    let (t, o) = seg.marks[index.saturating_sub(1)];
+    let next = seg
+        .marks
+        .get(index)
+        .copied()
+        .unwrap_or((seg.info.end, seg.info.bytes));
+    if next.1 > o && offset > o {
+        t + (next.0 - t) * (offset.min(next.1) - o) as f64 / (next.1 - o) as f64
+    } else {
+        t
+    }
 }
 
 fn locate(state: &State, at: f64) -> Option<Spot> {
