@@ -312,6 +312,52 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   programmé. Pas `dataSync` ni `mediaProcessing` : depuis Android 15, ils
   sont coupés après 6 h par 24 h.
 
+## Différé sur le direct (exploration, 2026-11-01)
+
+Décidé avec le propriétaire, sur une branche d'essai qui ne sera pas
+fusionnée : revenir en arrière sur la chaîne regardée. Hors du périmètre v1
+(`SPEC_V1.md` exclut le replay) tant que rien n'est fusionné.
+
+- **Source** : un tampon local seulement, pas le replay du fournisseur
+  (`tv_archive`). La copie du cœur (`capture`) tient l'unique connexion et
+  le lecteur lit **toujours** le fichier, même au direct.
+- **Remplissage** : toujours, dès qu'une chaîne joue (aperçu compris), y
+  compris sur la mémoire interne malgré l'usure (choix du propriétaire).
+- **Profondeur** : jusqu'à 1 h, réduite selon la place libre (même réserve
+  que les enregistrements). Le tampon **cède toujours** la place : il compte
+  comme libre dans l'estimation, et un enregistrement qui manque de place
+  efface d'abord son plus ancien.
+- **Fichiers d'environ 1 min**, lus comme un seul flux continu ; coupure du
+  lecteur seulement aux vraies ruptures (reconnexion). **Index** écrit par
+  le cœur (heure de réception ↔ octet, chaque seconde) pour des sauts
+  précis. Fichiers orphelins effacés au démarrage.
+- **Disque** : celui des enregistrements. **Repli** sur la lecture réseau
+  actuelle si la copie est impossible : compte HLS seul, pas de disque, clé
+  débranchée, erreur d'écriture.
+- **Connexion** : échec à l'ouverture → erreur affichée tout de suite ;
+  coupure en cours → la lecture continue dans le tampon, reconnexion en
+  arrière-plan, le trou est sauté.
+- **Zapping** : tampon effacé. Gardé entre aperçu et plein écran ; effacé
+  en quittant pour l'accueil Android. Chaîne adulte : effacé au
+  reverrouillage.
+- **Commandes** : comme les films (−10 s, +30 s, OK pause), bouton
+  « Direct ». **Barre** : retard sur le direct et partie disponible.
+- **Pause longue** : le plus ancien s'efface ; avertissement 1 min avant
+  que le point de pause disparaisse, puis reprise au plus ancien moment.
+- **« Enregistrer »** pendant le différé : le tampon est **copié en
+  arrière-plan** dans le fichier de l'enregistrement (modèle inchangé), qui
+  continue ensuite normalement ; début passé accepté, début manquant
+  signalé.
+- **Enregistrement sur la chaîne regardée** : **une seule copie partagée**
+  (tampon + fichier d'enregistrement), possédée par le cœur et gardée en vie
+  par le service : pas de coupure quand l'enregistrement démarre, retour en
+  arrière possible avant son début. Enregistrement sur une autre chaîne : le
+  compte à rebours actuel, puis tampon effacé.
+- **Estimation de taille** : le débit mesuré par le tampon ; la mesure de
+  10 s à l'ouverture de « Enregistrer » reste en secours.
+- **À vérifier** : clés USB en FAT32 (fichier ≤ 4 Go), qui feraient échouer
+  un long enregistrement UHD.
+
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 
 Constat : les lecteurs reconnus (TiviMate, OTT Navigator) se présentent comme
