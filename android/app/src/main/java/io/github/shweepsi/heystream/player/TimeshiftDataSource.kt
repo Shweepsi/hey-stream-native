@@ -35,8 +35,12 @@ interface TimeshiftFiles {
     fun finished(): Boolean
 }
 
-/** Le fichier du tampon a été effacé avant d'être lu (pause trop longue). */
-class TimeshiftTrimmedException : IOException("fichier du différé effacé")
+/**
+ * Le fichier du tampon a été effacé avant d'être lu (pause trop longue,
+ * place manquante). Fichier absent : Media3 ne réessaie pas, le lecteur
+ * reprend aussitôt au plus ancien moment gardé.
+ */
+class TimeshiftTrimmedException : java.io.FileNotFoundException("fichier du différé effacé")
 
 /**
  * Lecture du tampon du différé : les fichiers d'une même **série** (une

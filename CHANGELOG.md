@@ -38,6 +38,21 @@ Une entrée par version, la plus récente en haut. La version vient de
   fin, arrêt propre à la réserve, « incomplet » au-delà d'une minute de
   trous, alarme en retard comprise), manqués et interrompus signalés au
   lancement.
+- **Différé sur le direct** (exploration, Android) : la chaîne regardée est
+  copiée dans un tampon sur le disque des enregistrements (1 h au plus,
+  selon la place), et le lecteur lit ce tampon, même au direct :
+  - plein écran : gauche −10 s, droite +30 s (appuis cumulés), OK ou la
+    touche lecture met en pause ; barre avec le retard sur le direct et la
+    partie disponible, « Revenir au direct » au doigt ;
+  - pause longue : avertissement une minute avant que son moment ne soit
+    effacé, puis reprise au plus ancien moment gardé ;
+  - coupure du flux : la lecture continue dans le tampon, le trou est sauté ;
+  - tampon effacé au changement de chaîne, en arrière-plan et au
+    reverrouillage ; gardé entre l'aperçu et le plein écran ;
+  - un enregistrement de la chaîne regardée suit le tampon (même connexion,
+    début déjà passé compris), et l'estimation de taille vient de son débit ;
+  - repli sur la lecture réseau : compte HLS seul, pas de disque, clé
+    débranchée, réserve atteinte.
 
 ## 0.7.3 — 2026-10-31
 

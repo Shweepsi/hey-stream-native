@@ -606,18 +606,13 @@ impl Tuner {
                 });
             if rotate {
                 let new_run = state.new_run;
-                let run_offset = match state.segments.back_mut() {
-                    Some(last) => {
-                        last.info.complete = true;
-                        if new_run {
-                            0
-                        } else {
-                            last.run_offset + last.info.bytes
-                        }
-                    }
-                    None => 0,
+                let run_offset = match state.segments.back() {
+                    Some(last) if !new_run => last.run_offset + last.info.bytes,
+                    _ => 0,
                 };
-                // Seule la copie avance `next_seq` : le numéro reste libre.
+                // Le précédent n'est marqué fini qu'avec le suivant en place
+                // (plus bas) : un lecteur ne voit jamais « fini sans suivant »
+                // au milieu d'une série. Seule la copie avance `next_seq`.
                 Some((state.next_seq, new_run, run_offset))
             } else {
                 let seg = state.segments.back_mut().expect("fichier en cours");
@@ -642,6 +637,9 @@ impl Tuner {
                 .map_err(|_| TuneEnd::WriteFailed)?;
             *file = Some(handle);
             let mut state = self.lock();
+            if let Some(last) = state.segments.back_mut() {
+                last.info.complete = true;
+            }
             if new_run {
                 state.run += 1;
                 state.new_run = false;

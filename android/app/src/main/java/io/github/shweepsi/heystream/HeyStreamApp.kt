@@ -62,13 +62,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
                     ?.forEach { RecordingNotifications.result(this@HeyStreamApp, it) }
             }
             // Tampons du différé laissés par un arrêt brutal : effacés (aucun en cours au lancement).
-            if (timeshift.current.value == null) {
-                runCatching {
-                    recordings.withStore { store ->
-                        store.directory()?.let { io.github.shweepsi.heystream.core.purgeTimeshift(it) }
-                    }
-                }
-            }
+            runCatching { recordings.withStore { it.directory() } }.getOrNull()?.let { timeshift.purge(it) }
             recordings.changed()
         }
         // Enregistrement en cours : aucun autre flux ne s'ouvre (une seule connexion).
@@ -81,7 +75,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
      */
     private fun onAccountChanged() {
         recordings.active.value?.control?.stop()
-        timeshift.current.value?.stop()
+        scope.launch { timeshift.stop() }
         scope.launch {
             runCatching { recordings.withStore { it.cancelAllScheduled() } }
             recordings.changed()

@@ -167,87 +167,92 @@ class RecordingService : Service() {
             withContext(Dispatchers.IO) { store.cancelAllScheduled() }
             return false
         }
+        // Dès maintenant, plus aucune nouvelle connexion (différé compris).
+        app.player.recordingActive = true
         // Chaîne regardée en différé : l'enregistrement suit son tampon (même
         // connexion), depuis son début s'il y est encore.
         val follower = app.timeshift.current.value
             ?.takeIf { it.streamId == due.streamId && it.alive }
             ?.attach(due.start)
-        val job = try {
-            withContext(Dispatchers.IO) { store.beginFrom(due.id, follower?.start()) }
-        } catch (cancelled: CancellationException) {
-            follower?.release()
-            throw cancelled
-        } catch (_: Throwable) {
-            follower?.release()
-            // Disque absent ou plein : le cœur a marqué l'enregistrement raté.
-            withContext(Dispatchers.IO) { store.recording(due.id) }?.let { RecordingNotifications.result(this, it) }
-            // Connexion gardée pour cet enregistrement (voir plus bas) : libérée.
-            app.player.recordingActive = false
-            return true
-        }
-        val recording = withContext(Dispatchers.IO) { store.recording(due.id) }
-        if (follower == null) {
-            // La seule connexion va à l'enregistrement : la lecture d'un autre flux
-            // s'arrête, et le différé d'une autre chaîne aussi.
-            app.player.preemptForRecording()
-            app.timeshift.stopFor(due.streamId)
-        } else {
-            // Même connexion : la lecture du différé continue ; aucun autre flux.
-            app.player.recordingActive = true
-        }
-        val control = RecordingControl()
-        recordings.setActive(ActiveRecording(due.id, due.streamId, job.path, control, following = follower != null))
-        show(RecordingNotifications.ongoing(this, recording, job.until, 0))
-        Telemetry.event("recording_start", "secs" to job.until - nowSecs())
-        val follow = scope.launch {
-            // Fenêtre changée (programme ajouté à la suite, marge raccourcie).
-            launch {
-                recordings.version.drop(1).collect {
-                    withContext(Dispatchers.IO) { store.due() }?.takeIf { it.id == due.id }?.let { control.setUntil(it.stop) }
-                }
-            }
-            while (isActive) {
-                delay(PROGRESS_MS)
-                val bytes = control.bytes()
-                withContext(Dispatchers.IO) { runCatching { store.updateProgress(due.id, bytes) } }
-                show(RecordingNotifications.ongoing(this@RecordingService, recording, control.until(), bytes.toLong()))
-            }
-        }
-        var finished: Recording? = null
-        var report: CaptureReport? = null
+        // Inscrit sur le tampon : relâché quoi qu'il arrive (sinon la copie
+        // resterait en vie sans personne, et le tampon ne s'effacerait plus).
         try {
-            report = try {
-                withContext(copyThread) {
-                    if (follower != null) core.recordFollowing(follower, job, control) else core.record(job, control)
-                }
+            val job = try {
+                withContext(Dispatchers.IO) { store.beginFrom(due.id, follower?.start()) }
             } catch (cancelled: CancellationException) {
-                control.stop()
+                follower?.release()
                 throw cancelled
             } catch (_: Throwable) {
-                // Abonnement fermé pendant la copie (déconnexion) : le fichier reste.
-                val size = File(job.path).length().coerceAtLeast(0)
-                CaptureReport(CaptureEnd.CONNECTION_LOST, size.toULong(), 0u, 0, 0)
+                follower?.release()
+                // Disque absent ou plein : le cœur a marqué l'enregistrement raté.
+                withContext(Dispatchers.IO) { store.recording(due.id) }?.let { RecordingNotifications.result(this, it) }
+                // Connexion gardée pour cet enregistrement (voir plus bas) : libérée.
+                app.player.recordingActive = false
+                return true
             }
-            follow.cancel()
-            finished = withContext(Dispatchers.IO) { store.finish(due.id, report) }
+            val recording = withContext(Dispatchers.IO) { store.recording(due.id) }
+            if (follower == null) {
+                // La seule connexion va à l'enregistrement : la lecture d'un autre flux
+                // s'arrête, et le différé d'une autre chaîne aussi.
+                app.player.preemptForRecording()
+                app.timeshift.stop()
+            }
+            val control = RecordingControl()
+            recordings.setActive(ActiveRecording(due.id, due.streamId, job.path, control, following = follower != null))
+            show(RecordingNotifications.ongoing(this, recording, job.until, 0))
+            Telemetry.event("recording_start", "secs" to job.until - nowSecs())
+            val follow = scope.launch {
+                // Fenêtre changée (programme ajouté à la suite, marge raccourcie).
+                launch {
+                    recordings.version.drop(1).collect {
+                        withContext(Dispatchers.IO) { store.due() }?.takeIf { it.id == due.id }?.let { control.setUntil(it.stop) }
+                    }
+                }
+                while (isActive) {
+                    delay(PROGRESS_MS)
+                    val bytes = control.bytes()
+                    withContext(Dispatchers.IO) { runCatching { store.updateProgress(due.id, bytes) } }
+                    show(RecordingNotifications.ongoing(this@RecordingService, recording, control.until(), bytes.toLong()))
+                }
+            }
+            var finished: Recording? = null
+            var report: CaptureReport? = null
+            try {
+                report = try {
+                    withContext(copyThread) {
+                        if (follower != null) core.recordFollowing(follower, job, control) else core.record(job, control)
+                    }
+                } catch (cancelled: CancellationException) {
+                    control.stop()
+                    throw cancelled
+                } catch (_: Throwable) {
+                    // Abonnement fermé pendant la copie (déconnexion) : le fichier reste.
+                    val size = File(job.path).length().coerceAtLeast(0)
+                    CaptureReport(CaptureEnd.CONNECTION_LOST, size.toULong(), 0u, 0, 0)
+                }
+                follow.cancel()
+                finished = withContext(Dispatchers.IO) { store.finish(due.id, report) }
+            } finally {
+                // Toujours, même si la copie est annulée ou si le bilan échoue :
+                // sinon tout flux resterait refusé et le fichier « en cours » attendu.
+                follow.cancel()
+                // Un enregistrement suivant commence aussitôt (deux programmes à la
+                // suite sur deux chaînes) : la connexion reste à lui, aucun flux du
+                // fournisseur ne s'intercale. Sinon, libérée avant l'annonce.
+                val next = withContext(NonCancellable + Dispatchers.IO) { runCatching { store.due() }.getOrNull() }
+                if (next == null || next.id == due.id) app.player.recordingActive = false
+                recordings.setActive(null)
+            }
+            val ended = finished ?: return true
+            Telemetry.event("recording_end", "end" to (report?.end?.name ?: "?"), "gap" to (report?.gapSecs ?: 0))
+            RecordingNotifications.result(this, ended)
+            withContext(Dispatchers.IO) { runCatching { store.usage() }.getOrNull() }
+                ?.takeIf { it.low }
+                ?.let { RecordingNotifications.lowSpace(this, it.remainingSecs) }
+            return true
         } finally {
-            // Toujours, même si la copie est annulée ou si le bilan échoue :
-            // sinon tout flux resterait refusé et le fichier « en cours » attendu.
-            follow.cancel()
-            // Un enregistrement suivant commence aussitôt (deux programmes à la
-            // suite sur deux chaînes) : la connexion reste à lui, aucun flux du
-            // fournisseur ne s'intercale. Sinon, libérée avant l'annonce.
-            val next = withContext(NonCancellable + Dispatchers.IO) { runCatching { store.due() }.getOrNull() }
-            if (next == null || next.id == due.id) app.player.recordingActive = false
-            recordings.setActive(null)
+            follower?.release()
         }
-        val ended = finished ?: return true
-        Telemetry.event("recording_end", "end" to (report?.end?.name ?: "?"), "gap" to (report?.gapSecs ?: 0))
-        RecordingNotifications.result(this, ended)
-        withContext(Dispatchers.IO) { runCatching { store.usage() }.getOrNull() }
-            ?.takeIf { it.low }
-            ?.let { RecordingNotifications.lowSpace(this, it.remainingSecs) }
-        return true
     }
 
     private fun acquireLocks() {

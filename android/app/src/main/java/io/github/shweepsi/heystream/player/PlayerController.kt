@@ -108,6 +108,12 @@ class PlayerController(private val context: Context) {
     private var timeshiftStartAt = 0.0
     private val timeshiftSeq = java.util.concurrent.atomic.AtomicLong(-1)
 
+    /** Lecture du tampon en cours : une source d'une lecture précédente ne la change plus. */
+    private val timeshiftGeneration = java.util.concurrent.atomic.AtomicLong()
+
+    /** Attentes de la série suivante (reconnexion du fournisseur). */
+    private var nextRunPolls = 0
+
     /** App passée en arrière-plan pendant le différé : l'écran le rouvrira au retour. */
     private var pendingTimeshiftReopen: (() -> Unit)? = null
     private var nextRunCheck: Runnable? = null
@@ -212,7 +218,11 @@ class PlayerController(private val context: Context) {
     fun seekTimeshift(at: Double) {
         val session = timeshift ?: return
         val window = session.window() ?: return
-        val target = at.coerceIn(window.oldest, (window.newest - LiveTimeshift.LIVE_DELAY_SECS).coerceAtLeast(window.oldest))
+        val live = (window.newest - LiveTimeshift.LIVE_DELAY_SECS).coerceAtLeast(window.oldest)
+        val target = at.coerceIn(window.oldest, live)
+        // Déjà au direct et saut vers l'avant : rien à rouvrir.
+        val shown = timeshiftStartAt + (exoPlayer?.currentPosition ?: 0).coerceAtLeast(0) / 1000.0
+        if (target >= live && shown >= live - LIVE_SLACK_SECS) return
         val spot = session.locate(target) ?: return
         openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
     }
@@ -246,9 +256,13 @@ class PlayerController(private val context: Context) {
     private fun openTimeshift(spot: io.github.shweepsi.heystream.core.TimeshiftSpot, playWhenReady: Boolean, fresh: Boolean) {
         val session = timeshift ?: return
         cancelNextRunCheck()
+        nextRunPolls = 0
         timeshiftStartAt = spot.at
         timeshiftSeq.set(spot.seq.toLong())
-        val factory = TimeshiftDataSource.Factory(session, spot.seq.toLong(), spot.offset.toLong()) { timeshiftSeq.set(it) }
+        val generation = timeshiftGeneration.incrementAndGet()
+        val factory = TimeshiftDataSource.Factory(session, spot.seq.toLong(), spot.offset.toLong()) { seq ->
+            if (timeshiftGeneration.get() == generation) timeshiftSeq.set(seq)
+        }
         val item = MediaItem.fromUri(android.net.Uri.fromFile(File(spot.path)))
         if (fresh) {
             start(item, live = true, startMs = 0, local = factory, playWhenReady = playWhenReady)
@@ -270,22 +284,37 @@ class PlayerController(private val context: Context) {
         var seq = last + 1
         // Déjà effacé (lecture restée en pause) : au plus ancien gardé.
         session.oldestSeq()?.takeIf { session.file(seq) == null && it > seq }?.let { seq = it }
-        while (true) {
-            val file = session.file(seq) ?: break
-            if (file.run != lastRun) {
-                // Début de la série suivante : son premier point d'index.
-                val spot = session.locate(file.start) ?: break
+        val next = session.file(seq)
+        if (next != null) {
+            // Série suivante : son premier point d'index ; même série (lecture
+            // arrêtée trop tôt) : on reprend au fichier suivant.
+            val spot = if (next.run != lastRun) session.locate(next.start) else null
+            if (spot != null) {
                 openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
-                return
+            } else {
+                openTimeshift(
+                    io.github.shweepsi.heystream.core.TimeshiftSpot(next.seq.toULong(), next.run.toULong(), next.path, 0u, next.start),
+                    playWhenReady = exoPlayer?.playWhenReady ?: true,
+                    fresh = false,
+                )
             }
-            seq += 1
+            return
         }
         if (session.finished()) {
             lostTimeshift()
             return
         }
-        // Reconnexion du cœur en cours : la suite arrivera.
-        _status.update { it.copy(reconnectAttempt = 1, buffering = true) }
+        // Reconnexion du cœur en cours : la suite arrivera. Au-delà d'une
+        // minute, l'échec s'affiche (« Réessayer »), et l'attente continue.
+        nextRunPolls += 1
+        val failed = nextRunPolls * NEXT_RUN_POLL_MS >= NEXT_RUN_FAIL_MS
+        _status.update {
+            it.copy(
+                reconnectAttempt = if (failed) 0 else (nextRunPolls * NEXT_RUN_POLL_MS / 2_000L).toInt() + 1,
+                buffering = !failed,
+                failed = failed,
+            )
+        }
         val check = Runnable { nextRun() }
         nextRunCheck = check
         handler.postDelayed(check, NEXT_RUN_POLL_MS)
@@ -456,7 +485,8 @@ class PlayerController(private val context: Context) {
             return
         }
         val at = (timeshiftStartAt + (exoPlayer?.currentPosition ?: 0).coerceAtLeast(0) / 1000.0).coerceAtLeast(window.oldest)
-        val spot = session.locate(at.coerceAtMost(window.newest)) ?: return lostTimeshift()
+        val spot = session.locate(at.coerceAtMost((window.newest - LiveTimeshift.LIVE_DELAY_SECS).coerceAtLeast(window.oldest)))
+            ?: return lostTimeshift()
         openTimeshift(spot, playWhenReady = exoPlayer?.playWhenReady ?: true, fresh = false)
     }
 
@@ -796,6 +826,10 @@ class PlayerController(private val context: Context) {
         /** Différé : nouvelle lecture du tampon après une erreur, et attente de la série suivante. */
         private const val TIMESHIFT_RETRY_MS = 500L
         private const val NEXT_RUN_POLL_MS = 500L
+        private const val NEXT_RUN_FAIL_MS = 60_000L
+
+        /** « Au direct » à ce retard près, pour ne pas rouvrir pour rien. */
+        private const val LIVE_SLACK_SECS = 3.0
 
         /** Mesure du débit : 10 s de flux (le cœur ignore moins), 30 s au plus. */
         const val SAMPLE_MEDIA_MS = 10_000L

@@ -389,6 +389,19 @@ class LiveViewModel(
     }
 
     /**
+     * Le différé ne sert plus (disque débranché, réserve) : lecture réseau,
+     * une fois sa connexion fermée. Toujours gardé par un enregistrement : la
+     * connexion reste à lui, rien ne s'ouvre.
+     */
+    private fun fallbackToNetwork(id: Long, url: String, session: LiveTimeshift) {
+        viewModelScope.launch {
+            session.awaitEnd(TIMESHIFT_CLOSE_MS)
+            if (_state.value.preview?.id != id || session.alive) return@launch
+            player.playLive(url)
+        }
+    }
+
+    /**
      * Direct depuis le différé quand c'est possible : TS autorisé, disque des
      * enregistrements, connexion libre. `false` : lecture réseau à la place
      * (compte HLS seul, pas de disque, premières données qui n'arrivent pas).
@@ -405,7 +418,8 @@ class LiveViewModel(
                 val dir = attempt { repo.ensureDirectory() }.getOrNull() ?: return false
                 val core = session.openedCore() ?: return false
                 player.opening()
-                live = attempt { holder.start(core, id, dir) }.getOrNull() ?: return false
+                // Revérifié sous le verrou du différé : un enregistrement a pu commencer.
+                live = attempt { holder.start(core, id, dir) { !player.recordingActive } }.getOrNull() ?: return false
             }
             val session = live
             val ready = withTimeoutOrNull(TIMESHIFT_FIRST_DATA_MS) {
@@ -414,12 +428,17 @@ class LiveViewModel(
             } == true
             // Une autre chaîne a été choisie entre-temps : celle-ci ne s'ouvre pas.
             if (_state.value.preview?.id != id) return true
-            if (!ready) return false
+            if (!ready) {
+                // Lecture réseau à la place, une fois la connexion du différé fermée.
+                session.release()
+                session.awaitEnd(TIMESHIFT_CLOSE_MS)
+                return session.alive
+            }
             player.playTimeshift(
                 session,
                 at = null,
                 reopen = { _state.value.preview?.takeIf { it.id == id }?.let { startPreview(it, addRecent = false) } },
-                lost = { if (_state.value.preview?.id == id) player.playLive(url) },
+                lost = { fallbackToNetwork(id, url, session) },
             )
             handed = true
             return true
@@ -901,6 +920,7 @@ class LiveViewModel(
         const val TIMESHIFT_TICK_MS = 500L
         const val TIMESHIFT_FIRST_DATA_MS = 15_000L
         const val TIMESHIFT_POLL_MS = 100L
+        const val TIMESHIFT_CLOSE_MS = 2_000L
         const val MESSAGE_MS = 2_500L
 
         /** Le programme en cours change avec l'heure : relu chaque minute. */

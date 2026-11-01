@@ -6,11 +6,14 @@ import io.github.shweepsi.heystream.core.TimeshiftFollower
 import io.github.shweepsi.heystream.core.TimeshiftSpot
 import io.github.shweepsi.heystream.core.TimeshiftWindow
 import io.github.shweepsi.heystream.core.TuneEnd
+import io.github.shweepsi.heystream.core.purgeTimeshift
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -57,7 +60,8 @@ class LiveTimeshift(core: HeyStreamCore, private val timeshift: Timeshift) : Tim
     /** Attend la fin de la copie (connexion libérée), [timeoutMs] au plus. */
     suspend fun awaitEnd(timeoutMs: Long): TuneEnd? = withTimeoutOrNull(timeoutMs) { end.first { it != null } }
 
-    val alive: Boolean get() = _end.value == null
+    /** La copie tourne encore (fin pas encore choisie par le cœur). */
+    val alive: Boolean get() = _end.value == null && timeshift.end() == null
 
     fun window(): TimeshiftWindow? = timeshift.window()
 
@@ -109,25 +113,30 @@ class LiveTimeshift(core: HeyStreamCore, private val timeshift: Timeshift) : Tim
 
 /**
  * Le différé en cours (un seul : une seule connexion), partagé par le direct
- * et le service d'enregistrement.
+ * et le service d'enregistrement. Ouverture, arrêt et nettoyage passent par
+ * un même verrou : jamais deux copies, même pendant un changement de chaîne
+ * qui croise le début d'un enregistrement.
  */
 class TimeshiftHolder {
     private val _current = MutableStateFlow<LiveTimeshift?>(null)
     val current: StateFlow<LiveTimeshift?> = _current.asStateFlow()
+    private val mutex = Mutex()
 
     /**
-     * Nouveau différé de [streamId] : le précédent est relâché d'abord, et sa
-     * connexion fermée avant l'ouverture de la nouvelle.
+     * Nouveau différé de [streamId], `null` si la connexion n'est pas libre :
+     * le précédent est relâché et doit avoir fermé sa connexion, et [allowed]
+     * (aucun enregistrement) est revérifié juste avant l'ouverture.
      */
-    suspend fun start(core: HeyStreamCore, streamId: Long, dir: String): LiveTimeshift {
+    suspend fun start(core: HeyStreamCore, streamId: Long, dir: String, allowed: () -> Boolean): LiveTimeshift? = mutex.withLock {
         _current.value?.let { old ->
             old.release()
             old.awaitEnd(CLOSE_TIMEOUT_MS)
+            // Gardé par un enregistrement (ou qui ne se ferme pas) : pas de seconde connexion.
+            if (old.alive) return@withLock null
         }
+        if (!allowed()) return@withLock null
         val opened = withContext(Dispatchers.IO) { core.openTimeshift(streamId, dir) }
-        val started = LiveTimeshift(core, opened)
-        _current.value = started
-        return started
+        LiveTimeshift(core, opened).also { _current.value = it }
     }
 
     /** Différé encore en vie de [streamId] (un enregistrement le gardait) : repris. */
@@ -139,12 +148,21 @@ class TimeshiftHolder {
         _current.value?.release()
     }
 
-    /** La connexion va à un enregistrement d'une autre chaîne. */
-    suspend fun stopFor(streamId: Long) {
-        val current = _current.value ?: return
-        if (current.streamId == streamId && current.alive) return
+    /**
+     * La connexion va à un enregistrement qui ne suit pas le différé : il
+     * s'arrête, et on attend sa fermeture. Une ouverture en cours passe
+     * d'abord (même verrou), puis s'arrête aussi.
+     */
+    suspend fun stop() = mutex.withLock {
+        val current = _current.value ?: return@withLock
         current.stop()
         current.awaitEnd(CLOSE_TIMEOUT_MS)
+    }
+
+    /** Au lancement, sans différé : efface les tampons d'un arrêt brutal dans [dir]. */
+    suspend fun purge(dir: String) = mutex.withLock {
+        if (_current.value?.alive == true) return@withLock
+        withContext(Dispatchers.IO) { purgeTimeshift(dir) }
     }
 
     private companion object {
