@@ -21,6 +21,7 @@ mod account;
 mod catalog;
 mod client;
 mod details;
+mod dvr;
 mod epg;
 mod error;
 mod lenient;
@@ -40,6 +41,12 @@ pub use catalog::{
 };
 pub use client::{USER_AGENT, XtreamClient};
 pub use details::{Episode, MovieInfo, Season, SeriesInfo};
+pub use dvr::{
+    CaptureControl, CaptureEnd, CaptureJob, CaptureOptions, CaptureReport, DEFAULT_BYTES_PER_HOUR,
+    DEFAULT_MARGINS, DueRecording, GuideProgramme, LOW_SPACE_SECS, MAX_GAP_SECS, MAX_MARGIN_SECS,
+    Margins, Recording, RecordingProblem, RecordingState, RecordingUsage, Recordings,
+    SchedulePreview, ScheduleRequest, SpaceProbe, VolumeSpace, capture, volume_space,
+};
 pub use epg::{EPG_MIN_INTERVAL_SECS, LATER_MAX, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};

@@ -4,6 +4,24 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.4 — 2026-11-01
+
+- Cœur de l'enregistrement programmé (`docs/DECISIONS.md`, « Enregistrement
+  programmé »), pas encore visible dans l'app :
+  - planning dans sa propre base : il survit à un changement d'identifiant,
+    qui annule seulement les programmations ;
+  - programmes qui se suivent fusionnés sur une même chaîne, marges
+    partagées entre deux chaînes, vrai chevauchement refusé ;
+  - estimation de la place (3 Go/h, puis débit appris par chaîne), réserve
+    de 1 Go ou 10 % du disque, place manquante annoncée avant de
+    programmer, jauge et enregistrements à proposer pour libérer de la
+    place ;
+  - copie du flux telle quelle dans un seul fichier, reconnexion avec
+    attentes croissantes et nombre d'essais limité, arrêt propre à la
+    réserve ; enregistrement « incomplet » au-delà d'une minute de trous ;
+  - enregistrements manqués ou interrompus signalés au lancement, reprise
+    dans le même fichier si la fenêtre n'est pas finie.
+
 ## 0.7.3 — 2026-10-31
 
 - Connexion : un œil à droite du mot de passe l'affiche ou le masque, pour

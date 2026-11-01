@@ -81,6 +81,13 @@ impl From<xc::Error> for HeyStreamError {
             E::InvalidPin => Self::InvalidPin,
             E::WrongPin => Self::WrongPin,
             E::TooManyAttempts { retry_in_secs } => Self::TooManyAttempts { retry_in_secs },
+            // Enregistrement programmé : pas encore exposé aux interfaces
+            // (étape Android). Ces erreurs ne peuvent pas arriver ici.
+            E::RecordingConflict { .. }
+            | E::RecordingEnded
+            | E::RecordingNotFound
+            | E::NotEnoughSpace
+            | E::VolumeMissing => Self::Storage,
         }
     }
 }

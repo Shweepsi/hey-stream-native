@@ -32,6 +32,20 @@ pub enum Error {
     /// `Catalog::restrict_sections_to`) : rien n'y est enregistré.
     #[error("cache qui n'est plus lié à cet abonnement")]
     AccountChanged,
+    /// Le programme chevauche un enregistrement d'une autre chaîne (une
+    /// seule connexion).
+    #[error("chevauche l'enregistrement {recording_id}")]
+    RecordingConflict { recording_id: i64 },
+    #[error("programme déjà terminé")]
+    RecordingEnded,
+    #[error("enregistrement introuvable")]
+    RecordingNotFound,
+    /// Réserve du disque déjà atteinte au démarrage.
+    #[error("plus de place pour enregistrer")]
+    NotEnoughSpace,
+    /// Disque d'enregistrement absent (débranché) ou pas encore choisi.
+    #[error("disque d'enregistrement absent")]
+    VolumeMissing,
     #[error("erreur réseau")]
     Network(#[source] reqwest::Error),
 }
