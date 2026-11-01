@@ -653,7 +653,7 @@ fn a_recording_is_scheduled_copied_and_listed() {
             .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0x47u8; 188]))
             .mount(&panel.server),
     );
-    let dir = temp_dir("recording");
+    let dir = temp_dir("scheduled-recording");
     let core = open(&panel, &dir);
     let store = RecordingStore::new(dir.to_string_lossy().into()).unwrap();
     let files = dir.join("enregistrements");
