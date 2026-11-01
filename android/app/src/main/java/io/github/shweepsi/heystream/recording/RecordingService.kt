@@ -28,6 +28,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -63,7 +64,7 @@ class RecordingService : Service() {
             if (loop?.isActive != true) stopSelf()
             return START_NOT_STICKY
         }
-        if (!enterForeground(RecordingNotifications.waiting(this, null, null))) {
+        if (!enterForeground(current ?: RecordingNotifications.waiting(this, null, null))) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -94,7 +95,11 @@ class RecordingService : Service() {
         false
     }
 
+    /** Dernière notification montrée : reprise si le service est redémarré. */
+    private var current: Notification? = null
+
     private fun show(notification: Notification) {
+        current = notification
         getSystemService(NotificationManager::class.java)?.notify(RecordingNotifications.ONGOING_ID, notification)
     }
 
@@ -108,7 +113,7 @@ class RecordingService : Service() {
                 recordings.withStore { it.recover() }.forEach { RecordingNotifications.result(this, it) }
                 val due = recordings.withStore { it.due() }
                 if (due != null) {
-                    record(store, due)
+                    if (!record(store, due)) break
                     recordings.changed()
                     continue
                 }
@@ -130,6 +135,7 @@ class RecordingService : Service() {
             Telemetry.event("recording_service_error", "error" to error.javaClass.simpleName)
         } finally {
             recordings.setCountdown(null)
+            if (recordings.active.value == null) app.player.recordingActive = false
             releaseLocks()
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -149,14 +155,15 @@ class RecordingService : Service() {
         )
     }
 
-    private suspend fun record(store: RecordingStore, due: DueRecording) {
+    /** Copie de [due] ; `false` si plus rien ne peut être copié (déconnexion). */
+    private suspend fun record(store: RecordingStore, due: DueRecording): Boolean {
         val recordings = app.recordings
         recordings.setCountdown(null)
         val core = app.session.openedCore()
         if (core == null) {
             // Plus d'abonnement : rien ne peut être copié.
             withContext(Dispatchers.IO) { store.cancelAllScheduled() }
-            return
+            return false
         }
         val job = try {
             withContext(Dispatchers.IO) { store.begin(due.id) }
@@ -165,7 +172,9 @@ class RecordingService : Service() {
         } catch (_: Throwable) {
             // Disque absent ou plein : le cœur a marqué l'enregistrement raté.
             withContext(Dispatchers.IO) { store.recording(due.id) }?.let { RecordingNotifications.result(this, it) }
-            return
+            // Connexion gardée pour cet enregistrement (voir plus bas) : libérée.
+            app.player.recordingActive = false
+            return true
         }
         val recording = withContext(Dispatchers.IO) { store.recording(due.id) }
         // La seule connexion va à l'enregistrement : la lecture d'un autre flux s'arrête.
@@ -188,27 +197,39 @@ class RecordingService : Service() {
                 show(RecordingNotifications.ongoing(this@RecordingService, recording, control.until(), bytes.toLong()))
             }
         }
-        val report = try {
-            withContext(copyThread) { core.record(job, control) }
-        } catch (cancelled: CancellationException) {
-            control.stop()
-            throw cancelled
-        } catch (_: Throwable) {
-            // Abonnement fermé pendant la copie (déconnexion) : le fichier reste.
-            val size = File(job.path).length().coerceAtLeast(0)
-            CaptureReport(CaptureEnd.CONNECTION_LOST, size.toULong(), 0u, 0, 0)
+        var finished: Recording? = null
+        var report: CaptureReport? = null
+        try {
+            report = try {
+                withContext(copyThread) { core.record(job, control) }
+            } catch (cancelled: CancellationException) {
+                control.stop()
+                throw cancelled
+            } catch (_: Throwable) {
+                // Abonnement fermé pendant la copie (déconnexion) : le fichier reste.
+                val size = File(job.path).length().coerceAtLeast(0)
+                CaptureReport(CaptureEnd.CONNECTION_LOST, size.toULong(), 0u, 0, 0)
+            }
+            follow.cancel()
+            finished = withContext(Dispatchers.IO) { store.finish(due.id, report) }
+        } finally {
+            // Toujours, même si la copie est annulée ou si le bilan échoue :
+            // sinon tout flux resterait refusé et le fichier « en cours » attendu.
+            follow.cancel()
+            // Un enregistrement suivant commence aussitôt (deux programmes à la
+            // suite sur deux chaînes) : la connexion reste à lui, aucun flux du
+            // fournisseur ne s'intercale. Sinon, libérée avant l'annonce.
+            val next = withContext(NonCancellable + Dispatchers.IO) { runCatching { store.due() }.getOrNull() }
+            if (next == null || next.id == due.id) app.player.recordingActive = false
+            recordings.setActive(null)
         }
-        follow.cancel()
-        val finished = withContext(Dispatchers.IO) { store.finish(due.id, report) }
-        // Connexion libérée avant l'annonce : un écran qui rouvre le direct en
-        // apprenant la fin de la copie ne doit plus être refusé.
-        app.player.recordingActive = false
-        recordings.setActive(null)
-        Telemetry.event("recording_end", "end" to report.end.name, "gap" to report.gapSecs)
-        RecordingNotifications.result(this, finished)
+        val ended = finished ?: return true
+        Telemetry.event("recording_end", "end" to (report?.end?.name ?: "?"), "gap" to (report?.gapSecs ?: 0))
+        RecordingNotifications.result(this, ended)
         withContext(Dispatchers.IO) { runCatching { store.usage() }.getOrNull() }
             ?.takeIf { it.low }
             ?.let { RecordingNotifications.lowSpace(this, it.remainingSecs) }
+        return true
     }
 
     private fun acquireLocks() {

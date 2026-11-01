@@ -188,6 +188,9 @@ interface PlayerActions {
     fun cancelNext()
 
     fun exit()
+
+    /** Flux refusé pendant un enregistrement : l'arrêter (le fichier est gardé). */
+    fun stopRecording() {}
 }
 
 /**
@@ -390,6 +393,7 @@ fun PlayerContent(
                     message = state.error?.resolve(),
                     onRetry = actions::retry,
                     onBack = actions::exit,
+                    onStopRecording = if (state.blockedByRecording) actions::stopRecording else null,
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -978,7 +982,13 @@ private fun NextEpisodeCard(next: NextEpisodeUi, onPlayNow: () -> Unit, onCancel
 
 /** Flux impossible à lire (après les reconnexions) ou à préparer : « Réessayer » (focus) ou « Retour ». */
 @Composable
-private fun FailureCard(message: String?, onRetry: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun FailureCard(
+    message: String?,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    onStopRecording: (() -> Unit)? = null,
+) {
     val dimens = Hs.dimens
     val retry = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -1003,6 +1013,9 @@ private fun FailureCard(message: String?, onRetry: () -> Unit, onBack: () -> Uni
         )
         if (message != null) {
             Text(message, style = Hs.type.body, color = Hs.colors.textSecondary, textAlign = TextAlign.Center)
+        }
+        if (onStopRecording != null) {
+            HsButton(text = stringResource(R.string.recording_stop_now), onClick = onStopRecording, icon = Lucide.X)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(dimens.gap), modifier = Modifier.padding(top = 4.dp)) {
             HsButton(

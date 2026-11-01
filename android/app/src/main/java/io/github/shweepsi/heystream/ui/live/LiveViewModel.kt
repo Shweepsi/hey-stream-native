@@ -578,7 +578,7 @@ class LiveViewModel(
         val dialog = _state.value.recordDialog ?: return
         previewJob?.cancel()
         previewJob = viewModelScope.launch {
-            repo.ensureDirectory()
+            attempt { repo.ensureDirectory() }
             val adult = isAdult(dialog.channelId)
             val result = attempt { repo.withStore { it.preview(request(dialog, adult)) } }
             _state.update { current ->

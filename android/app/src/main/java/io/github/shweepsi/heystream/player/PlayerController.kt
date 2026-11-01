@@ -179,7 +179,8 @@ class PlayerController(private val context: Context) {
         val player = exoPlayer ?: return
         cancelRetry()
         // Flux pas encore rouvert (retenu) : sa reprise et sa position restent.
-        if (!resumeOnForeground) {
+        // Refusé (enregistrement en cours) : rien à rouvrir au retour.
+        if (!resumeOnForeground && !_status.value.blocked) {
             resumeOnForeground = current != null && player.playWhenReady
             if (!live && current != null) resumeMs = player.currentPosition
         }
@@ -290,6 +291,14 @@ class PlayerController(private val context: Context) {
     }
 
     private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
+        // Seul passage vers le fournisseur (lecture, reprise, nouvel essai) :
+        // pendant un enregistrement, la connexion lui appartient.
+        if (localSource == null && recordingActive) {
+            exoPlayer?.stop()
+            resumeOnForeground = false
+            _status.value = PlaybackStatus(active = true, live = live, blocked = true)
+            return
+        }
         stats?.opening()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.

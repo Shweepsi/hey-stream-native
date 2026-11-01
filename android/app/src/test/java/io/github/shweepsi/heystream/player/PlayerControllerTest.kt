@@ -58,6 +58,26 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun noProviderStreamReopensDuringARecording() {
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        assertEquals(1, opens.count)
+        // L'enregistrement prend la connexion : le film s'arrête.
+        controller.preemptForRecording()
+        assertTrue(controller.status.value.blocked)
+        // Aller-retour par l'accueil, « Réessayer » : rien ne se rouvre.
+        controller.onBackground()
+        controller.onForeground()
+        controller.retry()
+        controller.playLive("file:///absent/live.ts")
+        assertEquals(1, opens.count)
+        assertTrue(controller.status.value.blocked)
+        // Copie finie : le flux se rouvre.
+        controller.recordingActive = false
+        controller.retry()
+        assertEquals(2, opens.count)
+    }
+
+    @Test
     fun retryButtonPlaysAPausedFilm() {
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         controller.player.pause()

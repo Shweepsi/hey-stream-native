@@ -51,7 +51,7 @@
     <string name="record_cleanup_none">Aucun enregistrement à supprimer sur ce disque.</string>
     <string name="record_unsupported">Ce fournisseur ne permet pas l’enregistrement (format TS refusé).</string>
     <string name="record_exact_alarm_title">Autoriser les alarmes</string>
-    <string name="record_exact_alarm_message">Pour démarrer à l’heure, même app fermée, Hey Stream a besoin de l’autorisation « Alarmes et rappels ». Sans elle, un enregistrement peut démarrer en retard.</string>
+    <string name="record_exact_alarm_message">Pour démarrer à l’heure, même app fermée, Hey Stream a besoin de l’autorisation « Alarmes et rappels ». Sans elle, les enregistrements ne peuvent pas démarrer app fermée.</string>
     <string name="record_exact_alarm_open">Ouvrir les réglages</string>
     <string name="record_exact_alarm_later">Plus tard</string>
 
@@ -88,7 +88,7 @@
     <string name="settings_recordings_internal">Mémoire interne</string>
     <string name="settings_recordings_free">%1$s libres sur %2$s</string>
     <string name="settings_recordings_alarm_ok">Alarmes autorisées : les enregistrements démarrent à l’heure.</string>
-    <string name="settings_recordings_alarm_missing">Alarmes non autorisées : les enregistrements peuvent démarrer en retard.</string>
+    <string name="settings_recordings_alarm_missing">Alarmes non autorisées : les enregistrements ne peuvent pas démarrer app fermée.</string>
     <string name="settings_recordings_battery">Sur certains appareils (Xiaomi HyperOS…), autorisez aussi Hey Stream à fonctionner en arrière-plan dans les réglages de batterie.</string>
     <string name="settings_recordings_battery_open">Réglages de batterie</string>
 </resources>

@@ -53,15 +53,31 @@ object RecordingScheduler {
             Intent(context, RecordingAlarmReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val keepAwake = PendingIntent.getBroadcast(
+            context,
+            1,
+            Intent(context, RecordingAlarmReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         if (nextStart == null) {
             alarms.cancel(intent)
+            alarms.cancel(keepAwake)
             return
         }
         val nowSecs = System.currentTimeMillis() / 1000
         // Sur TV, la veille profonde est empêchée par le service (wake lock) dès
-        // 12 h avant ; ailleurs, le service ne tourne que pendant l'enregistrement.
-        if (context.isTelevision() && nextStart - nowSecs <= KEEP_AWAKE_SECS) {
-            RecordingService.start(context)
+        // 12 h avant : tout de suite si on y est, sinon une alarme le démarre ;
+        // ailleurs, le service ne tourne que pendant l'enregistrement.
+        if (context.isTelevision()) {
+            val wakeAt = nextStart - KEEP_AWAKE_SECS
+            if (wakeAt <= nowSecs) {
+                alarms.cancel(keepAwake)
+                RecordingService.start(context)
+            } else if (canScheduleExact(context)) {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wakeAt * 1000, keepAwake)
+            } else {
+                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wakeAt * 1000, keepAwake)
+            }
         }
         val at = ((nextStart - LEAD_SECS).coerceAtLeast(nowSecs)) * 1000
         if (canScheduleExact(context)) {

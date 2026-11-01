@@ -74,6 +74,7 @@ class RecordingPlayerViewModel(
                 if (started && !closed && controller.status.value.playing) savePosition()
             }
         }
+        viewModelScope.launch { controller.held.collect { hold -> if (hold != 0L) checkHeld() } }
         viewModelScope.launch {
             controller.status.collect { status ->
                 if (started && !closed && status.ended && !endHandled) onEnded()
@@ -89,6 +90,38 @@ class RecordingPlayerViewModel(
                     recording?.let { controller.playRecording(it.path, startMs = position) }
                 }
             }
+        }
+    }
+
+    private var holdJob: Job? = null
+
+    /**
+     * L'app a quitté l'écran ([PlayerController.hold]) : une fois le
+     * reverrouillage posé, un enregistrement adulte se ferme (le code sera
+     * redemandé) ; sinon la lecture reprend.
+     */
+    private fun checkHeld() {
+        holdJob?.cancel()
+        holdJob = viewModelScope.launch {
+            session.awaitRelock()
+            val adult = recording?.isAdult ?: false
+            val unlocked = try {
+                session.withCore { it.isParentalUnlocked() }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                false
+            }
+            if (adult && !unlocked) {
+                savePosition()
+                closed = true
+                player.removeListener(listener)
+                controller.stop()
+                controller.releaseHold()
+                _state.update { it.copy(exit = true) }
+                return@launch
+            }
+            controller.releaseHold()
         }
     }
 

@@ -51,7 +51,7 @@
     <string name="record_cleanup_none">There is no recording to delete on this disk.</string>
     <string name="record_unsupported">This provider does not allow recording (TS format refused).</string>
     <string name="record_exact_alarm_title">Allow alarms</string>
-    <string name="record_exact_alarm_message">To start on time, even with the app closed, Hey Stream needs the “Alarms &amp; reminders” permission. Without it, a recording may start late.</string>
+    <string name="record_exact_alarm_message">To start on time, even with the app closed, Hey Stream needs the “Alarms &amp; reminders” permission. Without it, recordings cannot start while the app is closed.</string>
     <string name="record_exact_alarm_open">Open settings</string>
     <string name="record_exact_alarm_later">Not now</string>
 
@@ -88,7 +88,7 @@
     <string name="settings_recordings_internal">Internal storage</string>
     <string name="settings_recordings_free">%1$s free of %2$s</string>
     <string name="settings_recordings_alarm_ok">Alarms allowed: recordings start on time.</string>
-    <string name="settings_recordings_alarm_missing">Alarms not allowed: recordings may start late.</string>
+    <string name="settings_recordings_alarm_missing">Alarms not allowed: recordings cannot start while the app is closed.</string>
     <string name="settings_recordings_battery">On some devices (Xiaomi HyperOS…), also allow Hey Stream to run in the background in the battery settings.</string>
     <string name="settings_recordings_battery_open">Battery settings</string>
 </resources>

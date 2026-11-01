@@ -131,13 +131,16 @@ class CoreSession(
         val result = lock.withLock {
             withContext(Dispatchers.IO) {
                 val candidate = Credentials(server.trim(), username.trim(), password)
+                val previous = credentials.load()
                 val opened = open(candidate)
                 try {
                     val account = opened.authenticate()
                     credentials.save(candidate)
                     core?.close()
                     core = opened
-                    onAccountChanged()
+                    // Même identifiant (adresse du serveur modifiée) : les
+                    // programmations restent, comme les favoris (`docs/DECISIONS.md`).
+                    if (previous == null || previous.username != candidate.username) onAccountChanged()
                     account
                 } catch (error: Throwable) {
                     Telemetry.event("sign_in", "ok" to false, "error" to error.javaClass.simpleName)

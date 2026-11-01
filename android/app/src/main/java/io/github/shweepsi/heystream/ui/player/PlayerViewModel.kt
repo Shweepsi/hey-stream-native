@@ -65,6 +65,8 @@ data class PlayerUiState(
      * pas encore appliqué ; `null` sans appui en cours.
      */
     val pendingSeekMs: Long? = null,
+    /** Refusé : un enregistrement a la seule connexion (« Arrêter l'enregistrement » proposé). */
+    val blockedByRecording: Boolean = false,
 )
 
 /** Ce que le lecteur doit ouvrir. L'URL ne sort jamais de ce fichier (ni journal, ni état). */
@@ -399,7 +401,7 @@ class PlayerViewModel(
         wasPlaying = false
         deferred = null
         dropPendingSeek()
-        _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
+        _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists(), blockedByRecording = false) }
         val kind = args.kind
         val id = args.id
         // Position atteinte par l'écran (restauré), ou 0 pour « Depuis le début ».
@@ -512,7 +514,7 @@ class PlayerViewModel(
         if (status.blocked) {
             if (wasPlaying) saveProgress()
             wasPlaying = false
-            _state.update { it.copy(error = UiText(R.string.recording_blocks_playback), retrying = false) }
+            _state.update { it.copy(error = UiText(R.string.recording_blocks_playback), retrying = false, blockedByRecording = true) }
             return
         }
         // Le lecteur a repris la main (nouvelle tentative ou lecture).

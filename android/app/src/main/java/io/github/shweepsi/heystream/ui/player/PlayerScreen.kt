@@ -42,6 +42,7 @@ import io.github.shweepsi.heystream.core.PlaybackKind
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.VideoSurface
 import io.github.shweepsi.heystream.ui.appGraph
+import io.github.shweepsi.heystream.ui.heyStreamApp
 import io.github.shweepsi.heystream.ui.theme.Hs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -130,6 +131,7 @@ interface PlayerModel {
 fun PlayerHost(viewModel: PlayerModel, controller: PlayerController, onExit: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val status by controller.status.collectAsStateWithLifecycle()
+    val recordings = heyStreamApp().recordings
     val chrome = remember { PlayerChrome(visible = true) }
     val player = controller.player
 
@@ -219,6 +221,11 @@ fun PlayerHost(viewModel: PlayerModel, controller: PlayerController, onExit: () 
             override fun cancelNext() = viewModel.cancelNext()
 
             override fun exit() = exit()
+
+            // Fin de la copie : le lecteur se rouvre au « Réessayer » suivant.
+            override fun stopRecording() {
+                recordings.active.value?.control?.stop()
+            }
         }
     }
 
