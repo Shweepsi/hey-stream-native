@@ -234,8 +234,10 @@ programmé entre dans la v1, **avant la 1.0** (`SPEC_V1.md`, « Enregistrement �
   appareil.
   - **Estimation apprise par chaîne** : 3 Go/h au départ, puis le débit
     réel mesuré pendant l'aperçu ou un enregistrement de cette chaîne.
-  - **Réserve système fixe** : toujours au moins 1 Go ou 10 % du disque
-    (le plus grand) laissés libres ; pas d'autre plafond.
+  - **Réserve système fixe** : toujours 10 % du disque laissés libres, au
+    moins 1 Go et au plus 3 Go (plafond du 2026-11-01 : sur une tablette de
+    256 Go, 10 % interdirait d'enregistrer avec 20 Go libres) ; pas d'autre
+    plafond.
   - **Trop juste à la programmation** : « Il manque environ X Go », avec
     deux choix : libérer de la place (enregistrements déjà vus en premier)
     ou programmer quand même. Revérifié au démarrage ; pendant

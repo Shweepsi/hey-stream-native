@@ -200,8 +200,10 @@ class RecordingService : Service() {
         }
         follow.cancel()
         val finished = withContext(Dispatchers.IO) { store.finish(due.id, report) }
-        recordings.setActive(null)
+        // Connexion libérée avant l'annonce : un écran qui rouvre le direct en
+        // apprenant la fin de la copie ne doit plus être refusé.
         app.player.recordingActive = false
+        recordings.setActive(null)
         Telemetry.event("recording_end", "end" to report.end.name, "gap" to report.gapSecs)
         RecordingNotifications.result(this, finished)
         withContext(Dispatchers.IO) { runCatching { store.usage() }.getOrNull() }

@@ -6,8 +6,11 @@ use std::path::Path;
 pub const DEFAULT_BYTES_PER_HOUR: u64 = 3_000_000_000;
 /// Réserve minimale toujours laissée libre : 1 Go…
 const RESERVE_MIN_BYTES: u64 = 1_000_000_000;
-/// … ou 10 % du disque, le plus grand des deux.
+/// … ou 10 % du disque, le plus grand des deux…
 const RESERVE_RATIO: u64 = 10;
+/// … sans dépasser 3 Go : sur une tablette de 256 Go, 10 % (25,6 Go)
+/// interdirait d'enregistrer avec 20 Go libres (décision du 2026-11-01).
+const RESERVE_MAX_BYTES: u64 = 3_000_000_000;
 
 /// Taille et place libre d'un volume.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,9 +21,9 @@ pub struct VolumeSpace {
 }
 
 impl VolumeSpace {
-    /// Place toujours laissée libre : 1 Go ou 10 % du disque.
+    /// Place toujours laissée libre : 10 % du disque, entre 1 Go et 3 Go.
     pub fn reserve_bytes(&self) -> u64 {
-        RESERVE_MIN_BYTES.max(self.total_bytes / RESERVE_RATIO)
+        (self.total_bytes / RESERVE_RATIO).clamp(RESERVE_MIN_BYTES, RESERVE_MAX_BYTES)
     }
 
     /// Place que les enregistrements peuvent prendre, réserve déduite.
@@ -72,19 +75,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reserve_is_one_gigabyte_or_ten_percent() {
+    fn reserve_is_ten_percent_between_one_and_three_gigabytes() {
         let small = VolumeSpace {
             total_bytes: 8_000_000_000,
             free_bytes: 4_000_000_000,
         };
         assert_eq!(small.reserve_bytes(), 1_000_000_000);
         assert_eq!(small.usable_bytes(), 3_000_000_000);
-        let large = VolumeSpace {
-            total_bytes: 64_000_000_000,
+        let medium = VolumeSpace {
+            total_bytes: 20_000_000_000,
             free_bytes: 5_000_000_000,
         };
-        assert_eq!(large.reserve_bytes(), 6_400_000_000);
-        assert_eq!(large.usable_bytes(), 0);
+        assert_eq!(medium.reserve_bytes(), 2_000_000_000);
+        // Tablette de 256 Go : 3 Go, pas 25,6 Go.
+        let large = VolumeSpace {
+            total_bytes: 256_000_000_000,
+            free_bytes: 20_000_000_000,
+        };
+        assert_eq!(large.reserve_bytes(), 3_000_000_000);
+        assert_eq!(large.usable_bytes(), 17_000_000_000);
+        let full = VolumeSpace {
+            total_bytes: 256_000_000_000,
+            free_bytes: 2_000_000_000,
+        };
+        assert_eq!(full.usable_bytes(), 0);
     }
 
     #[test]

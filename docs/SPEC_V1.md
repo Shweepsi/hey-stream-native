@@ -146,9 +146,10 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   possibilité d'arrêter l'enregistrement). Lecture en cours à l'heure de
   début : compte à rebours d'1 min, puis l'enregistrement gagne, sauf
   annulation.
-- Espace : estimation apprise par chaîne (3 Go/h au départ) ; au moins 1 Go
-  ou 10 % du disque toujours laissés libres. Trop juste : prévenir (« il
-  manque X Go ») et laisser libérer de la place ou programmer quand même ;
+- Espace : estimation apprise par chaîne (3 Go/h au départ) ; 10 % du
+  disque toujours laissés libres, entre 1 Go et 3 Go. Trop juste :
+  prévenir (« il manque X Go ») et laisser libérer de la place ou
+  programmer quand même ;
   arrêt propre en atteignant la réserve. Jauge (utilisé, heures restantes),
   taille de chaque enregistrement, notification sous une heure restante.
   Disque interne ou externe (là où Android permet un dossier privé à

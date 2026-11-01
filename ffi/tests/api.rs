@@ -684,10 +684,10 @@ fn a_recording_is_scheduled_copied_and_listed() {
         .unwrap()
         .expect("programme en cours : dû tout de suite");
     assert_eq!(due.id, id);
-    // La réserve (1 Go ou 10 % du disque) dépend de la machine de test : sur
-    // un disque trop plein, seul le refus est vérifié.
+    // La réserve (10 % du disque, entre 1 et 3 Go) dépend de la machine de
+    // test : sur un disque trop plein, seul le refus est vérifié.
     let space = heystream::volume_space(files.to_string_lossy().into()).unwrap();
-    let reserve = (space.total_bytes / 10).max(1_000_000_000);
+    let reserve = (space.total_bytes / 10).clamp(1_000_000_000, 3_000_000_000);
     if space.free_bytes <= reserve {
         assert!(matches!(
             store.begin(id),
