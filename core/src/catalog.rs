@@ -130,6 +130,9 @@ const MIGRATIONS: &[&str] = &[
     // 5 : nom tel que le fournisseur l'envoie ; `name` devient le nom affiché
     // (`names::clean_name`), recalculé à l'ouverture pour les lignes déjà là.
     "ALTER TABLE item ADD COLUMN raw_name TEXT;",
+    // 6 : la mention de qualité en tête (« 4KL », « uhd ») quitte aussi le nom
+    // affiché : les noms déjà là repartent du nom brut et sont recalculés.
+    "UPDATE item SET name = raw_name, raw_name = NULL WHERE raw_name IS NOT NULL;",
 ];
 
 /// Cache du catalogue d'un abonnement.

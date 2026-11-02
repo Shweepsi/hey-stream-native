@@ -107,8 +107,10 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
 - Zones tactiles ≥ 48 dp sur tablette Android, ≥ 40 dp sur téléphone / 44 pt
   (Apple).
 - Noms de films, séries et chaînes affichés sans la mention du français
-  (« FR - », « |FR| », « _fr »), implicite dans l'app ; les autres langues
-  restent écrites, les catégories gardent leur nom.
+  (« FR - », « |FR| », « _fr »), implicite dans l'app, ni la mention de
+  qualité en tête (« 4K », « 4KL », « UHD », « FHD », « HD »), sans badge à la
+  place (décidé le 2026-11-02) ; les autres langues restent écrites, les
+  catégories gardent leur nom.
 
 ## Animations
 
@@ -156,7 +158,8 @@ téléphone, plus étroits.
 
 - Catégories à gauche : **Continuer** (titres commencés ; pour les séries, une
   entrée par série), **Favoris**, puis celles du fournisseur.
-- Grille d'affiches 2:3 **avec le titre dessous** (6 colonnes sur TV).
+- Grille d'affiches 2:3 **avec le titre dessous, sur deux lignes** (6
+  colonnes sur TV ; deux lignes aussi à la TV depuis le 2026-11-02).
 - **Barre de progression** sur toute affiche commencée, dans toutes les
   catégories (série : son dernier épisode commencé).
 - **Coche « vu »** sur l'affiche d'un film vu ou d'une série entièrement vue :

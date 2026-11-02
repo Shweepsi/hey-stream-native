@@ -10,17 +10,39 @@
 /// Mentions du français reconnues, sans tenir compte de la casse.
 const FRENCH: [&str; 2] = ["fr", "vf"];
 
+/// Mentions de qualité retirées en tête de nom, sans tenir compte de la casse.
+const QUALITY: [&str; 5] = ["4k", "4kl", "uhd", "fhd", "hd"];
+
 /// Nom sans la mention du français en tête (« FR - », « FR: », « |FR| »,
-/// « VF - ») ni en fin (« … FR », « …_fr », « …-fr »). Rien n'est retiré si
-/// le nom ne contient que la mention.
+/// « VF - ») ni en fin (« … FR », « …_fr », « …-fr »), puis sans la mention
+/// de qualité en tête (« 4KL Black Box », « uhd Alita »). Rien n'est retiré
+/// si le nom ne contient que des mentions.
 pub fn clean_name(raw: &str) -> String {
     let trimmed = raw.trim();
-    let cleaned = strip_suffix(strip_prefix(trimmed)).trim();
+    let cleaned = strip_quality(strip_suffix(strip_prefix(trimmed)).trim()).trim();
     if cleaned.is_empty() {
         trimmed.to_owned()
     } else {
         cleaned.to_owned()
     }
+}
+
+/// « 4K Gravity », « UHD - Gravity », « fhd: Gravity » → « Gravity ». La
+/// mention doit être un mot entier suivi d'un séparateur : « 4Kids » et
+/// « HDTV » restent.
+fn strip_quality(name: &str) -> &str {
+    let Some((tag, rest)) = name.split_once(is_separator) else {
+        return name;
+    };
+    if !QUALITY.iter().any(|q| tag.eq_ignore_ascii_case(q)) {
+        return name;
+    }
+    let rest = rest.trim_start_matches(is_separator);
+    if rest.is_empty() { name } else { rest }
+}
+
+fn is_separator(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '-' | ':' | '|')
 }
 
 fn is_french(tag: &str) -> bool {
@@ -87,9 +109,22 @@ mod tests {
     }
 
     #[test]
-    fn quality_stays_so_versions_differ() {
-        assert_eq!(clean_name("FR -4K Gravity (2013)"), "4K Gravity (2013)");
-        assert_eq!(clean_name("FR -4KL Apollo 13"), "4KL Apollo 13");
+    fn leading_quality_goes() {
+        assert_eq!(clean_name("FR -4K Gravity (2013)"), "Gravity (2013)");
+        assert_eq!(clean_name("FR -4KL Apollo 13"), "Apollo 13");
+        assert_eq!(clean_name("4KL Black Box (2021)"), "Black Box (2021)");
+        assert_eq!(clean_name("uhd Alita, Battle Angel"), "Alita, Battle Angel");
+        assert_eq!(clean_name("|FR| FHD - Dune"), "Dune");
+        assert_eq!(clean_name("HD: Dune"), "Dune");
+    }
+
+    #[test]
+    fn quality_inside_a_word_or_alone_stays() {
+        assert_eq!(clean_name("4Kids TV"), "4Kids TV");
+        assert_eq!(clean_name("HDTV Show"), "HDTV Show");
+        assert_eq!(clean_name("4K"), "4K");
+        assert_eq!(clean_name("FR - 4K"), "4K");
+        assert_eq!(clean_name("canal+ FOOT UHD"), "canal+ FOOT UHD");
     }
 
     #[test]
