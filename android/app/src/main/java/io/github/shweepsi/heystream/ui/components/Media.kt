@@ -23,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -187,7 +186,6 @@ fun PosterCard(
     fallbackIcon: ImageVector = Lucide.Film,
 ) {
     val dimens = Hs.dimens
-    var focused by remember { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp)) {
         HsSurface(
             onClick = onClick,
@@ -197,8 +195,7 @@ fun PosterCard(
             onClickLabel = title,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f)
-                .onFocusChanged { focused = it.isFocused },
+                .aspectRatio(2f / 3f),
         ) {
             RemoteImage(imageUrl, Modifier.fillMaxSize(), fallback = fallbackIcon)
             if (watched) {
@@ -218,24 +215,23 @@ fun PosterCard(
                 )
             }
         }
-        val lines = posterTitleLines()
         Text(
             text = title,
             style = posterTitleStyle(),
-            minLines = lines,
-            maxLines = lines,
+            minLines = POSTER_TITLE_LINES,
+            maxLines = POSTER_TITLE_LINES,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            // TV : une ligne, titre complet sous l'affiche focalisée. Au doigt :
-            // deux lignes, pour distinguer « FR - Retour vers le futur II » du III.
-            modifier = if (dimens.isTv) Modifier.marqueeWhen(focused) else Modifier,
         )
     }
 }
 
-/** Lignes du titre sous une affiche : une à la TV (il défile au focus), deux au doigt. */
-@Composable
-fun posterTitleLines(): Int = if (Hs.dimens.isTv) 1 else 2
+/**
+ * Lignes du titre sous une affiche : deux, à la TV comme au doigt.
+ * « American Gangster (2007) » se lit sans sélectionner l'affiche, et le II
+ * se distingue du III.
+ */
+const val POSTER_TITLE_LINES = 2
 
 @Composable
 fun posterTitleStyle(): TextStyle = if (Hs.dimens.isTv) Hs.type.small else Hs.type.body

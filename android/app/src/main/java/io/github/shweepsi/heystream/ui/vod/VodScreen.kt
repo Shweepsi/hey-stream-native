@@ -74,7 +74,7 @@ import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ParentalPinDialog
 import io.github.shweepsi.heystream.ui.components.PinPurpose
 import io.github.shweepsi.heystream.ui.components.PosterCard
-import io.github.shweepsi.heystream.ui.components.posterTitleLines
+import io.github.shweepsi.heystream.ui.components.POSTER_TITLE_LINES
 import io.github.shweepsi.heystream.ui.components.posterTitleStyle
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
@@ -580,7 +580,7 @@ private fun PosterPlaceholder() {
                 .clip(RoundedCornerShape(dimens.radius))
                 .background(Hs.colors.surface2),
         )
-        Text(" ", style = posterTitleStyle(), minLines = posterTitleLines(), maxLines = posterTitleLines())
+        Text(" ", style = posterTitleStyle(), minLines = POSTER_TITLE_LINES, maxLines = POSTER_TITLE_LINES)
     }
 }
 

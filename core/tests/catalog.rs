@@ -186,8 +186,9 @@ fn search_puts_names_starting_with_the_query_first() {
         .into_iter()
         .map(|i| i.id)
         .collect();
-    // Les titres « Dune… » d'abord, puis « dune » en début de mot.
-    assert_eq!(hits, [4, 5, 1, 2, 3, 6]);
+    // Les titres « Dune… » d'abord (« 4K » et « 4KL » sont retirés des noms),
+    // puis « dune » en début de mot.
+    assert_eq!(hits, [2, 4, 5, 1, 3, 6]);
 
     // Une requête qui commence par une décoration (« ( ») la perd aussi.
     let movies: Vec<Movie> = from_value(json!([
@@ -299,7 +300,12 @@ fn stored_names_drop_the_french_mention_and_search_on_them() {
     );
     assert_eq!(
         catalog.search(Section::Movies, "gravity", 10).unwrap()[0].name,
-        "4K Gravity (2013)"
+        "Gravity (2013)"
+    );
+    // La qualité quitte le nom affiché mais se cherche encore.
+    assert_eq!(
+        catalog.search(Section::Movies, "4k gravity", 10).unwrap()[0].id,
+        3
     );
 }
 
@@ -326,5 +332,33 @@ fn names_stored_by_an_older_version_are_cleaned_on_open() {
     let catalog = Catalog::open(&path).unwrap();
     let found = catalog.search(Section::Live, "canal", 10).unwrap();
     assert_eq!(found[0].name, "CANAL+");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn names_cleaned_with_older_rules_are_cleaned_again_on_open() {
+    let dir = std::env::temp_dir().join(format!("hs-names6-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut catalog = Catalog::open(&path).unwrap();
+        let movies: Vec<Movie> = serde_json::from_value(serde_json::json!([
+            {"stream_id": 1, "name": "4KL Apollo 13"},
+        ]))
+        .unwrap();
+        catalog.store_movies(&[], &movies, 0).unwrap();
+    }
+    // Ligne nettoyée avant la migration 6, qui gardait la qualité.
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "UPDATE item SET name = '4KL Apollo 13', search_key = '4kl apollo 13';
+             PRAGMA user_version = 5;",
+        )
+        .unwrap();
+    }
+    let catalog = Catalog::open(&path).unwrap();
+    let found = catalog.search(Section::Movies, "apollo", 10).unwrap();
+    assert_eq!(found[0].name, "Apollo 13");
     std::fs::remove_dir_all(&dir).unwrap();
 }

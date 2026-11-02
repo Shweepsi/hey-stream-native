@@ -4,6 +4,17 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.5 — 2026-11-02
+
+- Noms : la mention de qualité en tête (« 4K », « 4KL », « UHD », « FHD »,
+  « HD », aussi « |4K| » ou empilée avec « FR - ») est retirée du nom
+  affiché, comme celle du français. « 4KL Black Box (2021) » devient
+  « Black Box (2021) ». Elle reste cherchable : « 4k gravity » trouve la
+  version 4K. Les noms qui peuvent en contenir une sont recalculés à
+  l'ouverture (migration 6 du catalogue).
+- TV : le titre sous les affiches tient sur deux lignes au lieu d'une, comme
+  au doigt ; il ne défile plus au focus.
+
 ## 0.7.4 — 2026-11-02
 
 - Lecture : tampon plafonné selon l'appareil, à la moitié du tas Java de
