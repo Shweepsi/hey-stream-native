@@ -10,7 +10,7 @@ Une entrée par version, la plus récente en haut. La version vient de
   l'app (entre 32 et 128 Mo, 64 Mo au plus sur une box de 2 Go). Sur une
   NVIDIA Shield, un film 4K occupait 161 Mo du tas (limite 192 Mo), au bord
   du manque de mémoire ; le plafond y est de 96 Mo, soit ~13 s d'une 4K à
-  60 Mbit/s et plus de 60 s d'un flux HD.
+  60 Mbit/s, et les 50 s maximales d'un flux HD.
 - Recherche : les noms qui commencent par la requête passent en premier
   (« dune » : « Dune (1984) » avant « 4K Dune.Part.Two… »).
 
