@@ -160,9 +160,34 @@ fn search_puts_the_whole_query_first() {
         .into_iter()
         .map(|i| i.id)
         .collect();
-    // Requête en début de mot, même collée à une décoration (ordre
-    // alphabétique), puis tous les mots ailleurs.
-    assert_eq!(hits, [3, 2, 5, 6, 1]);
+    // Noms qui commencent par la requête, même derrière une décoration
+    // collée (ordre alphabétique), puis la requête en début de mot, puis
+    // tous les mots ailleurs.
+    assert_eq!(hits, [2, 5, 6, 3, 1]);
+}
+
+#[test]
+fn search_puts_names_starting_with_the_query_first() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 1, "name": "4K Dune.Part.Two.2024.2160p.WEB-DL"},
+        {"stream_id": 2, "name": "4KL Dune"},
+        {"stream_id": 3, "name": "Chroniques.dune.famille.2012.1080p"},
+        {"stream_id": 4, "name": "Dune (1984)"},
+        {"stream_id": 5, "name": "|FR| ★ Dune : Deuxième partie (2024)"},
+        {"stream_id": 6, "name": "Jodorowsky's Dune (VOST)"}
+    ]))
+    .unwrap();
+    catalog.store_movies(&[], &movies, 1_000).unwrap();
+
+    let hits: Vec<_> = catalog
+        .search(Section::Movies, "dune", 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    // Les titres « Dune… » d'abord, puis « dune » en début de mot.
+    assert_eq!(hits, [4, 5, 1, 2, 3, 6]);
 }
 
 #[test]

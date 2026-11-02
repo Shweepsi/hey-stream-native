@@ -4,6 +4,14 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.4 — 2026-11-02
+
+- Lecture : tampon plafonné à 64 Mo. Sur une NVIDIA Shield, un film 4K
+  occupait 161 Mo du tas Java (limite 192 Mo), au bord du manque de
+  mémoire ; un flux HD garde ses 50 s de tampon.
+- Recherche : les noms qui commencent par la requête passent en premier
+  (« dune » : « Dune (1984) » avant « 4K Dune.Part.Two… »).
+
 ## 0.7.3 — 2026-10-31
 
 - Connexion : un œil à droite du mot de passe l'affiche ou le masque, pour
