@@ -215,23 +215,23 @@ fun PosterCard(
                 )
             }
         }
-        val lines = posterTitleLines()
         Text(
             text = title,
             style = posterTitleStyle(),
-            minLines = lines,
-            maxLines = lines,
+            minLines = POSTER_TITLE_LINES,
+            maxLines = POSTER_TITLE_LINES,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            // Deux lignes partout : « American Gangster (2007) » se lit sans
-            // sélectionner l'affiche, et le II se distingue du III.
         )
     }
 }
 
-/** Lignes du titre sous une affiche : deux, à la TV comme au doigt. */
-@Composable
-fun posterTitleLines(): Int = 2
+/**
+ * Lignes du titre sous une affiche : deux, à la TV comme au doigt.
+ * « American Gangster (2007) » se lit sans sélectionner l'affiche, et le II
+ * se distingue du III.
+ */
+const val POSTER_TITLE_LINES = 2
 
 @Composable
 fun posterTitleStyle(): TextStyle = if (Hs.dimens.isTv) Hs.type.small else Hs.type.body

@@ -3,9 +3,10 @@
 //! Les fournisseurs écrivent la langue dans le nom (« FR - Dune », « |FR|
 //! CANAL+ », « The Crown (2016)_fr »). Le français est la langue de l'app :
 //! sa mention est retirée, une seule fois, à l'enregistrement du catalogue.
-//! Les autres langues restent écrites (« EN - Dune ») pour que deux versions
-//! d'un titre ne se confondent pas, comme la qualité (« FR -4K Gravity »
-//! devient « 4K Gravity »). Les noms de catégories ne passent pas par ici.
+//! Les autres langues restent écrites (« EN - Dune »). La mention de qualité
+//! en tête (« 4KL Black Box », « |UHD| Dune ») est retirée du nom affiché
+//! (décision du 2026-11-02) mais reste cherchable ([`search_name`]). Les
+//! noms de catégories ne passent pas par ici.
 
 /// Mentions du français reconnues, sans tenir compte de la casse.
 const FRENCH: [&str; 2] = ["fr", "vf"];
@@ -13,13 +14,36 @@ const FRENCH: [&str; 2] = ["fr", "vf"];
 /// Mentions de qualité retirées en tête de nom, sans tenir compte de la casse.
 const QUALITY: [&str; 5] = ["4k", "4kl", "uhd", "fhd", "hd"];
 
-/// Nom sans la mention du français en tête (« FR - », « FR: », « |FR| »,
-/// « VF - ») ni en fin (« … FR », « …_fr », « …-fr »), puis sans la mention
-/// de qualité en tête (« 4KL Black Box », « uhd Alita »). Rien n'est retiré
-/// si le nom ne contient que des mentions.
+/// Nom affiché : sans la mention du français en tête (« FR - », « FR: »,
+/// « |FR| », « VF - ») ni en fin (« … FR », « …_fr », « …-fr »), ni les
+/// mentions de qualité en tête (« 4KL Black Box », « uhd Alita », « 4K FR -
+/// Gravity », « |4K| UHD Dune »). Rien n'est retiré si le nom ne contient
+/// que des mentions.
 pub fn clean_name(raw: &str) -> String {
+    clean(raw, true)
+}
+
+/// Nom de recherche : comme [`clean_name`], mais la qualité reste, pour que
+/// « 4k gravity » trouve encore la version 4K.
+pub fn search_name(raw: &str) -> String {
+    clean(raw, false)
+}
+
+fn clean(raw: &str, drop_quality: bool) -> String {
     let trimmed = raw.trim();
-    let cleaned = strip_quality(strip_suffix(strip_prefix(trimmed)).trim()).trim();
+    let mut rest = trimmed;
+    // Mentions empilées, dans n'importe quel ordre : « 4K FR - Gravity ».
+    loop {
+        let mut next = strip_prefix(rest).trim_start();
+        if drop_quality {
+            next = strip_quality(next).trim_start();
+        }
+        if next.len() == rest.len() {
+            break;
+        }
+        rest = next;
+    }
+    let cleaned = strip_suffix(rest).trim();
     if cleaned.is_empty() {
         trimmed.to_owned()
     } else {
@@ -27,14 +51,21 @@ pub fn clean_name(raw: &str) -> String {
     }
 }
 
-/// « 4K Gravity », « UHD - Gravity », « fhd: Gravity » → « Gravity ». La
-/// mention doit être un mot entier suivi d'un séparateur : « 4Kids » et
-/// « HDTV » restent.
+/// « 4K Gravity », « UHD - Gravity », « fhd: Gravity », « |4K| Gravity » →
+/// « Gravity ». La mention doit être un mot entier suivi d'un séparateur :
+/// « 4Kids » et « HDTV » restent. Rien n'est retiré s'il ne reste rien.
 fn strip_quality(name: &str) -> &str {
-    let Some((tag, rest)) = name.split_once(is_separator) else {
-        return name;
+    let (tag, rest) = match name.strip_prefix('|') {
+        Some(inner) => match inner.split_once('|') {
+            Some(pair) => pair,
+            None => return name,
+        },
+        None => match name.split_once(is_separator) {
+            Some(pair) => pair,
+            None => return name,
+        },
     };
-    if !QUALITY.iter().any(|q| tag.eq_ignore_ascii_case(q)) {
+    if !QUALITY.iter().any(|q| tag.trim().eq_ignore_ascii_case(q)) {
         return name;
     }
     let rest = rest.trim_start_matches(is_separator);
@@ -93,7 +124,7 @@ fn strip_suffix(name: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    use super::clean_name;
+    use super::{clean_name, search_name};
 
     #[test]
     fn french_prefixes_go() {
@@ -116,6 +147,21 @@ mod tests {
         assert_eq!(clean_name("uhd Alita, Battle Angel"), "Alita, Battle Angel");
         assert_eq!(clean_name("|FR| FHD - Dune"), "Dune");
         assert_eq!(clean_name("HD: Dune"), "Dune");
+    }
+
+    #[test]
+    fn stacked_and_bracketed_mentions_go() {
+        assert_eq!(clean_name("4K FR - Gravity"), "Gravity");
+        assert_eq!(clean_name("UHD |FR| Dune"), "Dune");
+        assert_eq!(clean_name("|4K| Dune"), "Dune");
+        assert_eq!(clean_name("|FR| 4K UHD Dune"), "Dune");
+        assert_eq!(clean_name("|BE| 4K Dune"), "|BE| 4K Dune");
+    }
+
+    #[test]
+    fn the_search_name_keeps_the_quality() {
+        assert_eq!(search_name("FR -4K Gravity (2013)"), "4K Gravity (2013)");
+        assert_eq!(search_name("|FR| canal+ FOOT UHD"), "canal+ FOOT UHD");
     }
 
     #[test]

@@ -302,6 +302,11 @@ fn stored_names_drop_the_french_mention_and_search_on_them() {
         catalog.search(Section::Movies, "gravity", 10).unwrap()[0].name,
         "Gravity (2013)"
     );
+    // La qualité quitte le nom affiché mais se cherche encore.
+    assert_eq!(
+        catalog.search(Section::Movies, "4k gravity", 10).unwrap()[0].id,
+        3
+    );
 }
 
 #[test]

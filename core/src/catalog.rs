@@ -12,7 +12,7 @@ use crate::account::{AccountKey, AccountMatch, account_match};
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::model::{Category, LiveStream, Movie, Series};
-use crate::names::clean_name;
+use crate::names::{clean_name, search_name};
 
 /// Section du catalogue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,8 +131,11 @@ const MIGRATIONS: &[&str] = &[
     // (`names::clean_name`), recalculé à l'ouverture pour les lignes déjà là.
     "ALTER TABLE item ADD COLUMN raw_name TEXT;",
     // 6 : la mention de qualité en tête (« 4KL », « uhd ») quitte aussi le nom
-    // affiché : les noms déjà là repartent du nom brut et sont recalculés.
-    "UPDATE item SET name = raw_name, raw_name = NULL WHERE raw_name IS NOT NULL;",
+    // affiché : les noms qui en contiennent peut-être une repartent du nom
+    // brut et sont recalculés (pas tout le catalogue, lourd sur la Mi Box).
+    "UPDATE item SET name = raw_name, raw_name = NULL
+     WHERE raw_name IS NOT NULL
+       AND (lower(raw_name) LIKE '%4k%' OR lower(raw_name) LIKE '%hd%');",
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -388,7 +391,7 @@ impl Catalog {
                     s.stream_id,
                     name,
                     sort_key(&name),
-                    fold(&name),
+                    fold(&search_name(&raw)),
                     s.num.unwrap_or(NO_NUM),
                     s.stream_icon,
                     s.category_id,
@@ -421,7 +424,7 @@ impl Catalog {
                     m.stream_id,
                     name,
                     sort_key(&name),
-                    fold(&name),
+                    fold(&search_name(&raw)),
                     NO_NUM,
                     m.stream_icon,
                     m.category_id,
@@ -454,7 +457,7 @@ impl Catalog {
                     s.series_id,
                     name,
                     sort_key(&name),
-                    fold(&name),
+                    fold(&search_name(&raw)),
                     NO_NUM,
                     s.cover,
                     s.category_id,
@@ -693,7 +696,8 @@ fn clean_stored_names(tx: &rusqlite::Transaction<'_>) -> Result<()> {
     )?;
     for (section, id, raw) in rows {
         let name = clean_name(&raw);
-        update.execute(params![section, id, name, sort_key(&name), fold(&name)])?;
+        let search = fold(&search_name(&raw));
+        update.execute(params![section, id, name, sort_key(&name), search])?;
     }
     Ok(())
 }
