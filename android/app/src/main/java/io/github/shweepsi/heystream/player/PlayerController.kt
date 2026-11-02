@@ -229,6 +229,8 @@ class PlayerController(private val context: Context) {
         val loadControl = DefaultLoadControl.Builder()
             // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
             .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
+            // Plafond selon le tas de l'appareil (voir `BufferSize`).
+            .setTargetBufferBytes(BufferSize.bytesFor(context))
             .build()
         return ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(http, extractors))

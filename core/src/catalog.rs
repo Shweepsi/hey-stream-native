@@ -319,10 +319,12 @@ impl Catalog {
     /// la requête doit apparaître dans le nom. Les catégories masquées et
     /// verrouillées sont exclues.
     ///
-    /// Les plus pertinents d'abord : la requête entière en début de mot
-    /// (« retour vers » trouve « Retour vers le futur » avant « Le Retour du
-    /// roi … version longue »), puis la requête entière ailleurs, puis le
-    /// reste ; dans chaque groupe, l'ordre alphabétique.
+    /// Les plus pertinents d'abord : les noms qui commencent par la requête
+    /// (« dune » trouve « Dune (1984) » avant « 4K Dune.Part.Two… »), puis la
+    /// requête entière en début de mot (« retour vers » trouve « Au-delà :
+    /// retour vers » avant « Le Retour du roi … version longue »), puis la
+    /// requête entière ailleurs, puis le reste ; dans chaque groupe, l'ordre
+    /// alphabétique.
     pub fn search(&self, section: Section, query: &str, limit: usize) -> Result<Vec<CatalogItem>> {
         let folded = fold(query);
         let phrase = folded.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -344,9 +346,14 @@ impl Catalog {
             .map(|c| format!("instr(' ' || i.search_key, '{c}' || ?{p}) > 0"))
             .collect::<Vec<_>>()
             .join(" OR ");
+        // Début du nom : comparé à la clé de tri, sans les décorations de tête
+        // (« |FR| », « ★ », « ( »), retirées aussi de la requête.
+        let start = sort_key(&phrase);
+        let s = p + 1;
         sql.push_str(&format!(
-            " ORDER BY CASE WHEN {word_start} THEN 0 \
-               WHEN instr(i.search_key, ?{p}) > 0 THEN 1 ELSE 2 END, \
+            " ORDER BY CASE WHEN substr(i.sort_key, 1, length(?{s})) = ?{s} THEN 0 \
+               WHEN {word_start} THEN 1 \
+               WHEN instr(i.search_key, ?{p}) > 0 THEN 2 ELSE 3 END, \
              i.sort_key, i.id LIMIT {limit}"
         ));
         let mut stmt = self.conn.prepare(&sql)?;
@@ -356,6 +363,7 @@ impl Catalog {
             values.push(word);
         }
         values.push(&phrase);
+        values.push(&start);
         let rows = stmt.query_map(values.as_slice(), |r| row_to_item(section, r))?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }

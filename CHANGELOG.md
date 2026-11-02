@@ -4,6 +4,16 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.7.4 — 2026-11-02
+
+- Lecture : tampon plafonné selon l'appareil, à la moitié du tas Java de
+  l'app (entre 32 et 128 Mo, 64 Mo au plus sur une box de 2 Go). Sur une
+  NVIDIA Shield, un film 4K occupait 161 Mo du tas (limite 192 Mo), au bord
+  du manque de mémoire ; le plafond y est de 96 Mo, soit ~13 s d'une 4K à
+  60 Mbit/s, et les 50 s maximales d'un flux HD.
+- Recherche : les noms qui commencent par la requête passent en premier
+  (« dune » : « Dune (1984) » avant « 4K Dune.Part.Two… »).
+
 ## 0.7.3 — 2026-10-31
 
 - Connexion : un œil à droite du mot de passe l'affiche ou le masque, pour
