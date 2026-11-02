@@ -229,14 +229,8 @@ class PlayerController(private val context: Context) {
         val loadControl = DefaultLoadControl.Builder()
             // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
             .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
-            // Le tampon vit dans le tas Java (192 Mo au plus mesuré sur une
-            // Shield). Sans plafond, Media3 garde jusqu'à ~140 Mo pour une
-            // vidéo : un film 4K montait à 161 Mo de tas, au bord du manque
-            // de mémoire. Le plafond l'emporte sur les durées (réglage par
-            // défaut de Media3, voulu) : ~50 s à 10 Mbit/s, ~25 s à 20 Mbit/s,
-            // ~9 s seulement pour une 4K à 60 Mbit/s, moins que les 15 s
-            // minimales. Choix assumé : une coupure plutôt qu'un plantage.
-            .setTargetBufferBytes(BUFFER_BYTES)
+            // Plafond selon le tas de l'appareil (voir `BufferSize`).
+            .setTargetBufferBytes(BufferSize.bytesFor(context))
             .build()
         return ExoPlayer.Builder(context, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(http, extractors))
@@ -386,8 +380,6 @@ class PlayerController(private val context: Context) {
         /** Avance et recul rapides (spec : +30 s, −10 s, appuis cumulés). */
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
-        /** Plafond du tampon de lecture (voir `create`). */
-        private const val BUFFER_BYTES = 64 * 1024 * 1024
         private const val MAX_ATTEMPTS = 6
     }
 }

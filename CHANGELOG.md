@@ -6,10 +6,11 @@ Une entrée par version, la plus récente en haut. La version vient de
 
 ## 0.7.4 — 2026-11-02
 
-- Lecture : tampon plafonné à 64 Mo. Sur une NVIDIA Shield, un film 4K
-  occupait 161 Mo du tas Java (limite 192 Mo), au bord du manque de
-  mémoire. Le tampon couvre ~50 s à 10 Mbit/s, mais ~9 s seulement pour une
-  4K à 60 Mbit/s.
+- Lecture : tampon plafonné selon l'appareil, à la moitié du tas Java de
+  l'app (entre 32 et 128 Mo, 64 Mo au plus sur une box de 2 Go). Sur une
+  NVIDIA Shield, un film 4K occupait 161 Mo du tas (limite 192 Mo), au bord
+  du manque de mémoire ; le plafond y est de 96 Mo, soit ~13 s d'une 4K à
+  60 Mbit/s et plus de 60 s d'un flux HD.
 - Recherche : les noms qui commencent par la requête passent en premier
   (« dune » : « Dune (1984) » avant « 4K Dune.Part.Two… »).
 
