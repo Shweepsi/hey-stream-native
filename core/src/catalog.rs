@@ -346,10 +346,12 @@ impl Catalog {
             .map(|c| format!("instr(' ' || i.search_key, '{c}' || ?{p}) > 0"))
             .collect::<Vec<_>>()
             .join(" OR ");
-        // Début du nom : la clé de tri a déjà perdu les décorations de tête
-        // (« |FR| », « ★ », « - »).
+        // Début du nom : comparé à la clé de tri, sans les décorations de tête
+        // (« |FR| », « ★ », « ( »), retirées aussi de la requête.
+        let start = sort_key(&phrase);
+        let s = p + 1;
         sql.push_str(&format!(
-            " ORDER BY CASE WHEN substr(i.sort_key, 1, length(?{p})) = ?{p} THEN 0 \
+            " ORDER BY CASE WHEN substr(i.sort_key, 1, length(?{s})) = ?{s} THEN 0 \
                WHEN {word_start} THEN 1 \
                WHEN instr(i.search_key, ?{p}) > 0 THEN 2 ELSE 3 END, \
              i.sort_key, i.id LIMIT {limit}"
@@ -361,6 +363,7 @@ impl Catalog {
             values.push(word);
         }
         values.push(&phrase);
+        values.push(&start);
         let rows = stmt.query_map(values.as_slice(), |r| row_to_item(section, r))?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }

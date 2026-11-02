@@ -188,6 +188,21 @@ fn search_puts_names_starting_with_the_query_first() {
         .collect();
     // Les titres « Dune… » d'abord, puis « dune » en début de mot.
     assert_eq!(hits, [4, 5, 1, 2, 3, 6]);
+
+    // Une requête qui commence par une décoration (« ( ») la perd aussi.
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 7, "name": "1 (500) jours"},
+        {"stream_id": 8, "name": "(500) jours ensemble"}
+    ]))
+    .unwrap();
+    catalog.store_movies(&[], &movies, 2_000).unwrap();
+    let hits: Vec<_> = catalog
+        .search(Section::Movies, "(500) jours", 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    assert_eq!(hits, [8, 7]);
 }
 
 #[test]
