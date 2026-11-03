@@ -21,7 +21,16 @@ ligne quand sa PR est fusionnée.
 ## Cœur (acceptables pour l'instant)
 
 - Lire la réponse du panneau au fil de l'eau au lieu de la garder entière en
-  mémoire (`client.rs`) : gros catalogues sur 1 Go libre.
+  mémoire (`client.rs`) : gros catalogues sur 1 Go libre. Aujourd'hui, le pic
+  est la réponse entière plus toutes les entrées décodées. Trois points :
+  - enregistrer dans SQLite par lots pendant la lecture : `parse_list`
+    (`lenient.rs`) renvoie la liste complète avant tout enregistrement, donc
+    lire en flux sans enregistrer au fil de l'eau ne baisserait pas le pic ;
+  - deux chemins de lecture : liste (`SeqAccess`) et objet indexé
+    `{"0": {...}}` (`MapAccess`), aujourd'hui lu dans une `BTreeMap` entière ;
+    garder la détection de `user_info` (identifiants refusés) ;
+  - corriger le Latin-1 morceau par morceau (`text`, `lenient.rs`), sans
+    couper un caractère UTF-8 entre deux morceaux.
 - Recherche par index plein texte (FTS5) au lieu de `LIKE '%…%'`.
 - Banc d'essai : temps d'enregistrement et de recherche sur 100 000 entrées.
 - Télécharger direct, films et séries en parallèle.
