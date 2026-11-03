@@ -568,3 +568,41 @@ fn the_next_episode_keeps_a_position_already_saved() {
     assert_eq!(entries[0].resume.position_ms, 2_700_000);
     assert_eq!(entries[0].updated_at, 10);
 }
+
+#[test]
+fn migration_8_adds_the_episode_order_which_the_next_sheet_fills_in() {
+    let dir = std::env::temp_dir().join(format!("hs-order-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut catalog = Catalog::open(&path).unwrap();
+        let series: Vec<Series> = from_value(json!([{"series_id": 50, "name": "Lupin"}])).unwrap();
+        catalog.store_series(&[], &series, 0).unwrap();
+        catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    }
+    // Base de la version précédente : les épisodes y sont retenus sans ordre.
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE series_episode DROP COLUMN sort_order;
+             PRAGMA user_version = 7;",
+        )
+        .unwrap();
+    }
+    let mut catalog = Catalog::open(&path).unwrap();
+    // Ordre pas encore connu : rien n'est proposé à la fin de 501.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 5_990_000, Some(50)), 10)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    // La fiche rouverte retient l'ordre : la fin de 502 propose 503.
+    catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 5_990_000, Some(50)), 20)
+        .unwrap();
+    assert_eq!(
+        catalog.continue_watching(None, 10).unwrap()[0].resume.id,
+        503
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
