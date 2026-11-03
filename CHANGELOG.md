@@ -4,6 +4,23 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.1 — 2026-11-03
+
+- Code parental : l'ancien code est vérifié dès la première étape d'un
+  changement (plus de nouveau code à saisir pour rien, et la vérification
+  compte dans les 5 essais). Un bouton « Supprimer le code » apparaît dans
+  les réglages, avec le code actuel ; ensuite, les catégories adultes sont
+  verrouillées comme avant tout code (en ouvrir une propose d'en créer un).
+- Vus : un film ou un épisode marqué « vu » à la main garde sa position. Il
+  quitte « Continuer » et perd sa barre (la coche reste), mais la fiche
+  propose toujours « Reprendre » ; « Marquer comme non vu » le ramène dans
+  « Continuer ». Vu jusqu'au bout, la position est toujours effacée.
+- Séries : quand un épisode est vu jusqu'au bout, « Continuer » propose le
+  premier épisode suivant pas encore vu (saison suivante comprise), sans
+  barre ; la fiche affiche « Lecture S1 · E6 ». À la fin de la série, elle
+  quitte « Continuer ». Le cœur retient l'ordre des épisodes à l'ouverture
+  de la fiche (migration 8 du catalogue).
+
 ## 0.9.0 — 2026-11-03
 
 - Noms des films et des séries (les chaînes ne changent pas) : une seule

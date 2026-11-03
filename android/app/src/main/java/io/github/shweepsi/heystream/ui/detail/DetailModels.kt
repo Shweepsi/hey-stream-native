@@ -283,10 +283,11 @@ internal fun episodeRows(
 /**
  * Épisode du premier bouton : celui en cours ([resumeEpisodeId], « Reprendre
  * S2 · E3 », avec sa progression), sinon le premier non vu, sinon le premier.
+ * Un épisode proposé à la fin du précédent n'a pas de position : « Lecture ».
  */
 internal fun playTarget(rows: List<EpisodeRow>, resumeEpisodeId: Long?): PlayTarget? {
     rows.firstOrNull { it.id == resumeEpisodeId }?.let {
-        return PlayTarget(it.id, it.season, it.number, resume = true, progress = it.progress)
+        return PlayTarget(it.id, it.season, it.number, resume = it.progress != null, progress = it.progress)
     }
     val row = rows.firstOrNull { !it.watched } ?: rows.firstOrNull() ?: return null
     return PlayTarget(row.id, row.season, row.number, resume = false)

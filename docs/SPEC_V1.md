@@ -54,6 +54,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - Même présentation que les films ; fiche de série, saisons, épisodes.
 - **Continuer** liste les séries commencées (une par série, son dernier
   épisode) ; la barre de l'affiche montre la progression de cet épisode.
+  Quand un épisode est vu jusqu'au bout, **Continuer** propose le premier
+  épisode suivant pas encore vu (saison suivante comprise), sans barre ; la
+  fiche affiche « Lecture S1 · E6 ». À la fin de la série, elle en sort.
 - **Épisode suivant automatique** : compte à rebours de 10 s, annulable.
 
 ## Lecteur (films et épisodes)
@@ -72,6 +75,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - **Vus** : un film ou un épisode est marqué vu en fin de lecture (≥ 95 %
   ou moins de 2 min restantes) ou à la main depuis la fiche (« Marquer comme
   vu / non vu ») ; vu, il quitte « Continuer » ; le revoir garde la marque.
+  Marqué vu à la main, il garde sa position : sans barre sur l'affiche, mais
+  la fiche propose toujours « Reprendre » ; « non vu » le ramène dans
+  « Continuer ».
   Une série est vue quand tous ses épisodes connus le sont (liste des
   épisodes lue à la dernière ouverture de sa fiche). Un contenu court n'est
   pas « vu » avant d'avoir passé la moitié.
@@ -87,6 +93,9 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   défini, ouvrir une catégorie adulte propose d'en créer un. Le
   déverrouillage vaut pour la session ; 5 codes faux bloquent 30 s, au
   déverrouillage comme au changement de code, même après un redémarrage.
+  Le code se change ou se supprime dans les réglages, en donnant le code
+  actuel dès la première étape ; sans code, les catégories adultes sont
+  verrouillées comme au premier jour.
   Un contenu rangé dans une catégorie inconnue reste verrouillé ; un contenu
   sans aucune catégorie reste visible, sauf s'il est marqué adulte.
 - Les catégories masquées quittent la navigation et la recherche ; leurs

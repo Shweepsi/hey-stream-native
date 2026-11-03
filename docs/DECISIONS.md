@@ -205,6 +205,22 @@ Constats :
   correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
   `ffi/` change, et à chaque push sur main.
 
+## Vus, « Continuer » et code parental (2026-11-03)
+
+- **« Vu » à la main garde la position** : masquée tant que la marque est la
+  plus récente (pas de barre, pas dans « Continuer »), gardée pour
+  « Reprendre » sur la fiche ; « non vu » la ramène. Seule une fin de
+  lecture efface la position.
+- **Épisode suivant** : à la fin d'un épisode, le cœur écrit pour le premier
+  épisode suivant pas encore vu (ordre de la fiche, saison suivante comprise)
+  une reprise à 0, sans durée : « Continuer » le propose, sans barre, et la
+  fiche dit « Lecture ». Seulement après une fin de lecture, jamais après un
+  « vu » mis à la main (marquer un vieil épisode ne doit pas remplacer la
+  reprise en cours). Sans ordre connu (fiche jamais ouverte), rien.
+- **Code parental** : l'ancien code est vérifié dès la première étape d'un
+  changement ; il peut être supprimé avec le code actuel, et les catégories
+  adultes sont alors verrouillées comme avant tout code.
+
 ## Noms affichés (2026-11-02, 2026-11-03)
 
 - **Chaînes, films, séries** : la mention du français (« FR - », « |FR| »,

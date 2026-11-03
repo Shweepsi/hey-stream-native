@@ -23,6 +23,7 @@
     <string name="settings_parental_unlocked">Catégories adultes déverrouillées tant que l’app reste à l’écran</string>
     <string name="settings_parental_create">Créer un code</string>
     <string name="settings_parental_change">Changer le code</string>
+    <string name="settings_parental_remove">Supprimer le code</string>
     <string name="settings_parental_lock_now">Verrouiller maintenant</string>
     <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
 

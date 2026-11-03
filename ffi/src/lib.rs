@@ -946,6 +946,20 @@ impl HeyStreamCore {
         Ok(self.lock()?.set_pin(&new_pin, current.as_deref(), now())?)
     }
 
+    /// Vérifie un code sans rien déverrouiller : l'ancien code d'un changement
+    /// ou d'une suppression est contrôlé dès la première étape. Compte dans
+    /// les 5 essais, comme `unlock_parental`.
+    pub fn verify_pin(&self, pin: String) -> Result<()> {
+        Ok(self.lock()?.verify_pin(&pin, now())?)
+    }
+
+    /// Supprime le code parental (le code actuel est exigé). Les catégories
+    /// adultes redeviennent verrouillées, comme avant tout code : en ouvrir
+    /// une propose d'en créer un.
+    pub fn clear_pin(&self, current: String) -> Result<()> {
+        Ok(self.lock()?.clear_pin(&current, now())?)
+    }
+
     pub fn unlock_parental(&self, pin: String) -> Result<()> {
         Ok(self.lock()?.unlock_parental(&pin, now())?)
     }

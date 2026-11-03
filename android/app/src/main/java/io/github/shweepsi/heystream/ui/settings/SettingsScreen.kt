@@ -95,6 +95,10 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
                 pinPurpose = PinPurpose.Change
             }
 
+            override fun removePin() {
+                pinPurpose = PinPurpose.Remove
+            }
+
             override fun lockNow() = viewModel.lockNow()
 
             override fun language(choice: LanguageChoice) {
@@ -158,7 +162,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
     )
 
     pinPurpose?.let { purpose ->
-        // Créer ou changer le code depuis les réglages ne déverrouille rien.
+        // Créer, changer ou supprimer le code depuis les réglages ne déverrouille rien.
         ParentalPinDialog(
             purpose = purpose,
             onSuccess = { pinPurpose = null },
