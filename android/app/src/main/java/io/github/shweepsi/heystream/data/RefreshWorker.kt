@@ -21,8 +21,9 @@ class RefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val session = (applicationContext as HeyStreamApp).session
         session.start()
         if (session.state.value != SessionState.Ready) return Result.success()
-        // Un flux est ouvert : on repasse plus tard (les téléchargements du catalogue gênent la lecture).
-        if (session.playbackActive()) return Result.retry()
+        // Un flux est ouvert : pas de téléchargement du catalogue ; l'ouverture suivante de l'app et la prochaine
+        // période reprennent (pas de relance en cascade pendant une longue lecture).
+        if (session.playbackActive()) return Result.success()
         return try {
             session.refreshNow(force = false)
             Result.success()

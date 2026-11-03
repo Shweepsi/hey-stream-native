@@ -18,7 +18,9 @@ import org.robolectric.Shadows.shadowOf
  */
 @RunWith(AndroidJUnit4::class)
 class PlayerControllerTest {
-    private val controller = PlayerController(RuntimeEnvironment.getApplication())
+    /** Plus aucun réseau : la panne des essais est une panne de connexion. */
+    private var offline = false
+    private val controller = testController(RuntimeEnvironment.getApplication()) { offline }
     private val opens = Opens().also { controller.player.addListener(it) }
 
     @After
@@ -59,6 +61,7 @@ class PlayerControllerTest {
 
     @Test
     fun networkReturnReconnectsWithoutWaitingForTheDelay() {
+        offline = true
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         advanceMainUntil { controller.status.value.reconnectAttempt == 1 }
         val before = opens.count
@@ -68,10 +71,27 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun networkReturnLeavesTheBackoffAloneAfterOtherFailures() {
+        // Fichier introuvable, réseau présent : ni refus ni panne de connexion à guérir.
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        advanceMainUntil { controller.status.value.reconnectAttempt == 1 }
+        settleMain(100)
+        val before = opens.count
+        controller.onNetworkBack()
+        settleMain(100)
+        assertEquals(before, opens.count)
+        // La reconnexion garde son délai habituel.
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
+        assertEquals(before + 1, opens.count)
+    }
+
+    @Test
     fun networkReturnRestartsAPlaybackGivenUpForLackOfConnection() {
+        offline = true
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         // Six reconnexions (31 s au total) puis abandon : la carte d'échec s'affiche.
         advanceMainUntil(maxSimulatedMs = 40_000) { controller.status.value.failed }
+        assertEquals(PlaybackProblem.Offline, controller.status.value.problem)
         val before = opens.count
         controller.onNetworkBack()
         runMainUntil { opens.count == before + 1 }
@@ -81,6 +101,7 @@ class PlayerControllerTest {
 
     @Test
     fun networkReturnOpensNothingInTheBackground() {
+        offline = true
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         advanceMainUntil { controller.status.value.reconnectAttempt == 1 }
         controller.onBackground()

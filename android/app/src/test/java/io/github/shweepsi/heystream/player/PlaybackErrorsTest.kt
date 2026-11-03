@@ -110,12 +110,16 @@ class PlaybackErrorsTest {
             Step.Stop(PlaybackProblem.Offline, networkLike = true),
             nextStep(cut, 6, offline = true, exhausted),
         )
-        // Réseau présent : message général, mais le retour du réseau relancera quand même.
+        // Connexion échouée sur un réseau présent : message général, mais le retour du réseau relancera.
         assertEquals(Step.Stop(null, networkLike = true), nextStep(cut, 6, offline = false, exhausted))
-        // Un direct qui se termine n'a pas d'erreur.
-        assertEquals(Step.Stop(null, networkLike = true), nextStep(null, 6, offline = false, exhausted))
-        // Un serveur qui répond 500 sans cesse n'est pas une panne de réseau.
+        // Un direct qui se termine sur un réseau présent n'est pas une panne de connexion ; sans réseau, si.
+        assertEquals(Step.Stop(null, networkLike = false), nextStep(null, 6, offline = false, exhausted))
+        assertEquals(Step.Stop(PlaybackProblem.Offline, networkLike = true), nextStep(null, 6, offline = true, exhausted))
+        // Un serveur qui répond 500 sans cesse n'est pas une panne de réseau, réseau coupé ou non.
         assertEquals(Step.Stop(null, networkLike = false), nextStep(playbackError(http(500)), 6, offline = false, exhausted))
+        // Un décodeur qui plante, un fichier absent : rien que le réseau puisse guérir.
+        val decoder = playbackError(IllegalStateException("codec"), PlaybackException.ERROR_CODE_DECODING_FAILED)
+        assertEquals(Step.Stop(null, networkLike = false), nextStep(decoder, 6, offline = false, exhausted))
     }
 
     @Test
@@ -128,11 +132,20 @@ class PlaybackErrorsTest {
     }
 
     @Test
-    fun withoutTheNativeCoreTheOldBackoffApplies() {
-        // Même résultat avec ou sans bibliothèque native : la règle du cœur reprend l'ancienne.
-        assertEquals(RetryAction.Retry(1u), corePolicy(null, 0))
-        assertEquals(RetryAction.Retry(8u), corePolicy(null, 3))
-        assertEquals(RetryAction.Retry(8u), corePolicy(null, 5))
-        assertEquals(RetryAction.Stop(StopReason.FAILED), corePolicy(null, 6))
+    fun onlyAConnectivityFailureWaitsForTheNetwork() {
+        val timeout = playbackError(IOException("délai"), PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT)
+        val failed = playbackError(IOException("connexion"), PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+        assertTrue(isConnectivityFailure(timeout, offline = false))
+        assertTrue(isConnectivityFailure(failed, offline = false))
+        // Sans réseau, toute erreur sans réponse du fournisseur en est une (décodeur, flux terminé…).
+        assertTrue(isConnectivityFailure(playbackError(null, PlaybackException.ERROR_CODE_IO_UNSPECIFIED), offline = true))
+        assertTrue(isConnectivityFailure(null, offline = true))
+        // Réseau présent : fichier absent, décodeur, flux terminé.
+        assertFalse(isConnectivityFailure(playbackError(null, PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND), offline = false))
+        assertFalse(isConnectivityFailure(playbackError(null, PlaybackException.ERROR_CODE_DECODING_FAILED), offline = false))
+        assertFalse(isConnectivityFailure(null, offline = false))
+        // Une réponse du fournisseur n'est jamais une panne de connexion.
+        assertFalse(isConnectivityFailure(playbackError(http(503)), offline = true))
+        assertFalse(isConnectivityFailure(playbackError(http(509)), offline = false))
     }
 }

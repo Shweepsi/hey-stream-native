@@ -236,7 +236,8 @@ Constats :
 
 - **Le cœur décide** (`playback_retry(status, attempt)`, fonction pure) : 509
   arrête (abonnement utilisé ailleurs : relancer ne sert à rien tant que l'autre
-  flux tourne), 401 et 403 arrêtent (compte expiré ou refusé), 404 a **une**
+  flux tourne ; « Réessayer » reste là), 401 et 403 arrêtent (compte expiré ou
+  refusé ; décision du 3 novembre : « sans relance »), 404 a **une**
   relance puis s'arrête (« un seul essai » du plan : un flux introuvable l'est
   rarement par accident, mais un panneau peut répondre 404 un instant), tout le
   reste suit 1, 2, 4, 8, 8, 8 s comme avant. Le cœur ne produit aucun texte :
@@ -247,20 +248,29 @@ Constats :
   second essai n'y changerait rien. Les erreurs de lecture de conteneur ne
   comptent pas comme « format non pris en charge » : un panneau qui répond une
   page d'erreur avec le code 200 passerait pour un format.
-- **Retour du réseau** : l'app suit le réseau par défaut. Une reconnexion en
-  attente part aussitôt ; une lecture abandonnée sans réponse du fournisseur
-  (coupure, serveur muet) repart d'elle-même, une seule fois par retour. Après
-  un refus (509, 401, 403, 404), rien ne repart seul. « Pas de connexion
-  Internet » remplace « Reconnexion… » quand aucun réseau n'est actif.
+- **Retour du réseau** : l'app suit le réseau par défaut. Après une **panne de
+  connexion** (aucun code HTTP, et soit aucun réseau actif, soit une connexion
+  échouée ou expirée), une reconnexion en attente part aussitôt et une lecture
+  abandonnée repart d'elle-même, une fois par retour. Jamais après un refus ou
+  une panne du fournisseur (509, 401, 403, 404, 5xx), ni après un décodeur
+  planté ou un direct qui se termine sur un réseau présent : leurs délais
+  restent, et un changement de réseau ne les raccourcit pas. « Pas de
+  connexion Internet » remplace « Reconnexion… » quand aucun réseau n'est
+  actif.
 - **Décodeur écarté** : un décodeur matériel qui plante en cours de lecture
   n'est plus proposé jusqu'à la fin de l'app (liste en mémoire, rien d'écrit) ;
   s'il ne reste aucun autre décodeur, la liste complète revient. La reprise se
-  fait à la même position, par les relances habituelles.
+  fait à la même position, par les relances habituelles. Le nom d'un décodeur
+  matériel est propre à un codec : l'écarter ne touche pas les autres formats.
+  Un seul plantage suffit (décision du plan : « l'écarter pour la session »).
 - **Bord du direct** : une erreur « trop loin derrière le direct » (HLS)
-  rouvre au bord du direct, trois fois de suite au plus, sans compter comme une
-  panne.
+  rouvre au bord du direct, trois fois au plus par fenêtre de 30 s, sans
+  compter comme une panne ; au-delà, ce sont les relances habituelles.
 - **Catalogue** : le rafraîchissement automatique (ouverture de l'app, tâche
-  quotidienne) attend la fin d'une lecture ; le bouton manuel part toujours.
+  quotidienne) attend la fin d'une lecture, c'est-à-dire tant qu'un flux est
+  ouvert ou se charge (pas à l'arrêt, ni en arrière-plan, ni fini) ; la tâche
+  quotidienne saute alors son tour au lieu de se relancer en cascade ; le
+  bouton manuel part toujours.
 - **Télémétrie** (APK du testeur) : le code HTTP s'ajoute à l'événement
   d'erreur de lecture et au rapport d'abandon ; jamais l'adresse du flux.
 

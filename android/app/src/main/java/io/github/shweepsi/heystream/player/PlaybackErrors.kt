@@ -34,8 +34,8 @@ internal sealed interface Step {
 
     /**
      * Abandon. [problem] : ce qu'on dit à l'utilisateur (`null` : message
-     * général). [networkLike] : panne de connexion sans réponse du
-     * fournisseur, que le retour du réseau peut guérir (jamais un refus).
+     * général). [networkLike] : panne de connexion ([isConnectivityFailure]),
+     * que le retour du réseau peut guérir (jamais un refus du fournisseur).
      */
     data class Stop(val problem: PlaybackProblem?, val networkLike: Boolean) : Step
 }
@@ -64,23 +64,31 @@ internal fun nextStep(
                 StopReason.FAILED -> PlaybackProblem.Offline.takeIf { offline }
             },
             // Un refus du fournisseur ne passe pas avec le réseau ; une coupure, si.
-            networkLike = status == null,
+            networkLike = isConnectivityFailure(error, offline),
         )
     }
 }
 
-/**
- * Règle de relance du cœur. Sans bibliothèque native (tests) : les mêmes
- * essais qu'avant le cœur (1, 2, 4, 8 s, six fois), sans code HTTP.
- */
+/** Règle de relance du cœur ([PlayerController] la reçoit en paramètre : les tests en donnent une). */
 internal fun corePolicy(status: Int?, attempt: Int): RetryAction =
-    runCatching { playbackRetry(status?.toUShort(), attempt.toUInt()) }.getOrElse {
-        if (attempt >= 6) {
-            RetryAction.Stop(StopReason.FAILED)
-        } else {
-            RetryAction.Retry(delaySecs = minOf(1 shl attempt, 8).toUInt())
-        }
+    playbackRetry(status?.toUShort(), attempt.toUInt())
+
+/**
+ * Panne de connexion : le fournisseur n'a pas répondu (aucun code HTTP) et
+ * l'appareil n'a plus de réseau, ou la connexion a échoué ou expiré. Le retour
+ * du réseau peut la guérir ; un décodeur planté, un fichier introuvable ou un
+ * direct qui se termine sur un réseau présent, non.
+ */
+internal fun isConnectivityFailure(error: PlaybackException?, offline: Boolean): Boolean {
+    if (httpStatusOf(error) != null) return false
+    if (offline) return true
+    return when (error?.errorCode) {
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+        -> true
+        else -> false
     }
+}
 
 /** Code HTTP de la réponse du fournisseur qui a fait échouer la lecture, s'il y en a un. */
 @OptIn(UnstableApi::class)

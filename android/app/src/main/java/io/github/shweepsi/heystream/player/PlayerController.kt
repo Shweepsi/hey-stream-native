@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -16,9 +17,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -26,6 +27,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import io.github.shweepsi.heystream.BuildConfig
+import io.github.shweepsi.heystream.core.RetryAction
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.Telemetry
 import java.util.concurrent.ConcurrentHashMap
@@ -38,6 +40,8 @@ import kotlinx.coroutines.flow.update
 data class PlaybackStatus(
     /** Un flux est chargé (aperçu ou plein écran). */
     val active: Boolean = false,
+    /** Le flux est ouvert chez le fournisseur : il se charge ou se lit (pas arrêté, ni fini, ni en reconnexion). */
+    val streaming: Boolean = false,
     val live: Boolean = false,
     val playing: Boolean = false,
     val buffering: Boolean = false,
@@ -62,7 +66,13 @@ data class PlaybackStatus(
  * À utiliser depuis le fil principal. Les URL ne sont jamais journalisées.
  */
 @OptIn(UnstableApi::class)
-class PlayerController(private val context: Context) {
+class PlayerController(
+    private val context: Context,
+    /** Règle de relance : celle du cœur ; les tests donnent la leur (pas de bibliothèque native sous Robolectric). */
+    private val retryPolicy: (status: Int?, attempt: Int) -> RetryAction = ::corePolicy,
+    /** Plus aucun réseau ? Lu à chaque échec ; remplacé dans les tests. */
+    private val offline: () -> Boolean = { isSystemOffline(context) },
+) {
     private val handler = Handler(Looper.getMainLooper())
     private var exoPlayer: ExoPlayer? = null
     private var current: MediaItem? = null
@@ -75,8 +85,9 @@ class PlayerController(private val context: Context) {
     /** Abandon dû à une panne de connexion (sans réponse du fournisseur) : le retour du réseau relance. */
     private var networkFailure = false
 
-    /** Retours au bord du direct d'affilée (remis à zéro dès que la lecture reprend). */
+    /** Retours au bord du direct dans la fenêtre en cours ([LIVE_EDGE_WINDOW_MS]), et l'heure du dernier. */
     private var liveEdgeJumps = 0
+    private var lastLiveEdgeJump = 0L
     private var resumeOnForeground = false
     private var pendingRetry: Runnable? = null
 
@@ -196,19 +207,21 @@ class PlayerController(private val context: Context) {
 
     /**
      * Le réseau est revenu : une reconnexion qui attendait son délai part tout
-     * de suite ; une lecture abandonnée faute de connexion repart d'elle-même
-     * (jamais après un refus du fournisseur : voir [networkFailure]).
+     * de suite ; une lecture abandonnée faute de connexion repart d'elle-même.
+     * Seulement après une panne de connexion ([networkFailure]), jamais après
+     * un refus du fournisseur, un décodeur planté ou un flux qui se termine.
      */
     internal fun onNetworkBack() {
         val item = current ?: return
-        if (inBackground || isHeld) return
+        // Un refus ou une panne du fournisseur n'a rien à voir avec le réseau : ses délais restent.
+        if (inBackground || isHeld || !networkFailure) return
         val waiting = pendingRetry
         when {
             waiting != null -> {
                 handler.removeCallbacks(waiting)
                 waiting.run()
             }
-            _status.value.failed && networkFailure -> {
+            _status.value.failed -> {
                 networkFailure = false
                 attempt = 0
                 liveEdgeJumps = 0
@@ -232,13 +245,6 @@ class PlayerController(private val context: Context) {
         }
         // Sans accès à l'état du réseau, la reconnexion garde ses délais.
         if (runCatching { manager.registerDefaultNetworkCallback(callback) }.isSuccess) networkCallback = callback
-    }
-
-    /** Aucun réseau actif : le fournisseur ne peut pas répondre. */
-    private fun isOffline(): Boolean {
-        val manager = connectivity ?: return false
-        val network = manager.activeNetwork ?: return true
-        return manager.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == false
     }
 
     fun release() {
@@ -361,6 +367,7 @@ class PlayerController(private val context: Context) {
                 it.copy(
                     playing = player.isPlaying,
                     buffering = player.playbackState == Player.STATE_BUFFERING,
+                    streaming = player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_READY,
                 )
             }
         }
@@ -370,7 +377,6 @@ class PlayerController(private val context: Context) {
             when (playbackState) {
                 Player.STATE_READY -> {
                     attempt = 0
-                    liveEdgeJumps = 0
                     _status.update {
                         it.copy(reconnectAttempt = 0, failed = false, ended = false, problem = null, offline = false)
                     }
@@ -384,8 +390,12 @@ class PlayerController(private val context: Context) {
         override fun onPlayerError(error: PlaybackException) {
             stats?.error(error, attempt, httpStatusOf(error))
             // Trop loin derrière le direct : retour à son bord, sans compter comme une panne.
+            // Trois fois par fenêtre de 30 s : un flux qui y retombe sans cesse suit les relances.
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastLiveEdgeJump > LIVE_EDGE_WINDOW_MS) liveEdgeJumps = 0
             if (live && error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && liveEdgeJumps < MAX_LIVE_EDGE_JUMPS) {
                 liveEdgeJumps += 1
+                lastLiveEdgeJump = now
                 exoPlayer?.run {
                     seekToDefaultPosition()
                     prepare()
@@ -459,13 +469,13 @@ class PlayerController(private val context: Context) {
     private fun scheduleRetry(error: PlaybackException?) {
         val item = current ?: return
         cancelRetry()
-        val offline = isOffline()
-        val delayMs = when (val step = nextStep(error, attempt, offline)) {
+        val noNetwork = offline()
+        networkFailure = isConnectivityFailure(error, noNetwork)
+        val delayMs = when (val step = nextStep(error, attempt, noNetwork, retryPolicy)) {
             is Step.Retry -> step.delayMs
             is Step.Stop -> {
                 // Seuls les codes partent : le message de l'erreur contient l'URL du flux.
                 CrashReports.playbackFailed(error?.errorCodeName ?: "ENDED", live, httpStatusOf(error))
-                networkFailure = step.networkLike
                 _status.update {
                     it.copy(failed = true, buffering = false, reconnectAttempt = 0, problem = step.problem, offline = false)
                 }
@@ -473,7 +483,7 @@ class PlayerController(private val context: Context) {
             }
         }
         attempt += 1
-        _status.update { it.copy(reconnectAttempt = attempt, buffering = true, offline = offline) }
+        _status.update { it.copy(reconnectAttempt = attempt, buffering = true, offline = noNetwork) }
         if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
         val retry = Runnable {
             pendingRetry = null
@@ -496,5 +506,13 @@ class PlayerController(private val context: Context) {
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
         private const val MAX_LIVE_EDGE_JUMPS = 3
+        private const val LIVE_EDGE_WINDOW_MS = 30_000L
     }
+}
+
+/** Aucun réseau actif : le fournisseur ne peut pas répondre. */
+private fun isSystemOffline(context: Context): Boolean {
+    val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
+    val network = manager.activeNetwork ?: return true
+    return manager.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == false
 }

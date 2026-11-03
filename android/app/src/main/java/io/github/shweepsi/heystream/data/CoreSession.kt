@@ -48,7 +48,7 @@ class CoreSession(
     private val credentials: CredentialStore,
     private val scope: CoroutineScope,
     /**
-     * Un flux est ouvert : le rafraîchissement automatique du catalogue attend.
+     * Un flux est ouvert ou se charge : le rafraîchissement automatique du catalogue attend.
      * L'abonnement n'a souvent qu'une connexion, et les requêtes du catalogue
      * pèsent sur le Wi-Fi comme sur le panneau.
      */

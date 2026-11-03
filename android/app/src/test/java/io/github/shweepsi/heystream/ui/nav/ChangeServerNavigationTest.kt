@@ -17,7 +17,7 @@ import io.github.shweepsi.heystream.data.CredentialStore
 import io.github.shweepsi.heystream.data.FakeAndroidKeyStore
 import io.github.shweepsi.heystream.data.FakeCore
 import io.github.shweepsi.heystream.data.Gate
-import io.github.shweepsi.heystream.player.PlayerController
+import io.github.shweepsi.heystream.player.testController
 import io.github.shweepsi.heystream.ui.AppGraph
 import io.github.shweepsi.heystream.ui.LocalAppGraph
 import io.github.shweepsi.heystream.ui.login.LoginTags
@@ -52,7 +52,7 @@ class ChangeServerNavigationTest {
             FakeCore(checking = checking)
         })
         runBlocking { session.start() }
-        val graph = AppGraph(session, PlayerController(context))
+        val graph = AppGraph(session, testController(context))
         compose.setContent {
             nav = rememberNavController()
             CompositionLocalProvider(LocalAppGraph provides graph) {

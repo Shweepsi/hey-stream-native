@@ -26,7 +26,7 @@ class HeyStreamApp : Application(), SingletonImageLoader.Factory {
 
     /** Le cœur de l'abonnement (un seul pour toute l'app). */
     val session: CoreSession by lazy {
-        CoreSession(this, CredentialStore(this), scope, playbackActive = { player.status.value.active })
+        CoreSession(this, CredentialStore(this), scope, playbackActive = { player.status.value.streaming })
     }
 
     /** Le lecteur vidéo (un seul pour toute l'app : jamais deux flux). */
