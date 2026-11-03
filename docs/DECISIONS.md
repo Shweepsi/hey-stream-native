@@ -209,14 +209,18 @@ Constats :
 
 - **Réglage de langue** à trois valeurs, propre à l'abonnement : Automatique
   (piste par défaut du fichier), Doublée (langue de l'app, sans sous-titres
-  sauf les forcés), Version originale sous-titrée (première piste dans une
-  autre langue, sous-titres complets dans la langue de l'app). **Films et
+  sauf les forcés), Version originale sous-titrée (la piste annoncée « VO »,
+  sinon la première dans une autre langue ; sous-titres complets dans la
+  langue de l'app). **Films et
   épisodes seulement**, pas le direct (étiquettes de langue peu fiables, rares
-  pistes multiples). Appliqué une fois au lancement d'un titre ; le choix à la
-  main l'emporte ensuite.
+  pistes multiples). Appliqué une fois au lancement d'un titre (sous-titres
+  annoncés après l'audio : repris à leur arrivée) ; le choix à la main
+  l'emporte ensuite, et le titre suivant repart des pistes par défaut (le
+  lecteur est partagé).
 - **Le cœur décide** (`tracks::choose_tracks`, fonction pure) : il lit le code
   de langue ou, à défaut, le libellé ; « VFF » passe avant « VFQ » et « VFI » ;
-  l'audiodescription et les commentaires passent en dernier ; si rien ne
+  l'audiodescription et les commentaires passent en dernier ; une piste
+  étiquetée « VO » ou « VOSTFR » est l'original, jamais une version doublée ; si rien ne
   convient (aucune piste doublée, aucune piste d'origine), la piste par défaut
   reste. L'interface passe les pistes du lecteur et applique les numéros
   renvoyés.

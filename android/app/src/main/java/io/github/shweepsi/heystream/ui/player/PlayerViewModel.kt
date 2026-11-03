@@ -140,6 +140,13 @@ class PlayerViewModel(
 
     /** Le choix de pistes a été appliqué à ce titre : un choix à la main l'emporte ensuite. */
     private var preferenceApplied = false
+
+    /**
+     * Le flux n'annonçait aucun sous-titre au premier relevé (HLS, TS : ils
+     * arrivent après l'audio) : le choix des sous-titres est repris à leur
+     * arrivée, sauf si l'utilisateur a déjà touché aux pistes.
+     */
+    private var textPending = false
     private var resolveJob: Job? = null
     private var nextJob: Job? = null
 
@@ -252,11 +259,15 @@ class PlayerViewModel(
     /**
      * Au premier relevé des pistes d'un titre, prend celles du réglage de
      * langue (le cœur choisit). Une seule fois : un choix fait ensuite à la
-     * main dans le lecteur l'emporte.
+     * main dans le lecteur l'emporte. Sous-titres annoncés plus tard que
+     * l'audio : une seconde fois, pour eux seuls ([textPending]).
      */
     private fun applyPreferredTracks(tracks: Tracks, lists: TrackLists) {
-        if (preferenceApplied || trackPreference == TrackPreference.AUTO || !started || lists.audio.isEmpty()) return
+        if (trackPreference == TrackPreference.AUTO || !started || lists.audio.isEmpty()) return
+        val late = preferenceApplied
+        if (late && !(textPending && lists.text.isNotEmpty())) return
         preferenceApplied = true
+        textPending = !late && lists.text.isEmpty()
         val choice = runCatching {
             chooseTracks(
                 trackPreference,
@@ -265,15 +276,19 @@ class PlayerViewModel(
                 lists.text.map { it.toInfo() },
             )
         }.getOrNull() ?: return
-        player.trackSelectionParameters = applyChoice(player.trackSelectionParameters, tracks, lists, choice)
+        // Seconde fois : l'audio est déjà pris, seuls les sous-titres changent.
+        val wanted = if (late) choice.copy(audio = null) else choice
+        player.trackSelectionParameters = applyChoice(player.trackSelectionParameters, tracks, lists, wanted)
     }
 
     fun selectTrack(key: TrackKey) {
+        textPending = false
         val player = player
         player.trackSelectionParameters = selectTrack(player.trackSelectionParameters, player.currentTracks, key)
     }
 
     fun disableSubtitles() {
+        textPending = false
         val player = player
         player.trackSelectionParameters = disableSubtitles(player.trackSelectionParameters)
     }
@@ -432,6 +447,7 @@ class PlayerViewModel(
         endHandled = false
         wasPlaying = false
         preferenceApplied = false
+        textPending = false
         deferred = null
         dropPendingSeek()
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }

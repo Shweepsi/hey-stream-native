@@ -151,6 +151,9 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
     private val core = MutableStateFlow<String?>(null)
     private val trackPreference = MutableStateFlow(TrackPreference.AUTO)
 
+    /** Un choix a été fait à l'écran : la lecture de départ ne le remplace plus. */
+    private var preferenceChosen = false
+
     private data class SignOutState(val running: Boolean = false, val done: Boolean = false)
 
     private val running = session.refresh.map { it is RefreshState.Running }.distinctUntilChanged()
@@ -206,7 +209,9 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
             core.value = runCatching { session.withCore { coreVersion() } }.getOrNull()
         }
         viewModelScope.launch {
-            trackPreference.value = runCatching { session.withCore { it.trackPreference() } }.getOrDefault(TrackPreference.AUTO)
+            val stored = runCatching { session.withCore { it.trackPreference() } }.getOrDefault(TrackPreference.AUTO)
+            // Un choix fait avant la fin de cette lecture l'emporte.
+            if (!preferenceChosen) trackPreference.value = stored
         }
     }
 
@@ -216,8 +221,15 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
 
     /** Langue des films et des épisodes : retenue par le cœur, appliquée au prochain lancement. */
     fun setTrackPreference(choice: TrackPreference) {
+        preferenceChosen = true
         trackPreference.value = choice
-        viewModelScope.launch { runCatching { session.withCore { it.setTrackPreference(choice) } } }
+        viewModelScope.launch {
+            runCatching { session.withCore { it.setTrackPreference(choice) } }.onFailure {
+                // Non retenu par le cœur : l'écran montre ce qui est vraiment gardé.
+                val kept = runCatching { session.withCore { it.trackPreference() } }.getOrNull()
+                if (kept != null && trackPreference.value == choice) trackPreference.value = kept
+            }
+        }
     }
 
     fun selectCategorySection(value: Section) {

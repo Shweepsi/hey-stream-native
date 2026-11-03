@@ -75,7 +75,6 @@ fun selectTrack(parameters: TrackSelectionParameters, tracks: Tracks, key: Track
         .build()
 }
 
-/** « Désactivés » : plus aucun sous-titre. */
 /** Piste vue par le cœur, qui choisit selon la langue (réglage « Langue des films et épisodes »). */
 fun TrackOption.toInfo(): TrackInfo = TrackInfo(language = language, label = label, forced = forced)
 
@@ -100,6 +99,7 @@ fun applyChoice(
     return result
 }
 
+/** « Désactivés » : plus aucun sous-titre. */
 fun disableSubtitles(parameters: TrackSelectionParameters): TrackSelectionParameters =
     parameters.buildUpon()
         .clearOverridesOfType(C.TRACK_TYPE_TEXT)

@@ -284,9 +284,14 @@ fn in_other_language(track: &TrackInfo, app: &str) -> bool {
     }
 }
 
-/// Piste d'origine annoncée par son libellé (« VO », « Original »).
+/// Piste d'origine annoncée par son libellé (« VO », « Original »). « VOSTFR »
+/// aussi : sur une piste audio, c'est la langue d'origine (les sous-titres
+/// français sont à part), même quand le flux la dit française.
 fn says_original(track: &TrackInfo) -> bool {
-    has_word(track, &["vo", "ov", "original", "originale"])
+    has_word(
+        track,
+        &["vo", "ov", "original", "originale", "vost", "vostfr"],
+    )
 }
 
 /// Rang d'une piste audio dans la langue de l'app : 0 la meilleure.
@@ -349,7 +354,12 @@ pub fn choose_tracks(
     match preference {
         TrackPreference::Auto => TrackChoice::default(),
         TrackPreference::Dubbed => {
-            let Some(dubbed) = best(audio, |t| in_language(t, &app), audio_rank) else {
+            // Une piste « VOSTFR » est l'original, pas une version doublée.
+            let Some(dubbed) = best(
+                audio,
+                |t| in_language(t, &app) && !says_original(t),
+                audio_rank,
+            ) else {
                 return TrackChoice::default();
             };
             // Aucun sous-titre, sauf les « forcés » de la langue (dialogues
@@ -364,10 +374,17 @@ pub fn choose_tracks(
             }
         }
         TrackPreference::OriginalSubtitled => {
+            // L'original annoncé (« VO ») passe avant la première langue
+            // étrangère : avec [fra, ita, eng « VO »], c'est l'anglais, pas la
+            // version italienne. Audiodescription et commentaires, jamais.
             let original = audio
                 .iter()
-                .position(|t| in_other_language(t, &app) && audio_rank(t) < 3)
-                .or_else(|| audio.iter().position(says_original));
+                .position(|t| says_original(t) && audio_rank(t) < 3)
+                .or_else(|| {
+                    audio
+                        .iter()
+                        .position(|t| in_other_language(t, &app) && audio_rank(t) < 3)
+                });
             let Some(original) = original else {
                 return TrackChoice::default();
             };

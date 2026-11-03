@@ -10,12 +10,15 @@ Une entrée par version, la plus récente en haut. La version vient de
   Réglages › Langue. « Automatique » (piste par défaut du fichier, comme
   avant), « Doublée » (piste dans la langue de l'app, sans sous-titres, sauf
   les sous-titres forcés de cette langue) ou « Version originale sous-titrée »
-  (première piste dans une autre langue, avec les sous-titres complets dans la
-  langue de l'app). Appliqué une fois au lancement ; un choix fait ensuite dans
-  le lecteur l'emporte. Le cœur lit la langue d'une piste par son code (« fr »,
-  « fra », « fr-CA »…) ou son libellé (« VFF », « Français », « TRUEFRENCH »…),
-  met « VFF » avant « VFQ » et l'audiodescription en dernier. Pas pour le
-  direct. Propre à l'abonnement.
+  (la piste annoncée « VO », sinon la première dans une autre langue, avec les
+  sous-titres complets dans la langue de l'app). Appliqué une fois au lancement
+  (les sous-titres annoncés plus tard que l'audio, comme dans certains flux
+  HLS, sont repris à leur arrivée) ; un choix fait ensuite dans le lecteur
+  l'emporte, et chaque titre repart des pistes par défaut. Le cœur lit la
+  langue d'une piste par son code (« fr », « fra », « fr-CA »…) ou son libellé
+  (« VFF », « Français », « TRUEFRENCH »…), met « VFF » avant « VFQ » et
+  l'audiodescription en dernier ; une piste « VOSTFR » est l'original, pas une
+  version doublée. Pas pour le direct. Propre à l'abonnement.
 - Dernière catégorie : le Direct, les Films et les Séries s'ouvrent sur la
   dernière catégorie ouverte, si elle s'ouvre encore (elle existe, n'est ni
   masquée ni verrouillée, et Favoris, Récents ou « Continuer » ne sont pas

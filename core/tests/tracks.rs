@@ -247,6 +247,56 @@ fn audio_description_and_commentary_come_last() {
     );
 }
 
+#[test]
+fn original_announced_as_vo_beats_the_first_foreign_language() {
+    // Une version italienne avant l'anglais annoncé « VO » : c'est l'anglais.
+    let audio = [
+        track(Some("fra"), None),
+        track(Some("ita"), None),
+        track(Some("eng"), Some("VO")),
+    ];
+    assert_eq!(
+        choose_tracks(TrackPreference::OriginalSubtitled, "fr", &audio, &[]).audio,
+        Some(2)
+    );
+    // Une audiodescription « VO » ne compte pas : retour à la première langue étrangère.
+    let described = [
+        track(Some("fra"), None),
+        track(Some("eng"), Some("VO audiodescription")),
+        track(Some("eng"), None),
+    ];
+    assert_eq!(
+        choose_tracks(TrackPreference::OriginalSubtitled, "fr", &described, &[]).audio,
+        Some(2)
+    );
+}
+
+#[test]
+fn vostfr_audio_is_the_original_not_a_dub() {
+    // Piste d'origine étiquetée « VOSTFR » : pas une version doublée.
+    let only_original = [track(Some("fra"), Some("VOSTFR")), track(Some("eng"), None)];
+    assert_eq!(
+        choose_tracks(TrackPreference::Dubbed, "fr", &only_original, &[]),
+        TrackChoice::default()
+    );
+    // La vraie version française passe, même placée après.
+    let both = [
+        track(None, Some("VOSTFR")),
+        track(Some("eng"), None),
+        track(Some("fra"), Some("VFF")),
+    ];
+    assert_eq!(
+        choose_tracks(TrackPreference::Dubbed, "fr", &both, &[]).audio,
+        Some(2)
+    );
+    // Et en version originale, c'est elle qui est prise, sous-titres français à côté.
+    let text = [track(None, Some("VOSTFR"))];
+    assert_eq!(
+        choose_tracks(TrackPreference::OriginalSubtitled, "fr", &both, &text),
+        choice(Some(0), Some(0), false)
+    );
+}
+
 fn key(server: &str, user: &str) -> xtream_core::AccountKey {
     XtreamClient::new(&Credentials {
         server_url: server.into(),

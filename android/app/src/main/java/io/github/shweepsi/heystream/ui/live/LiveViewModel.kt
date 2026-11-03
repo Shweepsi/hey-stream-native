@@ -222,9 +222,12 @@ class LiveViewModel(
             }
             return
         }
-        // Catégorie déjà ouverte : rechargée sur place (favori retiré, récents réordonnés).
+        // Catégorie déjà ouverte : rechargée sur place (favori retiré, récents
+        // réordonnés), et retenue : ouverte d'office (recherche, repli), elle
+        // n'est « la dernière » qu'une fois confirmée.
         if (_state.value.selected == key) {
             sources?.invalidate()
+            rememberCategory(key)
             return
         }
         _state.update { it.copy(selected = key) }
