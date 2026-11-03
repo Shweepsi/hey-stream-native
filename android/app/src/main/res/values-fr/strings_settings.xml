@@ -17,7 +17,7 @@
     <string name="settings_category_hidden">Masquée</string>
     <string name="settings_categories_empty">Aucune catégorie dans cette section</string>
 
-    <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement et verrouillées par défaut. Elles restent listées, mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
+    <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement et verrouillées par défaut. Elles restent listées, mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, «&#160;Continuer&#160;».</string>
     <string name="settings_parental_no_pin">Aucun code parental pour l’instant</string>
     <string name="settings_parental_locked">Catégories adultes verrouillées</string>
     <string name="settings_parental_unlocked">Catégories adultes déverrouillées tant que l’app reste à l’écran</string>
