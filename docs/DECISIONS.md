@@ -216,7 +216,13 @@ Constats :
   une reprise à 0, sans durée : « Continuer » le propose, sans barre, et la
   fiche dit « Lecture ». Seulement après une fin de lecture, jamais après un
   « vu » mis à la main (marquer un vieil épisode ne doit pas remplacer la
-  reprise en cours). Sans ordre connu (fiche jamais ouverte), rien.
+  reprise en cours). Sans ordre connu (fiche jamais ouverte), rien. Revoir
+  jusqu'au bout un épisode déjà vu propose de même le premier épisode pas
+  encore vu après lui. La reprise d'un épisode qui avait déjà une position
+  garde cette position, son titre et son image : seule sa date change.
+- **Dernier épisode commencé marqué « vu » à la main** : la série quitte
+  « Continuer » (rien à reprendre), même si un épisode plus ancien avait une
+  position : celui-ci a été laissé pour un épisode plus récent.
 - **Code parental** : l'ancien code est vérifié dès la première étape d'un
   changement ; il peut être supprimé avec le code actuel, et les catégories
   adultes sont alors verrouillées comme avant tout code.

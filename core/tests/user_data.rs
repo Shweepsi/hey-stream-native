@@ -567,6 +567,9 @@ fn the_next_episode_keeps_a_position_already_saved() {
     assert_eq!(entries[0].resume.id, 502);
     assert_eq!(entries[0].resume.position_ms, 2_700_000);
     assert_eq!(entries[0].updated_at, 10);
+    // Seule la date change : titre et extension de la vraie reprise restent.
+    assert_eq!(entries[0].resume.title, "Contenu 502");
+    assert_eq!(entries[0].resume.extension.as_deref(), Some("mkv"));
 }
 
 #[test]

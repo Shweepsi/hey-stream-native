@@ -10,7 +10,9 @@
 /// ancienne que le dernier épisode de sa série vu jusqu'au bout (sinon ce n'est
 /// plus « le dernier épisode regardé »). `>=` : la reprise à 0 de l'épisode
 /// suivant, proposée à la fin d'un épisode, est écrite dans la même seconde que
-/// cette fin. Macro pour l'insérer dans des requêtes `const`.
+/// cette fin. À la seconde près, seule cette reprise proposée peut avoir la
+/// date de la fin (celle de l'épisode fini est effacée). Macro pour l'insérer
+/// dans des requêtes `const`.
 macro_rules! not_superseded {
     () => {
         "(r.series_id IS NULL OR r.updated_at >= COALESCE(

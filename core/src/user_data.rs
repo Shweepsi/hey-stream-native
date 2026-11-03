@@ -5,7 +5,7 @@
 //! entrée qui disparaît du catalogue est simplement masquée, et réapparaît si
 //! le fournisseur la remet.
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::catalog::{Catalog, CatalogItem, ITEM_COLUMNS, PROGRESS_JOIN, Section, row_to_item};
 use crate::error::Result;
@@ -225,12 +225,16 @@ impl Catalog {
     /// terminé propose le suivant (`offer_next_episode`).
     pub fn save_progress(&mut self, resume: &Resume, now: i64) -> Result<()> {
         if resume.is_finished() {
-            self.insert_watched(resume.kind, resume.id, resume.series_id, true, now)?;
+            // La fin de lecture et l'épisode suivant dans une seule transaction :
+            // une proposition qui échoue ne laisse pas un épisode fini sans suite.
+            let tx = self.conn.transaction()?;
+            Self::mark_watched(&tx, resume.kind, resume.id, resume.series_id, true, now)?;
             if resume.kind == PlaybackKind::Episode
                 && let Some(series_id) = resume.series_id
             {
-                self.offer_next_episode(series_id, resume, now)?;
+                Self::offer_next_episode(&tx, series_id, resume, now)?;
             }
+            tx.commit()?;
             return Ok(());
         }
         if resume.position_ms < MIN_POSITION_MS {
@@ -299,20 +303,32 @@ impl Catalog {
         ended: bool,
         now: i64,
     ) -> Result<()> {
-        {
-            let tx = self.conn.transaction()?;
+        let tx = self.conn.transaction()?;
+        Self::mark_watched(&tx, kind, id, series_id, ended, now)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Écrit la marque « vu » (et efface la position d'une fin de lecture)
+    /// dans la transaction de l'appelant.
+    fn mark_watched(
+        tx: &Transaction<'_>,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        ended: bool,
+        now: i64,
+    ) -> Result<()> {
+        tx.execute(
+            "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at, ended)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![kind.key(), id, series_id, now, ended],
+        )?;
+        if ended {
             tx.execute(
-                "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at, ended)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![kind.key(), id, series_id, now, ended],
+                "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
+                params![kind.key(), id],
             )?;
-            if ended {
-                tx.execute(
-                    "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
-                    params![kind.key(), id],
-                )?;
-            }
-            tx.commit()?;
         }
         Ok(())
     }
@@ -320,10 +336,15 @@ impl Catalog {
     /// Après un épisode vu jusqu'au bout : le premier épisode suivant pas encore
     /// vu (ordre de la fiche, saison suivante comprise) est proposé dans
     /// « Continuer », par une reprise à 0. Rien si c'était le dernier, ni si
-    /// l'ordre n'est pas connu. Une position déjà gardée pour cet épisode reste.
-    fn offer_next_episode(&mut self, series_id: i64, finished: &Resume, now: i64) -> Result<()> {
-        let next: Option<i64> = self
-            .conn
+    /// l'ordre n'est pas connu. Une reprise déjà gardée pour cet épisode (position,
+    /// titre, image, extension) reste telle quelle : seule sa date change.
+    fn offer_next_episode(
+        tx: &Transaction<'_>,
+        series_id: i64,
+        finished: &Resume,
+        now: i64,
+    ) -> Result<()> {
+        let next: Option<i64> = tx
             .query_row(
                 "SELECT e.episode_id FROM series_episode e
                  WHERE e.series_id = ?1
@@ -337,13 +358,11 @@ impl Catalog {
             )
             .optional()?;
         let Some(next) = next else { return Ok(()) };
-        self.conn.execute(
+        tx.execute(
             "INSERT INTO resume
                 (kind, id, position_ms, duration_ms, updated_at, title, image, extension, series_id)
              VALUES ('episode', ?1, 0, 0, ?2, ?3, ?4, NULL, ?5)
-             ON CONFLICT (kind, id) DO UPDATE SET
-                updated_at = excluded.updated_at, title = excluded.title,
-                image = excluded.image, series_id = excluded.series_id",
+             ON CONFLICT (kind, id) DO UPDATE SET updated_at = excluded.updated_at",
             params![next, now, finished.title, finished.image, series_id],
         )?;
         Ok(())
