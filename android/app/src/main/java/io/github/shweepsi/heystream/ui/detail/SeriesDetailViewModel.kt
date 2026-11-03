@@ -207,7 +207,7 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
 
     private fun publish() {
         if (!itemLoaded && info == null) return
-        val header = seriesHeader(item, info)
+        val header = seriesHeader(item, info)?.withoutDuplicateYear()
         if (header == null) {
             val failure = infoFailure
             _state.value = if (failure == null) {

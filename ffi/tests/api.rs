@@ -639,3 +639,20 @@ fn recording_follows_the_requests() {
     drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_sheet_title_drops_the_year_it_already_shows() {
+    let name = || "22 Jump Street (2014)".to_owned();
+    assert_eq!(
+        heystream::title_without_year(name(), Some("2014".into())),
+        "22 Jump Street"
+    );
+    assert_eq!(
+        heystream::title_without_year(name(), Some("2015".into())),
+        "22 Jump Street (2014)"
+    );
+    assert_eq!(
+        heystream::title_without_year(name(), None),
+        "22 Jump Street (2014)"
+    );
+}

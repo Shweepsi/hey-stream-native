@@ -43,7 +43,7 @@ pub use details::{Episode, MovieInfo, Season, SeriesInfo};
 pub use epg::{EPG_MIN_INTERVAL_SECS, LATER_MAX, NowNext, Programme, now_next_for};
 pub use error::{Error, Result};
 pub use model::{AccountInfo, Category, Credentials, LiveStream, Movie, Series, ServerInfo};
-pub use names::clean_name;
+pub use names::{clean_name, clean_title, title_without_year};
 pub use recording::{
     RecordingSummary, SCRUBBED_HOST, clear_recording, export_recording, recording_summary,
 };

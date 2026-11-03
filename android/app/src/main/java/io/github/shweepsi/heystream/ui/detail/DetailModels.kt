@@ -8,6 +8,7 @@ import io.github.shweepsi.heystream.core.MovieInfo
 import io.github.shweepsi.heystream.core.Resume
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.core.SeriesInfo
+import io.github.shweepsi.heystream.core.titleWithoutYear
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.UiText
 
@@ -24,6 +25,17 @@ data class DetailHeader(
     val durationSecs: Long? = null,
     val rating: String? = null,
 )
+
+/**
+ * Titre sans « (année) » quand la ligne d'infos montre déjà cette année :
+ * « 22 Jump Street (2014) » donne « 22 Jump Street » au-dessus de « 2014 ».
+ * La règle est celle du cœur ; sans lui (tests JVM), le titre reste tel quel.
+ */
+internal fun DetailHeader.withoutDuplicateYear(): DetailHeader {
+    val shown = year?.trim()?.takeIf { it.isNotEmpty() } ?: return this
+    val short = runCatching { titleWithoutYear(title, shown) }.getOrDefault(title)
+    return if (short == title) this else copy(title = short)
+}
 
 /** Lecture commencée ; [durationMs] vaut 0 si la durée est inconnue. */
 @Immutable

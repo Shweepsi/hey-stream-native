@@ -1,5 +1,7 @@
 use serde_json::{from_value, json};
-use xtream_core::{Catalog, Category, LiveStream, MAX_AGE_SECS, Movie, RefreshOutcome, Section};
+use xtream_core::{
+    Catalog, Category, LiveStream, MAX_AGE_SECS, Movie, RefreshOutcome, Section, Series,
+};
 
 fn categories(v: serde_json::Value) -> Vec<Category> {
     from_value(v).unwrap()
@@ -360,5 +362,99 @@ fn names_cleaned_with_older_rules_are_cleaned_again_on_open() {
     let catalog = Catalog::open(&path).unwrap();
     let found = catalog.search(Section::Movies, "apollo", 10).unwrap();
     assert_eq!(found[0].name, "Apollo 13");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn movie_and_series_titles_are_cleaned_but_channels_are_not() {
+    let mut catalog = Catalog::open_in_memory().unwrap();
+    let live: Vec<LiveStream> = from_value(json!([
+        {"stream_id": 1, "name": "TF1 ᵁᴴᴰ"},
+        {"stream_id": 2, "name": "FRANCE 3 FHD"},
+    ]))
+    .unwrap();
+    catalog.store_live(&[], &live, 0).unwrap();
+    let movies: Vec<Movie> = from_value(json!([
+        {"stream_id": 10, "name": "Dune (2021) FHD"},
+        {"stream_id": 11, "name": "9 Bullets ( 2022)"},
+        {"stream_id": 12, "name": "15.Aout.2001.1080p.TF1.WEB-DL.AAC"},
+        {"stream_id": 13, "name": "15 Minutes (2001) MULTI"},
+    ]))
+    .unwrap();
+    catalog.store_movies(&[], &movies, 0).unwrap();
+    let series: Vec<Series> = from_value(json!([
+        {"series_id": 20, "name": "FR - The Crown (2016) 4K HDR"},
+    ]))
+    .unwrap();
+    catalog.store_series(&[], &series, 0).unwrap();
+
+    let name = |section: Section, id: i64| catalog.item(section, id).unwrap().unwrap().name;
+    assert_eq!(name(Section::Live, 1), "TF1 ᵁᴴᴰ");
+    assert_eq!(name(Section::Live, 2), "FRANCE 3 FHD");
+    assert_eq!(name(Section::Movies, 10), "Dune (2021)");
+    assert_eq!(name(Section::Movies, 11), "9 Bullets (2022)");
+    assert_eq!(name(Section::Movies, 12), "15 Aout (2001)");
+    assert_eq!(name(Section::Movies, 13), "15 Minutes (2001) MULTI");
+    assert_eq!(name(Section::Series, 20), "The Crown (2016)");
+
+    // Ce qui a quitté le titre se cherche encore.
+    let found = |query: &str| -> Vec<i64> {
+        catalog
+            .search(Section::Movies, query, 10)
+            .unwrap()
+            .into_iter()
+            .map(|i| i.id)
+            .collect()
+    };
+    assert_eq!(found("dune fhd"), [10]);
+    assert_eq!(found("15 aout 2001"), [12]);
+    assert_eq!(found("1080p tf1"), [12]);
+    assert_eq!(found("bullets"), [11]);
+}
+
+#[test]
+fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
+    let dir = std::env::temp_dir().join(format!("hs-names7-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut catalog = Catalog::open(&path).unwrap();
+        let live: Vec<LiveStream> =
+            from_value(json!([{"stream_id": 3, "name": "TF1 ᵁᴴᴰ"}])).unwrap();
+        catalog.store_live(&[], &live, 0).unwrap();
+        let movies: Vec<Movie> = from_value(json!([
+            {"stream_id": 1, "name": "Dune (2021) FHD"},
+            {"stream_id": 2, "name": "Amélie"},
+            {"stream_id": 4, "name": "15.Aout.2001.1080p.TF1.WEB-DL"},
+        ]))
+        .unwrap();
+        catalog.store_movies(&[], &movies, 0).unwrap();
+    }
+    // Lignes nettoyées par la version précédente (migration 6) : les espaces,
+    // les noms de fichiers et les mentions techniques étaient restés.
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "UPDATE item SET name = 'Dune (2021) FHD' WHERE section = 'movies' AND id = 1;
+             UPDATE item SET name = '15.Aout.2001.1080p.TF1.WEB-DL' WHERE section = 'movies' AND id = 4;
+             PRAGMA user_version = 6;",
+        )
+        .unwrap();
+    }
+    let catalog = Catalog::open(&path).unwrap();
+    let name = |section: Section, id: i64| catalog.item(section, id).unwrap().unwrap().name;
+    assert_eq!(name(Section::Movies, 1), "Dune (2021)");
+    assert_eq!(name(Section::Movies, 2), "Amélie");
+    assert_eq!(name(Section::Movies, 4), "15 Aout (2001)");
+    // Les chaînes gardent leur nom.
+    assert_eq!(name(Section::Live, 3), "TF1 ᵁᴴᴰ");
+    // Le tri suit le nouveau nom : « 15 Aout », « Amélie », « Dune ».
+    let order: Vec<i64> = catalog
+        .items(Section::Movies, None, 0, 10)
+        .unwrap()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    assert_eq!(order, [4, 2, 1]);
     std::fs::remove_dir_all(&dir).unwrap();
 }

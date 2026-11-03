@@ -150,7 +150,7 @@ class MovieDetailViewModel(private val session: CoreSession, private val id: Lon
     private fun publish() {
         val cache = cached ?: return
         val infoDone = info != null || infoFailure != null
-        val header = movieHeader(cache.item, info)
+        val header = movieHeader(cache.item, info)?.withoutDuplicateYear()
         if (header == null) {
             _state.value = when {
                 !infoDone -> MovieDetailState(loading = true)

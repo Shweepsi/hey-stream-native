@@ -1198,6 +1198,18 @@ pub fn describe_stream_url(url: String) -> Option<StreamRef> {
     })
 }
 
+/// Titre d'une fiche sans « (année) » quand la fiche montre déjà cette année
+/// (« 22 Jump Street (2014) » au-dessus de « 2014 » donne « 22 Jump
+/// Street »). Sans année, ou avec une autre, le titre reste tel quel. Les
+/// grilles gardent l'année dans le titre.
+#[uniffi::export]
+pub fn title_without_year(name: String, year: Option<String>) -> String {
+    match year {
+        Some(year) => xc::title_without_year(&name, &year),
+        None => name,
+    }
+}
+
 /// Résultat de `upload_telemetry`.
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum TelemetryUpload {
