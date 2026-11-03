@@ -168,7 +168,6 @@ impl From<LiveFormat> for xc::LiveFormat {
     }
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
 /// Réglage de langue des films et des épisodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum TrackPreference {
@@ -239,6 +238,7 @@ impl From<xc::TrackChoice> for TrackChoice {
     }
 }
 
+#[derive(Debug, Clone, uniffi::Record)]
 pub struct CategoryEntry {
     pub id: String,
     pub name: String,
