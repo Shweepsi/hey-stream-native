@@ -13,6 +13,7 @@ import io.github.shweepsi.heystream.core.SeriesInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +51,26 @@ class DetailLogicTest {
         rating: String? = "7.4",
         image: String? = "poster-info",
     ) = MovieInfo(name, plot, year, duration, rating, image, "mp4")
+
+    @Test
+    fun theHeaderTitleLosesTheYearThatTheInfoLineShows() {
+        val header = DetailHeader(title = "22 Jump Street (2014)", year = "2014")
+        val short = header.withoutDuplicateYear { name, year -> name.replace(" ($year)", "") }
+        assertEquals("22 Jump Street", short.title)
+        assertEquals("2014", short.year)
+    }
+
+    @Test
+    fun aHeaderWithoutYearIsLeftAloneAndNeverAsksTheCore() {
+        val header = DetailHeader(title = "Dune (2021)")
+        assertSame(header, header.withoutDuplicateYear { _, _ -> error("sans année, pas d'appel") })
+    }
+
+    @Test
+    fun aFailingCoreLeavesTheTitleAsItIs() {
+        val header = DetailHeader(title = "Dune (2021)", year = "2021")
+        assertSame(header, header.withoutDuplicateYear { _, _ -> error("cœur indisponible") })
+    }
 
     @Test
     fun movieHeaderPrefersTheDurationMeasuredByThePlayer() {

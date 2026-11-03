@@ -426,6 +426,7 @@ fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
             {"stream_id": 1, "name": "Dune (2021) FHD"},
             {"stream_id": 2, "name": "Amélie"},
             {"stream_id": 4, "name": "15.Aout.2001.1080p.TF1.WEB-DL"},
+            {"stream_id": 5, "name": "FR - Some.Movie.2020.WEB-DL"},
         ]))
         .unwrap();
         catalog.store_movies(&[], &movies, 0).unwrap();
@@ -437,6 +438,7 @@ fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
         conn.execute_batch(
             "UPDATE item SET name = 'Dune (2021) FHD' WHERE section = 'movies' AND id = 1;
              UPDATE item SET name = '15.Aout.2001.1080p.TF1.WEB-DL' WHERE section = 'movies' AND id = 4;
+             UPDATE item SET name = 'Some.Movie.2020.WEB-DL' WHERE section = 'movies' AND id = 5;
              PRAGMA user_version = 6;",
         )
         .unwrap();
@@ -446,6 +448,8 @@ fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
     assert_eq!(name(Section::Movies, 1), "Dune (2021)");
     assert_eq!(name(Section::Movies, 2), "Amélie");
     assert_eq!(name(Section::Movies, 4), "15 Aout (2001)");
+    // Un nom de fichier derrière « FR - » est recalculé aussi.
+    assert_eq!(name(Section::Movies, 5), "Some Movie (2020)");
     // Les chaînes gardent leur nom.
     assert_eq!(name(Section::Live, 3), "TF1 ᵁᴴᴰ");
     // Le tri suit le nouveau nom : « 15 Aout », « Amélie », « Dune ».
@@ -455,6 +459,6 @@ fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
         .into_iter()
         .map(|i| i.id)
         .collect();
-    assert_eq!(order, [4, 2, 1]);
+    assert_eq!(order, [4, 2, 1, 5]);
     std::fs::remove_dir_all(&dir).unwrap();
 }

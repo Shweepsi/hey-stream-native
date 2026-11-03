@@ -29,11 +29,15 @@ data class DetailHeader(
 /**
  * Titre sans « (année) » quand la ligne d'infos montre déjà cette année :
  * « 22 Jump Street (2014) » donne « 22 Jump Street » au-dessus de « 2014 ».
- * La règle est celle du cœur ; sans lui (tests JVM), le titre reste tel quel.
+ * La règle est celle du cœur ([strip]). Si elle échoue, ou sans le cœur natif
+ * (tests JVM des écrans), le titre reste tel quel : un titre avec son année
+ * vaut mieux qu'une fiche qui ne s'ouvre pas.
  */
-internal fun DetailHeader.withoutDuplicateYear(): DetailHeader {
+internal fun DetailHeader.withoutDuplicateYear(
+    strip: (String, String) -> String = ::titleWithoutYear,
+): DetailHeader {
     val shown = year?.trim()?.takeIf { it.isNotEmpty() } ?: return this
-    val short = runCatching { titleWithoutYear(title, shown) }.getOrDefault(title)
+    val short = runCatching { strip(title, shown) }.getOrDefault(title)
     return if (short == title) this else copy(title = short)
 }
 

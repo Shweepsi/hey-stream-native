@@ -49,10 +49,11 @@ const TECHNICAL: &[&str] = &[
 
 /// Autres mots d'un nom de fichier de publication (sources, codecs, formats)
 /// qui ne font plus partie du titre. Seul le début avant un « - » compte :
-/// « WEB-DL », « x264-GROUPE ».
+/// « x264-GROUPE ». Sans « WEB », « BLU » ni « AVI », qui sont aussi des mots
+/// de titre (« Charlotte's.Web ») : voir [`is_release_tag`].
 const RELEASE_TAGS: &[&str] = &[
-    "480P", "576P", "WEB", "WEBDL", "WEBRIP", "BLU", "BLURAY", "BDRIP", "BRRIP", "HDRIP", "DVDRIP",
-    "HDTV", "AAC", "AC3", "DTS", "REMUX", "MKV", "MP4", "AVI",
+    "480P", "576P", "WEBDL", "WEBRIP", "BLURAY", "BDRIP", "BRRIP", "HDRIP", "DVDRIP", "HDTV",
+    "AAC", "AC3", "DTS", "REMUX", "MKV", "MP4",
 ];
 
 /// Nom d'un film ou d'une série à afficher : les règles de [`clean_name`],
@@ -76,20 +77,27 @@ pub fn clean_title(raw: &str) -> String {
 
 /// Titre sans « (année) » quand la fiche montre déjà cette année : « 22 Jump
 /// Street (2014) » donne « 22 Jump Street » au-dessus de « 2014 ». `year` est
-/// celle de la fiche (« 2014 » ou « 2014-06-13 »). Sans la même année entre
-/// parenthèses dans le titre, il reste tel quel ; les grilles gardent l'année,
-/// qui distingue « Dune (1984) » de « Dune (2021) ».
+/// celle de la fiche (« 2014 » ou « 2014-06-13 »). Seule l'année de sortie, la
+/// dernière entre parenthèses et suivie au plus de MULTI, VOSTFR ou VOST, est
+/// retirée : « Movie (2014) Part 2 » reste tel quel. Les grilles gardent
+/// l'année, qui distingue « Dune (1984) » de « Dune (2021) ».
 pub fn title_without_year(name: &str, year: &str) -> String {
     let digits: String = year.trim().chars().take(4).collect();
     if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return name.to_owned();
     }
     let mark = format!("({digits})");
-    let Some(at) = name.find(&mark) else {
+    let Some(at) = name.rfind(&mark) else {
         return name.to_owned();
     };
     let before = name[..at].trim_end();
     let after = name[at + mark.len()..].trim_start();
+    let only_language = after
+        .split_whitespace()
+        .all(|word| KEPT_LANGUAGE.contains(&mention_key(word).as_str()));
+    if !only_language {
+        return name.to_owned();
+    }
     match (before.is_empty(), after.is_empty()) {
         (true, true) => name.to_owned(),
         (false, true) => before.to_owned(),
@@ -129,7 +137,8 @@ fn tidy_spaces(name: &str) -> String {
         .replace(" )", ")")
 }
 
-/// Année d'un nom de fichier : de 1900 à 2030.
+/// Année d'un nom de fichier : de 1900 à 2030. Pas plus haut : « Blade.Runner.
+/// 2049.1080p » est un titre, pas l'année 2049.
 fn is_year(part: &str) -> bool {
     part.len() == 4
         && part
@@ -138,11 +147,16 @@ fn is_year(part: &str) -> bool {
 }
 
 /// Vrai pour un mot de nom de fichier qui n'est plus le titre : résolution,
-/// source, codec.
+/// source, codec. « WEB » et « BLU » ne comptent qu'accolés à leur suite
+/// (« WEB-DL », « Blu-ray ») : seuls, ce sont des mots de titre.
 fn is_release_tag(part: &str) -> bool {
     let key = mention_key(part);
     let head = key.split('-').next().unwrap_or_default();
-    TECHNICAL.contains(&key.as_str()) || TECHNICAL.contains(&head) || RELEASE_TAGS.contains(&head)
+    let joined = key.len() > head.len() && matches!(head, "WEB" | "BLU");
+    joined
+        || TECHNICAL.contains(&key.as_str())
+        || TECHNICAL.contains(&head)
+        || RELEASE_TAGS.contains(&head)
 }
 
 /// Nom de fichier de publication sans espace : « 15.Aout.2001.1080p.TF1.
@@ -172,7 +186,7 @@ fn dotted_title(name: &str) -> Option<String> {
     if end == 0 {
         return None;
     }
-    let mut title = parts[..end].join(" ");
+    let mut title = join_title(&parts[..end]);
     if let Some(year) = year_at {
         title.push_str(" (");
         title.push_str(parts[year]);
@@ -185,6 +199,34 @@ fn dotted_title(name: &str) -> Option<String> {
         }
     }
     Some(title)
+}
+
+/// Mots d'un titre de fichier. Deux lettres isolées ou plus de suite forment
+/// un sigle (« S.W.A.T. », « L.A. Confidential ») ; une lettre seule reste un
+/// mot (« A Quiet Place »).
+fn join_title(parts: &[&str]) -> String {
+    let is_letter = |part: &str| part.chars().count() == 1 && part.chars().all(char::is_alphabetic);
+    let mut words: Vec<String> = Vec::new();
+    let mut start = 0;
+    while start < parts.len() {
+        let mut end = start;
+        while end < parts.len() && is_letter(parts[end]) {
+            end += 1;
+        }
+        if end - start >= 2 {
+            words.push(
+                parts[start..end]
+                    .iter()
+                    .map(|part| format!("{part}."))
+                    .collect(),
+            );
+            start = end;
+        } else {
+            words.push(parts[start].to_owned());
+            start += 1;
+        }
+    }
+    words.join(" ")
 }
 
 /// Retire les mentions techniques en fin de nom (« Dune (2021) MULTI 4K
@@ -504,6 +546,32 @@ mod tests {
     }
 
     #[test]
+    fn title_words_that_look_like_sources_stay_in_the_title() {
+        assert_eq!(
+            clean_title("Charlotte's.Web.2006.1080p"),
+            "Charlotte's Web (2006)"
+        );
+        assert_eq!(clean_title("Dark.Web.2020.1080p"), "Dark Web (2020)");
+        assert_eq!(clean_title("The.Web.2018"), "The Web (2018)");
+        // « WEB-DL » accolé reste une étiquette de source.
+        assert_eq!(clean_title("Some.Movie.2020.WEB-DL"), "Some Movie (2020)");
+    }
+
+    #[test]
+    fn dotted_acronyms_keep_their_dots() {
+        assert_eq!(clean_title("S.W.A.T.2017"), "S.W.A.T. (2017)");
+        assert_eq!(
+            clean_title("L.A.Confidential.1997"),
+            "L.A. Confidential (1997)"
+        );
+        // Une lettre seule est un mot.
+        assert_eq!(
+            clean_title("A.Quiet.Place.2018.1080p"),
+            "A Quiet Place (2018)"
+        );
+    }
+
+    #[test]
     fn names_that_are_not_file_names_stay() {
         assert_eq!(clean_title("S.W.A.T."), "S.W.A.T.");
         assert_eq!(clean_title("Mr.Robot"), "Mr.Robot");
@@ -560,5 +628,18 @@ mod tests {
         assert_eq!(title_without_year("Dune (2021)", "n/a"), "Dune (2021)");
         // Un titre qui n'est que l'année la garde.
         assert_eq!(title_without_year("(2014)", "2014"), "(2014)");
+        // Seule l'année de fin de nom part.
+        assert_eq!(
+            title_without_year("Movie (2014) Part 2", "2014"),
+            "Movie (2014) Part 2"
+        );
+        assert_eq!(
+            title_without_year("Blade Runner (2049) Redux (2017)", "2017"),
+            "Blade Runner (2049) Redux"
+        );
+        assert_eq!(
+            title_without_year("Blade Runner (2049) Redux (2017)", "2049"),
+            "Blade Runner (2049) Redux (2017)"
+        );
     }
 }

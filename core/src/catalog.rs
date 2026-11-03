@@ -139,13 +139,16 @@ const MIGRATIONS: &[&str] = &[
     // 7 : titres des films et des séries (`names::clean_title`) : espaces en
     // trop, noms de fichiers à points, mentions techniques en fin de nom. Ceux
     // qui peuvent changer repartent du nom brut et sont recalculés à
-    // l'ouverture (pas tout le catalogue, lourd sur la Mi Box). Les chaînes
-    // gardent leur nom. `LIKE` : le tiret bas est un joker, d'où `instr`.
+    // l'ouverture (pas tout le catalogue, lourd sur la Mi Box). Le filtre
+    // est volontairement large (tout nom avec un point ou un tiret bas, même
+    // précédé de « FR - ») : un nom recalculé en trop ne change pas. Les
+    // chaînes gardent leur nom. `LIKE` : le tiret bas est un joker, d'où
+    // `instr`.
     "UPDATE item SET name = raw_name, raw_name = NULL
      WHERE section IN ('movies', 'series') AND raw_name IS NOT NULL
        AND (instr(raw_name, '  ') > 0 OR instr(raw_name, '( ') > 0 OR instr(raw_name, ' )') > 0
-            OR (instr(raw_name, ' ') = 0
-                AND (instr(raw_name, '.') > 0 OR instr(raw_name, '_') > 0))
+            OR instr(raw_name, '.') > 0 OR instr(raw_name, '_') > 0
+            OR instr(raw_name, char(9)) > 0 OR instr(raw_name, char(160)) > 0
             OR lower(raw_name) LIKE '%hd%' OR lower(raw_name) LIKE '%4k%'
             OR lower(raw_name) LIKE '%hevc%' OR lower(raw_name) LIKE '%265%'
             OR lower(raw_name) LIKE '%264%' OR lower(raw_name) LIKE '%10bit%'
