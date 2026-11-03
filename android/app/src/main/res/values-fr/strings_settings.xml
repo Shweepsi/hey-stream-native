@@ -17,7 +17,7 @@
     <string name="settings_category_hidden">Masquée</string>
     <string name="settings_categories_empty">Aucune catégorie dans cette section</string>
 
-    <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement (marquage du fournisseur, ou nom contenant « XXX », « Adult », « +18 »…) et verrouillées par défaut. Verrouillées, elles restent listées mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
+    <string name="settings_parental_intro">Les catégories adultes sont détectées automatiquement et verrouillées par défaut. Elles restent listées, mais leur contenu n’apparaît nulle part : listes, recherche, favoris, récents, « Continuer ».</string>
     <string name="settings_parental_no_pin">Aucun code parental pour l’instant</string>
     <string name="settings_parental_locked">Catégories adultes verrouillées</string>
     <string name="settings_parental_unlocked">Catégories adultes déverrouillées tant que l’app reste à l’écran</string>
@@ -25,17 +25,17 @@
     <string name="settings_parental_change">Changer le code</string>
     <string name="settings_parental_remove">Supprimer le code</string>
     <string name="settings_parental_lock_now">Verrouiller maintenant</string>
-    <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
+    <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint.</string>
 
     <string name="settings_language_intro">Langue des textes de l’app.</string>
     <string name="settings_tracks_title">Langue des films et épisodes</string>
-    <string name="settings_tracks_intro">Piste audio et sous-titres choisis au lancement d’un film ou d’un épisode ; vous pouvez toujours les changer dans le lecteur. « Doublée » : piste dans la langue de l’app, sans sous-titres. « Version originale » : piste d’origine, avec les sous-titres dans la langue de l’app.</string>
+    <string name="settings_tracks_intro">Piste audio et sous-titres choisis au lancement ; vous pouvez les changer dans le lecteur.</string>
     <string name="settings_tracks_auto">Automatique</string>
     <string name="settings_tracks_dubbed">Doublée</string>
     <string name="settings_tracks_original">Version originale sous-titrée</string>
     <string name="settings_language_system">Langue du système</string>
 
-    <string name="settings_catalog_intro">Le catalogue est enregistré sur cet appareil et mis à jour automatiquement une fois par jour. Vous pouvez aussi le mettre à jour maintenant.</string>
+    <string name="settings_catalog_intro">Mis à jour automatiquement une fois par jour.</string>
     <string name="settings_catalog_updated_today">Dernière mise à jour&#160;: aujourd’hui à %1$s</string>
     <string name="settings_catalog_updated_yesterday">Dernière mise à jour&#160;: hier à %1$s</string>
     <string name="settings_catalog_updated_on">Dernière mise à jour&#160;: le %1$s à %2$s</string>
@@ -66,7 +66,6 @@
     <string name="settings_subscription_connections">Connexions simultanées autorisées : %1$d</string>
     <string name="settings_sign_out">Se déconnecter</string>
     <string name="settings_signing_out">Déconnexion…</string>
-    <string name="settings_sign_out_warning">La déconnexion efface de cet appareil le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental.</string>
     <string name="settings_sign_out_title">Se déconnecter ?</string>
     <string name="settings_sign_out_message">Le catalogue, les favoris, les récents, les reprises de lecture, les marques « vu », les catégories masquées et le code parental seront effacés de cet appareil. Il vous faudra vos identifiants pour vous reconnecter.</string>
 

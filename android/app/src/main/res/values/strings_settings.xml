@@ -17,7 +17,7 @@
     <string name="settings_category_hidden">Hidden</string>
     <string name="settings_categories_empty">No categories in this section</string>
 
-    <string name="settings_parental_intro">Adult categories are detected automatically (provider flag, or a name containing “XXX”, “Adult”, “+18”…) and locked by default. While locked, they stay listed but their content appears nowhere: lists, search, favorites, recent items, Continue.</string>
+    <string name="settings_parental_intro">Adult categories are detected automatically and locked by default. They stay listed, but their content appears nowhere: lists, search, favorites, recent items, Continue.</string>
     <string name="settings_parental_no_pin">No parental code yet</string>
     <string name="settings_parental_locked">Adult categories are locked</string>
     <string name="settings_parental_unlocked">Adult categories are unlocked while the app stays on screen</string>
@@ -25,11 +25,11 @@
     <string name="settings_parental_change">Change the code</string>
     <string name="settings_parental_remove">Remove the code</string>
     <string name="settings_parental_lock_now">Lock now</string>
-    <string name="settings_parental_note">Unlocking with the code ends as soon as the app goes to the background or the screen turns off. After 5 wrong codes, entry is blocked for 30 seconds.</string>
+    <string name="settings_parental_note">Unlocking with the code ends as soon as the app goes to the background or the screen turns off.</string>
 
     <string name="settings_language_intro">Language of the app’s texts.</string>
     <string name="settings_tracks_title">Language of films and episodes</string>
-    <string name="settings_tracks_intro">Audio track and subtitles picked when a film or an episode starts; you can still change them in the player. “Dubbed”: a track in the app’s language, no subtitles. “Original version”: the original track, with subtitles in the app’s language.</string>
+    <string name="settings_tracks_intro">Audio track and subtitles picked at launch; you can change them in the player.</string>
     <string name="settings_tracks_auto">Automatic</string>
     <string name="settings_tracks_dubbed">Dubbed</string>
     <string name="settings_tracks_original">Original version with subtitles</string>
@@ -37,7 +37,7 @@
     <string name="settings_language_french" translatable="false">Français</string>
     <string name="settings_language_english" translatable="false">English</string>
 
-    <string name="settings_catalog_intro">The catalog is stored on this device and updated automatically once a day. You can also update it now.</string>
+    <string name="settings_catalog_intro">Updated automatically once a day.</string>
     <string name="settings_catalog_updated_today">Last updated: today at %1$s</string>
     <string name="settings_catalog_updated_yesterday">Last updated: yesterday at %1$s</string>
     <string name="settings_catalog_updated_on">Last updated: %1$s at %2$s</string>
@@ -65,7 +65,6 @@
     <string name="settings_subscription_connections">Simultaneous connections allowed: %1$d</string>
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_signing_out">Signing out…</string>
-    <string name="settings_sign_out_warning">Signing out deletes from this device the catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code.</string>
     <string name="settings_sign_out_title">Sign out?</string>
     <string name="settings_sign_out_message">The catalog, favorites, recent items, playback positions, watched marks, hidden categories and the parental code will be deleted from this device. You will need your credentials to sign in again.</string>
 

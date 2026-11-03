@@ -129,6 +129,11 @@ l'écran en permanence.
   Favoris vide : « Maintenez OK sur une chaîne… »).
 - **Épisode sans titre** : « Épisode 2 » sans numéro à côté ; avec un titre, le
   numéro reste en tête de ligne.
+- **Réglages** : une phrase d'introduction par volet au plus, sans exemples ni
+  rappels que la fenêtre de confirmation ou le message d'erreur donnent au
+  bon moment (mise en garde de la déconnexion, blocage après 5 codes faux). La
+  version du cœur n'est écrite que si elle diffère de celle de l'app. Les
+  lignes qui s'ouvrent (crédits) montrent un chevron, pas un libellé répété.
 
 ## Animations
 

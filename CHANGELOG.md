@@ -14,6 +14,12 @@ Une entrée par version, la plus récente en haut. La version vient de
   « Maintenez OK ou appuyez sur MENU… » au-dessus des épisodes) ; l'explication
   de la catégorie Favoris vide reste. Un épisode sans titre n'écrit plus son
   numéro deux fois (« 2  Épisode 2 » devient « Épisode 2 »).
+- Réglages, mêmes principes : textes d'introduction ramenés à une phrase
+  (Contrôle parental, Langue des films et épisodes, Catalogue) ; la mise en
+  garde sous « Se déconnecter » disparaît (la fenêtre de confirmation liste
+  déjà ce qui sera effacé) ; « À propos » n'écrit la version du cœur que si elle
+  diffère de celle de l'app, et les crédits n'écrivent plus quatre fois « Voir
+  la licence » (le chevron suffit, le libellé reste pour l'accessibilité).
 
 ## 0.9.3 — 2026-11-03
 

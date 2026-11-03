@@ -240,7 +240,11 @@ dans l'en-tête de la grille, Films et Séries), aides toujours affichées
 retirées (Direct : favoris ; fiche série : « vu »), numéro d'un épisode sans
 titre écrit une fois. **Gardé** : le nom des catégories du fournisseur, avec
 son préfixe (« |FR| ✪ ACTION »), comme décidé le 2026-11-02, et l'étiquette
-« FILMS / SÉRIES » au-dessus des catégories. Voir `DESIGN.md`, « Allègement ».
+« FILMS / SÉRIES » au-dessus des catégories. Même principe aux Réglages
+(textes d'introduction d'une phrase, mise en garde de la déconnexion retirée au
+profit de la fenêtre de confirmation, version du cœur seulement si elle diffère,
+crédits au chevron). Non touché : « Mises à jour » de « À propos » (repris par
+la PR du parcours de mise à jour). Voir `DESIGN.md`, « Allègement ».
 
 ## Erreurs du lecteur (2026-11-03)
 
