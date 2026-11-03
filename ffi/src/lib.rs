@@ -169,6 +169,76 @@ impl From<LiveFormat> for xc::LiveFormat {
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
+/// Réglage de langue des films et des épisodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum TrackPreference {
+    /// Piste par défaut du fichier.
+    Auto,
+    /// Piste dans la langue de l'app, sans sous-titres.
+    Dubbed,
+    /// Piste d'origine, avec les sous-titres dans la langue de l'app.
+    OriginalSubtitled,
+}
+
+impl From<TrackPreference> for xc::TrackPreference {
+    fn from(p: TrackPreference) -> Self {
+        match p {
+            TrackPreference::Auto => xc::TrackPreference::Auto,
+            TrackPreference::Dubbed => xc::TrackPreference::Dubbed,
+            TrackPreference::OriginalSubtitled => xc::TrackPreference::OriginalSubtitled,
+        }
+    }
+}
+
+impl From<xc::TrackPreference> for TrackPreference {
+    fn from(p: xc::TrackPreference) -> Self {
+        match p {
+            xc::TrackPreference::Auto => TrackPreference::Auto,
+            xc::TrackPreference::Dubbed => TrackPreference::Dubbed,
+            xc::TrackPreference::OriginalSubtitled => TrackPreference::OriginalSubtitled,
+        }
+    }
+}
+
+/// Une piste audio ou de sous-titres, telle que le lecteur la décrit.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TrackInfo {
+    pub language: Option<String>,
+    pub label: Option<String>,
+    /// Sous-titres « forcés » (dialogues étrangers seulement).
+    pub forced: bool,
+}
+
+impl From<TrackInfo> for xc::TrackInfo {
+    fn from(t: TrackInfo) -> Self {
+        Self {
+            language: t.language,
+            label: t.label,
+            forced: t.forced,
+        }
+    }
+}
+
+/// Pistes à sélectionner : des numéros dans les listes données à
+/// `choose_tracks`. Tout à vide : rien n'est demandé, la piste par défaut reste.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct TrackChoice {
+    pub audio: Option<u32>,
+    pub text: Option<u32>,
+    /// Couper les sous-titres.
+    pub text_off: bool,
+}
+
+impl From<xc::TrackChoice> for TrackChoice {
+    fn from(c: xc::TrackChoice) -> Self {
+        Self {
+            audio: c.audio.map(|index| index as u32),
+            text: c.text.map(|index| index as u32),
+            text_off: c.text_off,
+        }
+    }
+}
+
 pub struct CategoryEntry {
     pub id: String,
     pub name: String,
@@ -977,6 +1047,31 @@ impl HeyStreamCore {
             .lock()?
             .set_category_hidden(section.into(), &id, hidden)?)
     }
+
+    // Langue et dernière catégorie ----------------------------------------------
+
+    /// Réglage de langue des films et des épisodes ; `Auto` tant qu'il n'a pas
+    /// été choisi.
+    pub fn track_preference(&self) -> Result<TrackPreference> {
+        Ok(self.lock()?.track_preference()?.into())
+    }
+
+    pub fn set_track_preference(&self, preference: TrackPreference) -> Result<()> {
+        Ok(self.lock()?.set_track_preference(preference.into())?)
+    }
+
+    /// Dernière catégorie ouverte d'une section : la clé de l'interface, gardée
+    /// telle quelle par le cœur ; `None` si aucune.
+    pub fn last_category(&self, section: Section) -> Result<Option<String>> {
+        Ok(self.lock()?.last_category(section.into())?)
+    }
+
+    /// Retient la catégorie ouverte d'une section ; `None` l'oublie.
+    pub fn set_last_category(&self, section: Section, key: Option<String>) -> Result<()> {
+        Ok(self
+            .lock()?
+            .set_last_category(section.into(), key.as_deref())?)
+    }
 }
 
 impl HeyStreamCore {
@@ -1222,6 +1317,22 @@ pub fn title_without_year(name: String, year: Option<String>) -> String {
         Some(year) => xc::title_without_year(&name, &year),
         None => name,
     }
+}
+
+/// Pistes à prendre au lancement d'un film ou d'un épisode selon le réglage de
+/// langue. `app_language` : langue de l'app (« fr », « en »…). Les numéros
+/// renvoyés sont ceux de `audio` et de `text`. Rien n'est demandé quand rien
+/// ne convient (aucune piste doublée, aucune piste d'origine).
+#[uniffi::export]
+pub fn choose_tracks(
+    preference: TrackPreference,
+    app_language: String,
+    audio: Vec<TrackInfo>,
+    text: Vec<TrackInfo>,
+) -> TrackChoice {
+    let audio: Vec<xc::TrackInfo> = audio.into_iter().map(Into::into).collect();
+    let text: Vec<xc::TrackInfo> = text.into_iter().map(Into::into).collect();
+    xc::choose_tracks(preference.into(), &app_language, &audio, &text).into()
 }
 
 /// Résultat de `upload_telemetry`.

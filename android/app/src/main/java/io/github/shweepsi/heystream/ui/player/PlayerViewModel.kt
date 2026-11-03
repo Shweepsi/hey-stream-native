@@ -15,6 +15,8 @@ import io.github.shweepsi.heystream.core.Resume
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.core.SeriesInfo
 import io.github.shweepsi.heystream.core.StreamKind
+import io.github.shweepsi.heystream.core.TrackPreference
+import io.github.shweepsi.heystream.core.chooseTracks
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
@@ -22,6 +24,7 @@ import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
 import io.github.shweepsi.heystream.ui.detail.visibleItem
 import io.github.shweepsi.heystream.ui.toUiText
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +81,12 @@ private class Media(
     val durationMs: Long,
 )
 
-private class Resolved(val media: Media, val url: String, val startMs: Long)
+private class Resolved(
+    val media: Media,
+    val url: String,
+    val startMs: Long,
+    val preference: TrackPreference = TrackPreference.AUTO,
+)
 
 /** Pas d'un appui : on avance pour sauter un passage, on recule pour revoir une réplique. */
 internal const val FORWARD_STEP_MS = PlayerController.SEEK_FORWARD_MS
@@ -126,6 +134,12 @@ class PlayerViewModel(
     private var endHandled = false
     private var wasPlaying = false
     private var closed = false
+
+    /** Langue des films et épisodes (réglage du cœur), lue avec le titre. */
+    private var trackPreference = TrackPreference.AUTO
+
+    /** Le choix de pistes a été appliqué à ce titre : un choix à la main l'emporte ensuite. */
+    private var preferenceApplied = false
     private var resolveJob: Job? = null
     private var nextJob: Job? = null
 
@@ -152,7 +166,9 @@ class PlayerViewModel(
 
     private val listener = object : Player.Listener {
         override fun onTracksChanged(tracks: Tracks) {
-            _state.update { it.copy(tracks = trackLists(tracks)) }
+            val lists = trackLists(tracks)
+            _state.update { it.copy(tracks = lists) }
+            applyPreferredTracks(tracks, lists)
         }
     }
 
@@ -231,6 +247,25 @@ class PlayerViewModel(
         dropPendingSeek()
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         player.seekTo((duration * fraction.coerceIn(0f, 1f)).toLong())
+    }
+
+    /**
+     * Au premier relevé des pistes d'un titre, prend celles du réglage de
+     * langue (le cœur choisit). Une seule fois : un choix fait ensuite à la
+     * main dans le lecteur l'emporte.
+     */
+    private fun applyPreferredTracks(tracks: Tracks, lists: TrackLists) {
+        if (preferenceApplied || trackPreference == TrackPreference.AUTO || !started || lists.audio.isEmpty()) return
+        preferenceApplied = true
+        val choice = runCatching {
+            chooseTracks(
+                trackPreference,
+                Locale.getDefault().language,
+                lists.audio.map { it.toInfo() },
+                lists.text.map { it.toInfo() },
+            )
+        }.getOrNull() ?: return
+        player.trackSelectionParameters = applyChoice(player.trackSelectionParameters, tracks, lists, choice)
     }
 
     fun selectTrack(key: TrackKey) {
@@ -396,6 +431,7 @@ class PlayerViewModel(
         started = false
         endHandled = false
         wasPlaying = false
+        preferenceApplied = false
         deferred = null
         dropPendingSeek()
         _state.update { it.copy(resolving = true, error = null, retrying = false, next = null, tracks = TrackLists()) }
@@ -408,6 +444,7 @@ class PlayerViewModel(
                 val resolved = session.withCore { core -> resolveMedia(core, kind, id, startMs) }
                 if (closed) return@launch
                 media = resolved.media
+                trackPreference = resolved.preference
                 _state.update {
                     it.copy(title = resolved.media.title, episode = resolved.media.episode, resolving = false, error = null)
                 }
@@ -441,7 +478,9 @@ class PlayerViewModel(
         runCatching {
             if (kind == PlaybackKind.MOVIE) core.addRecent(Section.MOVIES, id) else seriesId?.let { core.addRecent(Section.SERIES, it) }
         }
-        return Resolved(media, url, start.coerceAtLeast(0))
+        // Secondaire : sans réglage lisible, la piste par défaut reste.
+        val preference = runCatching { core.trackPreference() }.getOrDefault(TrackPreference.AUTO)
+        return Resolved(media, url, start.coerceAtLeast(0), preference)
     }
 
     private fun movieMedia(core: HeyStreamCore, id: Long): Media {

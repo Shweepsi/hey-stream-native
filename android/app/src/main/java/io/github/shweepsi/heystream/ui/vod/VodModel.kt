@@ -59,6 +59,8 @@ data class VodData(
     /** « Continuer », du plus récent au plus ancien. */
     val continueItems: List<PosterUi>,
     val favoritesCount: Long,
+    /** Dernière catégorie ouverte (retenue par le cœur), si elle est connue. */
+    val last: CategoryKey? = null,
 )
 
 /** État de l'écran Films / Séries. */
@@ -119,14 +121,30 @@ fun resolveSelection(user: CategoryKey?, previous: CategoryKey?, data: VodData):
         CategoryKey.Continue, CategoryKey.Favorites -> true
         is CategoryKey.Provider -> data.categories.any { it.key == key && !it.locked }
     }
+    // La dernière catégorie ouverte : seulement si elle s'ouvre encore (Favoris et « Continuer » non vides).
+    fun worthOpening(key: CategoryKey?): Boolean = when (key) {
+        null -> false
+        CategoryKey.Continue -> data.continueItems.isNotEmpty()
+        CategoryKey.Favorites -> data.favoritesCount > 0
+        is CategoryKey.Provider -> openable(key)
+    }
     return when {
         openable(user) -> user
         openable(previous) -> previous
+        worthOpening(data.last) -> data.last
         data.continueItems.isNotEmpty() -> CategoryKey.Continue
         else -> data.categories.firstOrNull { !it.locked }?.key
             // Rien d'autre à ouvrir (toutes verrouillées) : « Continuer » et son explication.
             ?: if (data.categories.isNotEmpty()) CategoryKey.Continue else null
     }
+}
+
+/** Clé retenue par le cœur → catégorie (`null` si elle n'est pas reconnue). */
+fun vodCategoryKeyOf(stored: String): CategoryKey? = when {
+    stored == "@continue" -> CategoryKey.Continue
+    stored == "@favorites" -> CategoryKey.Favorites
+    stored.startsWith("c:") -> CategoryKey.Provider(stored.removePrefix("c:"))
+    else -> null
 }
 
 /** Colonne de gauche : « Continuer », « Favoris », puis le fournisseur. */

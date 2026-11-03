@@ -64,6 +64,11 @@ pub(crate) const MIGRATION_8: &str = "
     ALTER TABLE series_episode ADD COLUMN sort_order INTEGER;
 ";
 
+/// Nom du réglage qui retient la dernière catégorie d'une section.
+fn last_category_setting(section: Section) -> String {
+    format!("last_category_{}", section.key())
+}
+
 /// Nombre de récents gardés par section.
 pub const RECENTS_LIMIT: usize = 30;
 
@@ -216,6 +221,28 @@ impl Catalog {
             0,
             limit,
         )
+    }
+
+    // --- Dernière catégorie ------------------------------------------------
+
+    /// Dernière catégorie ouverte d'une section, pour y revenir à l'ouverture.
+    /// La clé est celle de l'interface (« category:12 », « @continue »…) : le
+    /// cœur la garde telle quelle. Propre à l'abonnement, comme les favoris.
+    pub fn last_category(&self, section: Section) -> Result<Option<String>> {
+        self.setting(&last_category_setting(section))
+    }
+
+    /// Retient la catégorie ouverte d'une section ; `None` l'oublie.
+    pub fn set_last_category(&mut self, section: Section, key: Option<&str>) -> Result<()> {
+        let setting = last_category_setting(section);
+        match key {
+            Some(key) => self.set_setting(&setting, key),
+            None => {
+                self.conn
+                    .execute("DELETE FROM setting WHERE key = ?1", params![setting])?;
+                Ok(())
+            }
+        }
     }
 
     // --- Reprise de lecture -----------------------------------------------

@@ -167,7 +167,7 @@ class LiveViewModel(
             }
         }.also { sources = it }
 
-    private class Loaded(val categories: List<LiveCategory>, val favorites: Set<Long>)
+    private class Loaded(val categories: List<LiveCategory>, val favorites: Set<Long>, val last: CategoryKey?)
 
     private suspend fun loadCategories(preferred: String?) {
         val result = attempt {
@@ -179,7 +179,9 @@ class LiveViewModel(
                 val counts = entries.filter { !it.locked }.mapNotNull { entry ->
                     runCatching { entry.id to core.count(Section.LIVE, entry.id).toLong() }.getOrNull()
                 }.toMap()
-                Loaded(liveCategories(entries, counts, favorites.size, recents), favorites)
+                // Secondaire : sans elle, l'ouverture habituelle.
+                val last = runCatching { core.lastCategory(Section.LIVE) }.getOrNull()?.let(::liveCategoryKeyOf)
+                Loaded(liveCategories(entries, counts, favorites.size, recents), favorites, last)
             }
         }
         result.onSuccess { loaded ->
@@ -189,7 +191,7 @@ class LiveViewModel(
                     current.selected != null -> keepCategory(current.selected, loaded.categories)
                     // Catalogue pas encore là : attendre pour ouvrir sa première catégorie.
                     ready.catalogEmpty -> null
-                    else -> defaultCategory(loaded.categories, preferred)
+                    else -> defaultCategory(loaded.categories, preferred, loaded.last)
                 }
                 current.copy(categories = ready, favoriteIds = loaded.favorites, selected = selected)
             }
@@ -226,12 +228,19 @@ class LiveViewModel(
             return
         }
         _state.update { it.copy(selected = key) }
+        rememberCategory(key)
+    }
+
+    /** Retient la catégorie choisie : le Direct s'ouvrira dessus la prochaine fois. */
+    private fun rememberCategory(key: CategoryKey) {
+        viewModelScope.launch { runCatching { session.withCore { it.setLastCategory(Section.LIVE, key.listKey) } } }
     }
 
     /** Code bon : la catégorie s'ouvre (les catégories se rechargent, déverrouillées). */
     fun onPinSuccess() {
         val request = _state.value.pinRequest ?: return
         _state.update { it.copy(pinRequest = null, selected = CategoryKey.Provider(request.categoryId)) }
+        rememberCategory(CategoryKey.Provider(request.categoryId))
     }
 
     fun onPinDismiss() {

@@ -6,6 +6,7 @@ use std::thread;
 
 use heystream::{
     HeyStreamCore, HeyStreamError, LiveFormat, PlaybackKind, Resume, Section, StreamKind,
+    TrackInfo, TrackPreference,
 };
 use serde_json::json;
 use wiremock::matchers::{method, query_param, query_param_is_missing};
@@ -698,4 +699,44 @@ fn the_sheet_title_drops_the_year_it_already_shows() {
         heystream::title_without_year(name(), None),
         "22 Jump Street (2014)"
     );
+}
+
+#[test]
+fn language_preference_last_category_and_track_choice() {
+    let panel = panel(vec![]);
+    let dir = temp_dir("tracks");
+    let core = open(&panel, &dir);
+    assert_eq!(core.track_preference().unwrap(), TrackPreference::Auto);
+    core.set_track_preference(TrackPreference::Dubbed).unwrap();
+    assert_eq!(core.track_preference().unwrap(), TrackPreference::Dubbed);
+
+    assert_eq!(core.last_category(Section::Live).unwrap(), None);
+    core.set_last_category(Section::Live, Some("category:3".into()))
+        .unwrap();
+    assert_eq!(
+        core.last_category(Section::Live).unwrap().as_deref(),
+        Some("category:3")
+    );
+    core.set_last_category(Section::Live, None).unwrap();
+    assert_eq!(core.last_category(Section::Live).unwrap(), None);
+
+    // Piste doublée choisie, sous-titres coupés.
+    let track = |language: &str| TrackInfo {
+        language: Some(language.into()),
+        label: None,
+        forced: false,
+    };
+    let choice = heystream::choose_tracks(
+        TrackPreference::Dubbed,
+        "fr".into(),
+        vec![track("eng"), track("fra")],
+        vec![track("fra")],
+    );
+    assert_eq!(
+        (choice.audio, choice.text, choice.text_off),
+        (Some(1), None, true)
+    );
+    drop(core);
+    drop(panel);
+    std::fs::remove_dir_all(&dir).unwrap();
 }

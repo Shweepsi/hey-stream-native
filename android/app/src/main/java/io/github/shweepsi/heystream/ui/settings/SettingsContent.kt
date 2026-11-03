@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.AppUpdate
 import io.github.shweepsi.heystream.core.Section
+import io.github.shweepsi.heystream.core.TrackPreference
 import io.github.shweepsi.heystream.data.UpdateState
 import io.github.shweepsi.heystream.data.pendingUpdate
 import io.github.shweepsi.heystream.ui.components.BelowTopBar
@@ -123,6 +124,8 @@ interface SettingsActions {
     fun lockNow() {}
 
     fun language(choice: LanguageChoice) {}
+
+    fun trackPreference(choice: TrackPreference) {}
 
     fun refreshCatalog() {}
 
@@ -241,7 +244,7 @@ fun SettingsContent(
                 when (state.section) {
                     SettingsSection.HiddenCategories -> HiddenCategoriesPane(state.categories, actions)
                     SettingsSection.Parental -> ParentalPane(state.parental, actions)
-                    SettingsSection.Language -> LanguagePane(language, actions)
+                    SettingsSection.Language -> LanguagePane(language, state.trackPreference, actions)
                     SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
                     SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, update, devTools, actions)
@@ -613,8 +616,9 @@ private fun StatusLine(icon: ImageVector, text: String, bold: Boolean = true, al
 // Langue ------------------------------------------------------------------------
 
 @Composable
-private fun LanguagePane(language: LanguageChoice, actions: SettingsActions) {
+private fun LanguagePane(language: LanguageChoice, trackPreference: TrackPreference, actions: SettingsActions) {
     val focus = remember { LanguageChoice.entries.associateWith { FocusRequester() } }
+    val trackFocus = remember { TrackPreference.entries.associateWith { FocusRequester() } }
     Pane(stringResource(R.string.settings_section_language)) {
         Paragraph(stringResource(R.string.settings_language_intro))
         Column(
@@ -637,6 +641,30 @@ private fun LanguagePane(language: LanguageChoice, actions: SettingsActions) {
                     ),
                     selected = choice == language,
                     onClick = { actions.language(choice) },
+                )
+            }
+        }
+        SubHeading(stringResource(R.string.settings_tracks_title))
+        Paragraph(stringResource(R.string.settings_tracks_intro))
+        Column(
+            Modifier
+                .widthIn(max = 420.dp)
+                .focusRestorer(trackFocus.getValue(trackPreference))
+                .focusGroup(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            TrackPreference.entries.forEach { choice ->
+                OptionRow(
+                    modifier = Modifier.focusRequester(trackFocus.getValue(choice)),
+                    label = stringResource(
+                        when (choice) {
+                            TrackPreference.AUTO -> R.string.settings_tracks_auto
+                            TrackPreference.DUBBED -> R.string.settings_tracks_dubbed
+                            TrackPreference.ORIGINAL_SUBTITLED -> R.string.settings_tracks_original
+                        },
+                    ),
+                    selected = choice == trackPreference,
+                    onClick = { actions.trackPreference(choice) },
                 )
             }
         }

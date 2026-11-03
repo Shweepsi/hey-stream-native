@@ -34,7 +34,8 @@ class VodLogicTest {
     private fun data(
         categories: List<VodCategory> = listOf(provider("a"), provider("b")),
         continueItems: List<PosterUi> = emptyList(),
-    ) = VodData(categories, continueItems, favoritesCount = 0)
+        last: CategoryKey? = null,
+    ) = VodData(categories, continueItems, favoritesCount = 0, last = last)
 
     @Test
     fun startedTitleShowsItsProgress() {
@@ -73,6 +74,38 @@ class VodLogicTest {
     @Test
     fun opensContinueByDefaultWhenItHasEntries() {
         assertEquals(CategoryKey.Continue, resolveSelection(null, null, data(continueItems = listOf(poster(1)))))
+    }
+
+    @Test
+    fun reopensTheLastCategoryBeforeContinue() {
+        val withContinue = data(continueItems = listOf(poster(1)), last = CategoryKey.Provider("b"))
+        assertEquals(CategoryKey.Provider("b"), resolveSelection(null, null, withContinue))
+        // « Continuer » retenu : il s'ouvre s'il a des entrées, sinon l'ouverture habituelle.
+        assertEquals(CategoryKey.Continue, resolveSelection(null, null, data(continueItems = listOf(poster(1)), last = CategoryKey.Continue)))
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(null, null, data(last = CategoryKey.Continue)))
+    }
+
+    @Test
+    fun theLastCategoryIsIgnoredWhenGoneLockedOrEmpty() {
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(null, null, data(last = CategoryKey.Provider("gone"))))
+        val lockedLast = data(categories = listOf(provider("a"), provider("x", locked = true)), last = CategoryKey.Provider("x"))
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(null, null, lockedLast))
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(null, null, data(last = CategoryKey.Favorites)))
+    }
+
+    @Test
+    fun theChoiceMadeThisVisitBeatsTheLastCategory() {
+        val last = data(last = CategoryKey.Provider("b"))
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(CategoryKey.Provider("a"), null, last))
+        assertEquals(CategoryKey.Provider("a"), resolveSelection(null, CategoryKey.Provider("a"), last))
+    }
+
+    @Test
+    fun vodCategoryKeysSurviveStorage() {
+        listOf(CategoryKey.Continue, CategoryKey.Favorites, CategoryKey.Provider("12"), CategoryKey.Provider("a:b")).forEach {
+            assertEquals(it, vodCategoryKeyOf(it.listKey))
+        }
+        assertNull(vodCategoryKeyOf("n'importe quoi"))
     }
 
     @Test

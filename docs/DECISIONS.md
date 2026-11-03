@@ -205,6 +205,29 @@ Constats :
   correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
   `ffi/` change, et à chaque push sur main.
 
+## Langue des films et dernière catégorie (2026-11-03)
+
+- **Réglage de langue** à trois valeurs, propre à l'abonnement : Automatique
+  (piste par défaut du fichier), Doublée (langue de l'app, sans sous-titres
+  sauf les forcés), Version originale sous-titrée (première piste dans une
+  autre langue, sous-titres complets dans la langue de l'app). **Films et
+  épisodes seulement**, pas le direct (étiquettes de langue peu fiables, rares
+  pistes multiples). Appliqué une fois au lancement d'un titre ; le choix à la
+  main l'emporte ensuite.
+- **Le cœur décide** (`tracks::choose_tracks`, fonction pure) : il lit le code
+  de langue ou, à défaut, le libellé ; « VFF » passe avant « VFQ » et « VFI » ;
+  l'audiodescription et les commentaires passent en dernier ; si rien ne
+  convient (aucune piste doublée, aucune piste d'origine), la piste par défaut
+  reste. L'interface passe les pistes du lecteur et applique les numéros
+  renvoyés.
+- **Dernière catégorie** : retenue pour le Direct, les Films et les Séries
+  (clé de l'interface, gardée telle quelle par le cœur), propre à l'abonnement.
+  Ouverte si elle existe encore, n'est ni masquée ni verrouillée, et si
+  Favoris, Récents ou « Continuer » ne sont pas vides. Priorité : le choix de
+  la visite en cours, la chaîne venue de la recherche (Direct), puis la
+  dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
+  elle passe avant « Continuer ».
+
 ## Vus, « Continuer » et code parental (2026-11-03)
 
 - **« Vu » à la main garde la position** : masquée tant que la marque est la

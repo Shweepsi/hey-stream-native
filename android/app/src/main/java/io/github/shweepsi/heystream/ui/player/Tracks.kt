@@ -5,6 +5,8 @@ import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
+import io.github.shweepsi.heystream.core.TrackChoice
+import io.github.shweepsi.heystream.core.TrackInfo
 import java.util.Locale
 
 /** Une piste du flux : groupe et rang dans `Player.currentTracks`. */
@@ -24,6 +26,8 @@ data class TrackOption(
     /** Rang parmi les pistes du même type, à partir de 1 (« Piste 2 »). */
     val number: Int,
     val selected: Boolean,
+    /** Sous-titres « forcés » (dialogues étrangers seulement). */
+    val forced: Boolean = false,
 )
 
 /** Pistes audio et de sous-titres du flux en cours. */
@@ -54,6 +58,7 @@ private fun options(tracks: Tracks, type: Int): List<TrackOption> {
                 channels = if (format.channelCount == androidx.media3.common.Format.NO_VALUE) 0 else format.channelCount,
                 number = result.size + 1,
                 selected = group.isTrackSelected(index),
+                forced = (format.selectionFlags and C.SELECTION_FLAG_FORCED) != 0,
             )
         }
     }
@@ -71,6 +76,30 @@ fun selectTrack(parameters: TrackSelectionParameters, tracks: Tracks, key: Track
 }
 
 /** « Désactivés » : plus aucun sous-titre. */
+/** Piste vue par le cœur, qui choisit selon la langue (réglage « Langue des films et épisodes »). */
+fun TrackOption.toInfo(): TrackInfo = TrackInfo(language = language, label = label, forced = forced)
+
+/**
+ * Applique le choix du cœur : ses numéros sont ceux de [lists]. Rien n'est
+ * demandé (piste par défaut) quand le choix est vide.
+ */
+fun applyChoice(
+    parameters: TrackSelectionParameters,
+    tracks: Tracks,
+    lists: TrackLists,
+    choice: TrackChoice,
+): TrackSelectionParameters {
+    var result = parameters
+    choice.audio?.let { lists.audio.getOrNull(it.toInt()) }?.let { result = selectTrack(result, tracks, it.key) }
+    val text = choice.text?.let { lists.text.getOrNull(it.toInt()) }
+    if (text != null) {
+        result = selectTrack(result, tracks, text.key)
+    } else if (choice.textOff) {
+        result = disableSubtitles(result)
+    }
+    return result
+}
+
 fun disableSubtitles(parameters: TrackSelectionParameters): TrackSelectionParameters =
     parameters.buildUpon()
         .clearOverridesOfType(C.TRACK_TYPE_TEXT)
