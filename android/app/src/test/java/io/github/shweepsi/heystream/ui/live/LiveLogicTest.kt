@@ -3,6 +3,7 @@ package io.github.shweepsi.heystream.ui.live
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.CategoryEntry
+import io.github.shweepsi.heystream.player.PlaybackProblem
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.ui.UiText
 import org.junit.Assert.assertEquals
@@ -117,6 +118,19 @@ class LiveLogicTest {
         assertEquals(LivePlayback.Failed(), livePlaybackOf(playing.copy(failed = true), hasPreview = true, previewError = null))
         val error = UiText(R.string.error_network)
         assertEquals(LivePlayback.Failed(error), livePlaybackOf(PlaybackStatus(), hasPreview = true, previewError = error))
+        // Raison donnée par le lecteur, ou plus de réseau pendant la reconnexion.
+        assertEquals(
+            LivePlayback.Failed(UiText(R.string.playback_in_use)),
+            livePlaybackOf(
+                playing.copy(failed = true, problem = PlaybackProblem.SubscriptionInUse),
+                hasPreview = true,
+                previewError = null,
+            ),
+        )
+        assertEquals(
+            LivePlayback.Offline,
+            livePlaybackOf(playing.copy(reconnectAttempt = 1, offline = true), hasPreview = true, previewError = null),
+        )
         assertEquals(LivePlayback.Idle, livePlaybackOf(PlaybackStatus(), hasPreview = true, previewError = null))
     }
 

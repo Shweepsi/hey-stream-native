@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -104,6 +105,20 @@ class CoreSessionTest {
         assertTrue(old.refreshed)
         assertEquals(done, session.refresh.value)
         assertEquals(version, session.catalogVersion.value)
+    }
+
+    @Test
+    fun automaticRefreshWaitsForThePlaybackButTheButtonDoesNot() = runBlocking {
+        val core = FakeCore()
+        val session = CoreSession(context, CredentialStore(context), appScope, playbackActive = { true }, open = { core })
+        session.signIn("http://panel.invalid", "u", "p")
+        awaitBackground()
+        assertFalse("rien ne se télécharge pendant une lecture", core.refreshed)
+
+        // Demande de l'utilisateur (« Mettre à jour maintenant ») : toujours.
+        session.refreshInBackground(force = true)
+        awaitBackground()
+        assertTrue(core.refreshed)
     }
 
     private fun live(items: ULong, refreshed: Boolean = true) =

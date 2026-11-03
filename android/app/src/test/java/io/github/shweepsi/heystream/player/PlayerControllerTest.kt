@@ -58,6 +58,41 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun networkReturnReconnectsWithoutWaitingForTheDelay() {
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        advanceMainUntil { controller.status.value.reconnectAttempt == 1 }
+        val before = opens.count
+        controller.onNetworkBack()
+        // Sans avancer l'horloge : la reconnexion d'1 s n'attend pas son délai.
+        runMainUntil { opens.count == before + 1 }
+    }
+
+    @Test
+    fun networkReturnRestartsAPlaybackGivenUpForLackOfConnection() {
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        // Six reconnexions (31 s au total) puis abandon : la carte d'échec s'affiche.
+        advanceMainUntil(maxSimulatedMs = 40_000) { controller.status.value.failed }
+        val before = opens.count
+        controller.onNetworkBack()
+        runMainUntil { opens.count == before + 1 }
+        // « Reconnexion… » à la place de la carte d'échec, sans geste de l'utilisateur.
+        assertFalse(controller.status.value.failed)
+    }
+
+    @Test
+    fun networkReturnOpensNothingInTheBackground() {
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        advanceMainUntil { controller.status.value.reconnectAttempt == 1 }
+        controller.onBackground()
+        settleMain(100)
+        val before = opens.count
+        // En arrière-plan, aucun flux ne s'ouvre, même si le réseau revient.
+        controller.onNetworkBack()
+        settleMain(100)
+        assertEquals(before, opens.count)
+    }
+
+    @Test
     fun retryButtonPlaysAPausedFilm() {
         controller.playVod("file:///absent/film.mkv", startMs = 0)
         controller.player.pause()

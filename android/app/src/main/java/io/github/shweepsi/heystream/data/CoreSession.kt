@@ -47,6 +47,12 @@ class CoreSession(
     context: Context,
     private val credentials: CredentialStore,
     private val scope: CoroutineScope,
+    /**
+     * Un flux est ouvert : le rafraîchissement automatique du catalogue attend.
+     * L'abonnement n'a souvent qu'une connexion, et les requêtes du catalogue
+     * pèsent sur le Wi-Fi comme sur le panneau.
+     */
+    val playbackActive: () -> Boolean = { false },
     /** Ouvre le cœur d'un abonnement (un faux cœur dans les tests). */
     private val open: (Credentials) -> HeyStreamCore = { saved ->
         openNative(saved, context.filesDir.absolutePath).also { DevTools.resumeRecording(context, it) }
@@ -219,8 +225,13 @@ class CoreSession(
         _userDataVersion.update { it + 1 }
     }
 
-    /** Rafraîchit le catalogue (sections de plus de 24 h, toutes si [force]). */
+    /**
+     * Rafraîchit le catalogue (sections de plus de 24 h, toutes si [force]).
+     * Automatique ([force] faux) : pas pendant une lecture ; la tâche
+     * quotidienne et l'ouverture suivante reprennent ([playbackActive]).
+     */
     fun refreshInBackground(force: Boolean) {
+        if (!force && playbackActive()) return
         scope.launch { runCatching { refreshNow(force) } }
     }
 

@@ -142,6 +142,7 @@ private fun PlaybackMessage(playback: LivePlayback, onRetry: () -> Unit, modifie
     val focusManager = LocalFocusManager.current
     when (playback) {
         LivePlayback.Reconnecting -> MediaText(stringResource(R.string.playback_reconnecting), modifier)
+        LivePlayback.Offline -> MediaText(stringResource(R.string.playback_offline), modifier)
         is LivePlayback.Failed -> Column(
             modifier,
             horizontalAlignment = Alignment.CenterHorizontally,

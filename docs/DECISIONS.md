@@ -232,6 +232,38 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Erreurs du lecteur (2026-11-03)
+
+- **Le cœur décide** (`playback_retry(status, attempt)`, fonction pure) : 509
+  arrête (abonnement utilisé ailleurs : relancer ne sert à rien tant que l'autre
+  flux tourne), 401 et 403 arrêtent (compte expiré ou refusé), 404 a **une**
+  relance puis s'arrête (« un seul essai » du plan : un flux introuvable l'est
+  rarement par accident, mais un panneau peut répondre 404 un instant), tout le
+  reste suit 1, 2, 4, 8, 8, 8 s comme avant. Le cœur ne produit aucun texte :
+  il renvoie la raison, l'interface la traduit.
+- **L'interface lit le code** dans l'erreur du lecteur (réponse HTTP à
+  l'origine) et applique la décision. Un format que l'appareil ne sait pas
+  décoder (ou au-delà de ses capacités) s'arrête sans consulter le cœur : un
+  second essai n'y changerait rien. Les erreurs de lecture de conteneur ne
+  comptent pas comme « format non pris en charge » : un panneau qui répond une
+  page d'erreur avec le code 200 passerait pour un format.
+- **Retour du réseau** : l'app suit le réseau par défaut. Une reconnexion en
+  attente part aussitôt ; une lecture abandonnée sans réponse du fournisseur
+  (coupure, serveur muet) repart d'elle-même, une seule fois par retour. Après
+  un refus (509, 401, 403, 404), rien ne repart seul. « Pas de connexion
+  Internet » remplace « Reconnexion… » quand aucun réseau n'est actif.
+- **Décodeur écarté** : un décodeur matériel qui plante en cours de lecture
+  n'est plus proposé jusqu'à la fin de l'app (liste en mémoire, rien d'écrit) ;
+  s'il ne reste aucun autre décodeur, la liste complète revient. La reprise se
+  fait à la même position, par les relances habituelles.
+- **Bord du direct** : une erreur « trop loin derrière le direct » (HLS)
+  rouvre au bord du direct, trois fois de suite au plus, sans compter comme une
+  panne.
+- **Catalogue** : le rafraîchissement automatique (ouverture de l'app, tâche
+  quotidienne) attend la fin d'une lecture ; le bouton manuel part toujours.
+- **Télémétrie** (APK du testeur) : le code HTTP s'ajoute à l'événement
+  d'erreur de lecture et au rapport d'abandon ; jamais l'adresse du flux.
+
 ## Vus, « Continuer » et code parental (2026-11-03)
 
 - **« Vu » à la main garde la position** : masquée tant que la marque est la

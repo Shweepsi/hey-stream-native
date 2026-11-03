@@ -53,7 +53,9 @@ fun LiveScreen(initialChannelId: Long?, onBack: () -> Unit) {
     if (!Hs.isTv) HideSystemBars(state.fullscreen)
 
     // Écran allumé seulement pendant la lecture (la mise en veille reste possible sans flux).
-    val keepScreenOn = state.playback.let { it is LivePlayback.Playing || it is LivePlayback.Reconnecting }
+    val keepScreenOn = state.playback.let {
+        it is LivePlayback.Playing || it is LivePlayback.Reconnecting || it is LivePlayback.Offline
+    }
     LiveContent(
         state = state,
         channels = channels,

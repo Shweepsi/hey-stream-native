@@ -27,6 +27,11 @@
     <string name="category_empty">Cette catégorie est vide</string>
     <string name="playback_reconnecting">Reconnexion…</string>
     <string name="playback_failed">Impossible de lire ce flux</string>
+    <string name="playback_offline">Pas de connexion Internet</string>
+    <string name="playback_in_use">Cet abonnement est déjà utilisé sur un autre appareil. Arrêtez le flux là-bas, puis réessayez.</string>
+    <string name="playback_refused">Le fournisseur a refusé le compte : il a peut-être expiré ou été suspendu.</string>
+    <string name="playback_not_found">Le fournisseur ne trouve pas ce flux.</string>
+    <string name="playback_unsupported">Cet appareil ne peut pas lire ce format vidéo.</string>
     <string name="pin_title_unlock">Saisissez le code parental</string>
     <string name="pin_title_current">Saisissez le code actuel</string>
     <string name="pin_title_create">Créez un code parental</string>

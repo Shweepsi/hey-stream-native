@@ -104,9 +104,22 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
         }
     }
 
-    fun error(error: PlaybackException, attempt: Int) {
+    /** [httpStatus] : code de la réponse du fournisseur, absent sans réponse (coupure, décodeur…). */
+    fun error(error: PlaybackException, attempt: Int, httpStatus: Int?) {
         errors += 1
-        Telemetry.event("play_error", *common(), "code" to error.errorCodeName, "attempt" to attempt, "live" to live)
+        Telemetry.event(
+            "play_error",
+            *common(),
+            "code" to error.errorCodeName,
+            "http" to httpStatus,
+            "attempt" to attempt,
+            "live" to live,
+        )
+    }
+
+    /** Un décodeur matériel a planté : il n'est plus proposé jusqu'à la fin de l'app. */
+    fun decoderDropped(name: String) {
+        Telemetry.event("play_decoder_dropped", *common(), "decoder" to name)
     }
 
     fun format(track: String, format: Format) {

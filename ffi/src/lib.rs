@@ -1335,6 +1335,59 @@ pub fn choose_tracks(
     xc::choose_tracks(preference.into(), &app_language, &audio, &text).into()
 }
 
+/// Pourquoi la lecture s'arrête sans relancer : voir `playback_retry`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum StopReason {
+    /// 509 : abonnement utilisé ailleurs.
+    SubscriptionInUse,
+    /// 401 ou 403 : compte expiré ou refusé.
+    AccountRefused,
+    /// 404 encore après un essai : flux introuvable.
+    NotFound,
+    /// Toutes les relances ont échoué.
+    Failed,
+}
+
+/// Suite à donner à un échec de lecture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum RetryAction {
+    /// Rouvrir le flux après `delay_secs` secondes.
+    Retry { delay_secs: u32 },
+    /// Abandonner et dire pourquoi.
+    Stop { reason: StopReason },
+}
+
+impl From<xc::StopReason> for StopReason {
+    fn from(r: xc::StopReason) -> Self {
+        match r {
+            xc::StopReason::SubscriptionInUse => StopReason::SubscriptionInUse,
+            xc::StopReason::AccountRefused => StopReason::AccountRefused,
+            xc::StopReason::NotFound => StopReason::NotFound,
+            xc::StopReason::Failed => StopReason::Failed,
+        }
+    }
+}
+
+impl From<xc::RetryAction> for RetryAction {
+    fn from(a: xc::RetryAction) -> Self {
+        match a {
+            xc::RetryAction::Retry { delay_secs } => RetryAction::Retry { delay_secs },
+            xc::RetryAction::Stop(reason) => RetryAction::Stop {
+                reason: reason.into(),
+            },
+        }
+    }
+}
+
+/// Que faire après l'échec de lecture d'un flux. `status` : code HTTP de la
+/// réponse du fournisseur, absent sans réponse (coupure, flux terminé) ;
+/// `attempt` : relances déjà faites (0 au premier échec). 509, 401 et 403
+/// arrêtent aussitôt, 404 a une relance, le reste suit 1, 2, 4, 8, 8, 8 s.
+#[uniffi::export]
+pub fn playback_retry(status: Option<u16>, attempt: u32) -> RetryAction {
+    xc::playback_retry(status, attempt).into()
+}
+
 /// Résultat de `upload_telemetry`.
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum TelemetryUpload {

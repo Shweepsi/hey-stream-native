@@ -102,6 +102,7 @@ import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.currentLocale
+import io.github.shweepsi.heystream.ui.message
 import io.github.shweepsi.heystream.ui.theme.HeyStreamTheme
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -338,7 +339,7 @@ fun PlayerContent(
             }
             if (!failed && status.reconnectAttempt > 0) {
                 Text(
-                    text = stringResource(R.string.playback_reconnecting),
+                    text = stringResource(if (status.offline) R.string.playback_offline else R.string.playback_reconnecting),
                     style = Hs.type.label,
                     color = HsColors.OnMedia,
                     modifier = Modifier
@@ -387,7 +388,8 @@ fun PlayerContent(
             }
             if (failed) {
                 FailureCard(
-                    message = state.error?.resolve(),
+                    // Erreur du cœur avant la lecture, sinon raison de l'abandon donnée par le lecteur.
+                    message = (state.error ?: status.problem?.message())?.resolve(),
                     onRetry = actions::retry,
                     onBack = actions::exit,
                     modifier = Modifier.align(Alignment.Center),

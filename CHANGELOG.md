@@ -4,6 +4,28 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.3 — 2026-11-03
+
+- Erreurs du lecteur : le cœur décide de la suite selon le code HTTP du
+  fournisseur (`playback_retry`). 509 : arrêt, « abonnement utilisé ailleurs » ;
+  401 et 403 : arrêt, « compte expiré ou refusé » ; 404 : une seule relance,
+  puis « flux introuvable » ; les autres codes et les coupures sans réponse
+  gardent les relances après 1, 2, 4, 8, 8 et 8 s. Un format que l'appareil ne
+  sait pas lire s'arrête aussitôt avec son message.
+- Retour du réseau : une reconnexion qui attend son délai part tout de suite, et
+  une lecture abandonnée faute de connexion repart d'elle-même (jamais après un
+  refus du fournisseur). Sans réseau, « Pas de connexion Internet » remplace
+  « Reconnexion… ».
+- Un décodeur matériel qui plante en cours de lecture est écarté jusqu'à la fin
+  de l'app : la reprise, à la même position, en prend un autre.
+- Direct trop en retard sur son bord (HLS) : retour au bord du direct, sans
+  compter comme une panne.
+- Le rafraîchissement automatique du catalogue (ouverture de l'app, tâche
+  quotidienne) attend la fin d'une lecture ; « Mettre à jour maintenant » part
+  toujours.
+- Télémétrie du testeur et rapports d'abandon : le code HTTP est joint à
+  l'erreur de lecture, et un décodeur écarté est noté.
+
 ## 0.9.2 — 2026-11-03
 
 - Langue des films et des épisodes : un réglage à trois valeurs dans

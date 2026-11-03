@@ -127,7 +127,13 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 
 ## Stabilité
 
-- Reconnexion automatique du flux en cas de coupure.
+- Reconnexion automatique du flux en cas de coupure (1, 2, 4, 8 s…, six
+  essais), relancée aussitôt au retour du réseau. Un refus du fournisseur ne
+  se relance pas : abonnement utilisé ailleurs (509), compte refusé (401,
+  403), flux introuvable (404, après un seul essai), format non pris en charge
+  par l'appareil. Chaque cas a son message ; sans réseau, « Pas de connexion
+  Internet ».
+- Pas de rafraîchissement automatique du catalogue pendant une lecture.
 - **Rapports de plantage anonymes** (sans identifiants ni URL), mentionnés
   dans la politique de confidentialité.
 
