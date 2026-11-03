@@ -4,6 +4,17 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.4 — 2026-11-03
+
+- Interface plus légère à l'œil, sans rien changer aux données ni aux noms :
+  les lignes de catégories (Direct, Films, Séries) n'affichent plus leur
+  compteur ; le nombre de titres reste une fois, dans l'en-tête de la liste
+  (« ACTION  579 films »). Les aides toujours affichées disparaissent (« Maintenez
+  OK sur une chaîne pour l'ajouter aux favoris » sous l'aperçu du Direct,
+  « Maintenez OK ou appuyez sur MENU… » au-dessus des épisodes) ; l'explication
+  de la catégorie Favoris vide reste. Un épisode sans titre n'écrit plus son
+  numéro deux fois (« 2  Épisode 2 » devient « Épisode 2 »).
+
 ## 0.9.3 — 2026-11-03
 
 - Erreurs du lecteur : le cœur décide de la suite selon le code HTTP du

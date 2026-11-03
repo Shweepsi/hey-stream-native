@@ -116,6 +116,20 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
   VOST ; sur la fiche, l'année déjà montrée par la ligne d'infos quitte le
   titre. Les chaînes gardent leurs mentions.
 
+## Allègement (2026-11-03)
+
+Principe : une information s'écrit **une fois**, et une aide n'occupe pas
+l'écran en permanence.
+
+- **Catégories** : le nom du fournisseur, tel quel (inchangé), sans compteur à
+  droite. Le nombre de titres de la catégorie ouverte s'écrit seulement dans
+  l'en-tête de la grille (Films, Séries : « ACTION  579 films »).
+- **Pas d'aide permanente** : ni « Maintenez OK… » sous l'aperçu du Direct, ni
+  au-dessus des épisodes. Seul un état vide explique le geste (catégorie
+  Favoris vide : « Maintenez OK sur une chaîne… »).
+- **Épisode sans titre** : « Épisode 2 » sans numéro à côté ; avec un titre, le
+  numéro reste en tête de ligne.
+
 ## Animations
 
 Niveau moyen :
@@ -144,8 +158,7 @@ Niveau moyen :
 
 ### Direct — 3 panneaux
 
-1. Catégories avec leur nombre de chaînes ; **Favoris** et **Récents** en
-   tête.
+1. Catégories, sans compteur ; **Favoris** et **Récents** en tête.
 2. Chaînes : **numéro** du fournisseur (absent s'il n'en donne pas), logo,
    nom, et le programme en cours **seulement s'il est déjà en cache** ; sinon
    la ligne n'a pas de deuxième ligne de texte. Jamais de requête pour remplir

@@ -350,7 +350,6 @@ private fun CategoriesPanel(
             CategoryRow(
                 name = category.label(),
                 onClick = { onClick(category) },
-                count = category.count,
                 selected = isSelected,
                 locked = category.locked,
                 modifier = if (focusTarget) Modifier.focusRequester(requester) else Modifier,

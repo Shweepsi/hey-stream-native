@@ -13,6 +13,4 @@
     <string name="detail_episode_untitled">Episode %1$d</string>
     <string name="detail_episodes_loading">Loading episodes…</string>
     <string name="detail_episodes_empty">No episodes for now</string>
-    <string name="detail_episode_hint_tv">Hold OK or press MENU to mark an episode as watched or unwatched.</string>
-    <string name="detail_episode_hint_touch">Press and hold an episode to mark it as watched or unwatched.</string>
 </resources>

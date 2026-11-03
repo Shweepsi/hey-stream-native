@@ -5,8 +5,6 @@
     <string name="live_time_range">%1$s – %2$s</string>
     <string name="live_joined">%1$s · %2$s</string>
     <string name="live_preview_hint">Choose a channel to watch it here.</string>
-    <string name="live_favorite_hint_tv">Hold OK on a channel to add it to your favorites.</string>
-    <string name="live_favorite_hint_touch">Press and hold a channel to add it to your favorites.</string>
     <string name="live_favorite_added">“%1$s” added to favorites</string>
     <string name="live_favorite_removed">“%1$s” removed from favorites</string>
     <string name="live_favorites_empty">No favorite channels yet</string>

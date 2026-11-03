@@ -232,6 +232,16 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Allègement de l'interface (2026-11-03)
+
+Demandé par Loïc : moins de complexité visuelle. Retenu : compteur des lignes
+de catégories retiré (DESIGN.md le prévoyait pour le Direct : le chiffre reste
+dans l'en-tête de la grille, Films et Séries), aides toujours affichées
+retirées (Direct : favoris ; fiche série : « vu »), numéro d'un épisode sans
+titre écrit une fois. **Gardé** : le nom des catégories du fournisseur, avec
+son préfixe (« |FR| ✪ ACTION »), comme décidé le 2026-11-02, et l'étiquette
+« FILMS / SÉRIES » au-dessus des catégories. Voir `DESIGN.md`, « Allègement ».
+
 ## Erreurs du lecteur (2026-11-03)
 
 - **Le cœur décide** (`playback_retry(status, attempt)`, fonction pure) : 509

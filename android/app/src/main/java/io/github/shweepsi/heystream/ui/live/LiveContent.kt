@@ -419,7 +419,6 @@ private fun CategoriesPanel(
                         if (category.key == CategoryKey.Favorites) R.string.favorites else R.string.recents,
                     ),
                     onClick = { onSelect(category) },
-                    count = category.count,
                     selected = isSelected,
                     locked = category.locked,
                     icon = when (category.key) {
@@ -668,15 +667,6 @@ private fun PreviewPanel(
         }
         if (!layout.compact && message != null) {
             LiveToast(message, Modifier.padding(top = 8.dp))
-        } else if (!layout.compact) {
-            Text(
-                text = stringResource(if (isTv) R.string.live_favorite_hint_tv else R.string.live_favorite_hint_touch),
-                style = Hs.type.small,
-                color = Hs.colors.textSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         }
     }
 }
