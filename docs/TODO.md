@@ -21,9 +21,29 @@ ligne quand sa PR est fusionnée.
 ## Cœur (acceptables pour l'instant)
 
 - Lire la réponse du panneau au fil de l'eau au lieu de la garder entière en
-  mémoire (`client.rs`) : gros catalogues sur 1 Go libre.
-- Recherche par index plein texte (FTS5) au lieu de `LIKE '%…%'`.
-- Banc d'essai : temps d'enregistrement et de recherche sur 100 000 entrées.
+  mémoire (`client.rs`) : gros catalogues sur 1 Go libre. Aujourd'hui, le pic
+  est la réponse entière plus toutes les entrées décodées. Trois points :
+  - enregistrer dans SQLite par lots pendant la lecture : `parse_list`
+    (`lenient.rs`) renvoie la liste complète avant tout enregistrement, donc
+    lire en flux sans enregistrer au fil de l'eau ne baisserait pas le pic ;
+  - deux chemins de lecture : liste (`SeqAccess`) et objet indexé
+    `{"0": {...}}` (`MapAccess`), aujourd'hui lu dans une `BTreeMap` entière ;
+    garder la détection de `user_info` (identifiants refusés) ;
+  - corriger le Latin-1 morceau par morceau (`text`, `lenient.rs`), sans
+    couper un caractère UTF-8 entre deux morceaux.
+- Compter les entrées illisibles ignorées (`lenient.rs`, `epg.rs`) et
+  renvoyer ce nombre avec chaque liste, jusqu'à l'app par UniFFI : un
+  catalogue amputé d'une partie de ses entrées doit laisser une trace dans les
+  rapports anonymes (un nombre, jamais le contenu des entrées).
+- Recherche par index plein texte (FTS5) au lieu de `LIKE '%…%'`. Le découpage
+  par défaut ne trouve que des mots entiers, alors que `LIKE` trouve n'importe
+  quel morceau (« venge » → « Avengers », noms collés aux décorations comme
+  `FRRetour`). Deux options à comparer :
+  - index de préfixes : petit et rapide, mais seulement en début de mot ;
+  - découpage en trigrammes : garde le comportement actuel, index plus gros,
+    et une requête de moins de 3 caractères reste un parcours complet.
+- Banc d'essai : temps d'enregistrement et de recherche sur 100 000 entrées,
+  plus la taille de l'index pour chaque option FTS5 ci-dessus (box de 2 Go).
 - Télécharger direct, films et séries en parallèle.
 
 ## Accessibilité
