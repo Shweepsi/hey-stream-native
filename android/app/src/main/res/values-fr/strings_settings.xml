@@ -31,7 +31,7 @@
     <string name="settings_tracks_title">Langue des films et épisodes</string>
     <string name="settings_tracks_intro">Piste audio et sous-titres choisis au lancement ; vous pouvez les changer dans le lecteur.</string>
     <string name="settings_tracks_auto">Automatique</string>
-    <string name="settings_tracks_dubbed">Doublée</string>
+    <string name="settings_tracks_dubbed">Doublée, sans sous-titres</string>
     <string name="settings_tracks_original">Version originale sous-titrée</string>
     <string name="settings_language_system">Langue du système</string>
 

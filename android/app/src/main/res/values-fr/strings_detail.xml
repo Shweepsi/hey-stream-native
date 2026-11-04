@@ -12,4 +12,6 @@
     <string name="detail_episode_untitled">Épisode %1$d</string>
     <string name="detail_episodes_loading">Chargement des épisodes…</string>
     <string name="detail_episodes_empty">Aucun épisode pour l’instant</string>
+    <string name="detail_episode_hint_tv">Maintenez OK ou appuyez sur MENU pour marquer un épisode comme vu ou non vu.</string>
+    <string name="detail_episode_hint_touch">Appuyez longuement sur un épisode pour le marquer comme vu ou non vu.</string>
 </resources>

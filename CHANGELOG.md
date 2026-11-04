@@ -17,14 +17,18 @@ Une entrée par version, la plus récente en haut. La version vient de
 
 - Interface plus légère à l'œil, sans rien changer aux données ni aux noms :
   les lignes de catégories (Direct, Films, Séries) n'affichent plus leur
-  compteur ; le nombre de titres reste une fois, dans l'en-tête de la liste
-  (« ACTION  579 films »). Les aides toujours affichées disparaissent (« Maintenez
-  OK sur une chaîne pour l'ajouter aux favoris » sous l'aperçu du Direct,
-  « Maintenez OK ou appuyez sur MENU… » au-dessus des épisodes) ; l'explication
-  de la catégorie Favoris vide reste. Un épisode sans titre n'écrit plus son
-  numéro deux fois (« 2  Épisode 2 » devient « Épisode 2 »).
+  compteur ; aux Films et aux Séries, le nombre de titres de la catégorie
+  ouverte s'écrit une fois, dans l'en-tête de la grille (« ACTION  579 films »).
+  Le Direct ne compte plus du tout les chaînes de chaque catégorie (moins de
+  requêtes au chargement). Les aides ne restent plus affichées en permanence :
+  « Maintenez OK sur une chaîne pour l'ajouter aux favoris » (Direct) n'apparaît
+  que tant qu'il n'y a aucun favori, « Maintenez OK ou appuyez sur MENU… »
+  (épisodes) que tant qu'aucun épisode n'est vu ni commencé. Un épisode sans
+  titre n'écrit plus son numéro deux fois (« 2  Épisode 2 » devient
+  « Épisode 2 », dans une liste où aucun épisode n'a de titre).
 - Réglages, mêmes principes : textes d'introduction ramenés à une phrase
-  (Contrôle parental, Langue des films et épisodes, Catalogue) ; la mise en
+  (Contrôle parental, Langue des films et épisodes, Catalogue) ; l'option
+  « Doublée » dit ce qu'elle fait (« Doublée, sans sous-titres ») ; la mise en
   garde sous « Se déconnecter » disparaît (la fenêtre de confirmation liste
   déjà ce qui sera effacé) ; « À propos » n'écrit la version du cœur que si elle
   diffère de celle de l'app, et les crédits n'écrivent plus quatre fois « Voir
