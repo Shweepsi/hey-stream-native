@@ -7,6 +7,15 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Proxy
+import okhttp3.Call
+import okhttp3.Connection
+import okhttp3.EventListener
+import okhttp3.Handshake
+import okhttp3.Request
+import okhttp3.Response
 
 /**
  * Mesures de l'ouverture d'un flux dans le journal Android, pour les essais
@@ -56,6 +65,34 @@ internal class PerfProbe {
         }
 
         override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+    }
+
+    /**
+     * Essai OkHttp : chaque saut (redirection du panneau, puis serveur de flux),
+     * numéroté ; connexion neuve ou réutilisée. Codes HTTP et durées seulement.
+     */
+    fun okHttpEvents(): EventListener = object : EventListener() {
+        private var hop = 0
+
+        override fun callStart(call: Call) {
+            hop = 0
+            mark("ok_call")
+        }
+
+        override fun dnsEnd(call: Call, domainName: String, inetAddressList: List<InetAddress>) = mark("ok_dns h$hop")
+
+        override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) = mark("ok_connect h$hop")
+
+        override fun secureConnectEnd(call: Call, handshake: Handshake?) = mark("ok_tls h$hop")
+
+        override fun connectionAcquired(call: Call, connection: Connection) = mark("ok_conn h$hop")
+
+        override fun requestHeadersEnd(call: Call, request: Request) = mark("ok_req h$hop")
+
+        override fun responseHeadersEnd(call: Call, response: Response) {
+            mark("ok_resp h$hop code=${response.code}")
+            hop += 1
+        }
     }
 
     companion object {

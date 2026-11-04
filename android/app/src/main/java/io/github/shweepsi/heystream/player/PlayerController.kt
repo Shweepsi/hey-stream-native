@@ -17,7 +17,9 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -32,6 +34,8 @@ import io.github.shweepsi.heystream.core.RetryAction
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.Telemetry
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import okhttp3.OkHttpClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -321,16 +325,31 @@ class PlayerController(
         keepDecoders = PerfProbe.flag("HSExpFg")
         val asyncQueueing = PerfProbe.flag("HSExpAsync")
         val quickStart = PerfProbe.flag("HSExpBuf")
+        val okHttp = PerfProbe.flag("HSExpOk")
         if (Log.isLoggable(PerfProbe.TAG, Log.DEBUG)) {
-            Log.d(PerfProbe.TAG, "variantes fg=$keepDecoders async=$asyncQueueing buf=$quickStart")
+            Log.d(PerfProbe.TAG, "variantes fg=$keepDecoders async=$asyncQueueing buf=$quickStart ok=$okHttp")
         }
-        val http = DefaultHttpDataSource.Factory()
-            .setTransferListener(perf.transfer)
-            .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
-            .setConnectTimeoutMs(10_000)
-            .setReadTimeoutMs(15_000)
-            // Les panneaux redirigent souvent vers un serveur de flux (http ↔ https).
-            .setAllowCrossProtocolRedirects(true)
+        val http: DataSource.Factory = if (okHttp) {
+            // Essai : connexions gardées (redirection du panneau) et chronométrage de chaque saut.
+            val client = OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .eventListenerFactory { perf.okHttpEvents() }
+                .build()
+            OkHttpDataSource.Factory(client)
+                .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
+                .setTransferListener(perf.transfer)
+        } else {
+            DefaultHttpDataSource.Factory()
+                .setTransferListener(perf.transfer)
+                .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
+                .setConnectTimeoutMs(10_000)
+                .setReadTimeoutMs(15_000)
+                // Les panneaux redirigent souvent vers un serveur de flux (http ↔ https).
+                .setAllowCrossProtocolRedirects(true)
+        }
         val extractors = DefaultExtractorsFactory()
             // Flux TS continus : démarrer sans attendre une image clé IDR.
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
