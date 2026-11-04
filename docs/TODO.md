@@ -46,11 +46,6 @@ ligne quand sa PR est fusionnée.
   plus la taille de l'index pour chaque option FTS5 ci-dessus (box de 2 Go).
 - Télécharger direct, films et séries en parallèle.
 
-## Accessibilité
-
-- Le cœur des favoris se distingue par la couleur seule (vide, trait rouge) :
-  ajouter une différence de forme ou un libellé.
-
 ## Dépôt
 
 - Supprimer automatiquement les branches fusionnées (réglage GitHub).
