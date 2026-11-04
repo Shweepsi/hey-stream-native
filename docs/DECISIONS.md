@@ -245,10 +245,18 @@ Constats :
   décodeur matériel disparaissent du chemin du zapping (≈ −90 ms, régulier sur
   deux manches alternées). Media3 réutilise le décodeur quand le format suit
   (même codec, taille compatible), sinon en crée un autre comme avant.
-- **Arrière-plan** : `setForegroundMode(false)` à la mise en arrière-plan
-  (décodeurs rendus au système, pour les autres applis), `true` au retour.
+- **Rendus au système** : `setForegroundMode(false)` à la mise en
+  arrière-plan, et aussi quand le lecteur n'a pas servi depuis 30 s app
+  visible (navigation dans le catalogue ou les réglages : un décodeur matériel
+  ne reste pas tenu pour rien sur une box qui en a très peu) ; `true` dès qu'un
+  flux s'ouvre ou au retour. Un seul endroit règle ce mode
+  (`PlayerController.applyForegroundMode`, propriété `decodersHeld` testée).
   La règle « jamais deux flux » ne change pas : l'ancien flux est toujours
-  fermé avant l'ouverture du suivant (seuls les décodeurs restent).
+  fermé avant l'ouverture du suivant (seuls les décodeurs, et leur surface,
+  survivent à l'arrêt).
+- **Décodeur écarté** : une erreur de lecture réinitialise les moteurs de
+  rendu dans Media3 (même en mode premier plan) : le décodeur écarté après un
+  plantage n'est pas repris par réutilisation.
 - Écartés après mesure : réduire le tampon de démarrage (la lecture part déjà
   ≈ 20 ms après la première image), l'ouverture du décodeur elle-même
   (≈ 45 ms).

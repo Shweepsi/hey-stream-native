@@ -11,7 +11,8 @@ Une entrée par version, la plus récente en haut. La version vient de
   décodeur matériel à chaque changement. Sur la Mi Box, la première image
   arrive ≈ 90 ms plus tôt (médiane 862 → 770 ms sur 40 zappings alternés) ;
   le décodeur est réutilisé sans reconfiguration deux fois sur trois. Les
-  décodeurs sont rendus au système dès que l'app passe en arrière-plan.
+  décodeurs sont rendus au système dès que l'app passe en arrière-plan, ou que
+  le lecteur n'a pas servi depuis 30 s (navigation dans le catalogue).
 
 ## 0.9.4 — 2026-11-03
 
