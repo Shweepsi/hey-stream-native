@@ -188,7 +188,7 @@ class LiveScreenshotTest {
     fun liveTvDownloading() = live(
         "live_downloading",
         Device.Tv,
-        LiveUiState(categories = CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), 0, 0)), downloading = true),
+        LiveUiState(categories = CategoriesUi.Ready(liveCategories(emptyList(), 0, 0)), downloading = true),
         items = emptyList(),
     )
 

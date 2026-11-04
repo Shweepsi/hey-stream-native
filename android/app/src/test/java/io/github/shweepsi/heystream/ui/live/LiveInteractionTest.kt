@@ -90,7 +90,7 @@ class LiveInteractionTest {
     private val channels = listOf(channel(1, "Info Monde"), channel(2, "Info Continu"), channel(3, "Éco Direct"))
 
     private val state = LiveUiState(
-        categories = CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), favorites = 3, recents = 0) + LiveCategory(CategoryKey.Provider("news"), "Information", 3)),
+        categories = CategoriesUi.Ready(liveCategories(emptyList(), favorites = 3, recents = 0) + LiveCategory(CategoryKey.Provider("news"), "Information", 3)),
         selected = CategoryKey.Provider("news"),
         preview = LivePreview(id = 1, name = "Info Monde"),
     )

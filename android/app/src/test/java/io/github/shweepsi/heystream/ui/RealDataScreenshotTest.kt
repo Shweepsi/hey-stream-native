@@ -147,7 +147,7 @@ class RealDataScreenshotTest {
         val channels = live.getJSONArray("channels").objects()
         val entries = names.mapIndexed { index, name -> CategoryEntry("$index", name, isAdult = false, locked = false, hidden = false) }
         val state = LiveUiState(
-            categories = CategoriesUi.Ready(liveCategories(entries, mapOf("${names.indexOf(selected)}" to channels.size.toLong()), favorites = 0, recents = 0)),
+            categories = CategoriesUi.Ready(liveCategories(entries, favorites = 0, recents = 0)),
             selected = LiveKey.Provider("${names.indexOf(selected)}"),
             playback = LivePlayback.Playing,
         )

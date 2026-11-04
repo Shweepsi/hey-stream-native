@@ -74,7 +74,7 @@ class LiveLogicTest {
 
     @Test
     fun channelFromSearchOpensItsCategoryUnlessLocked() {
-        val categories = liveCategories(entries, emptyMap(), favorites = 2, recents = 0)
+        val categories = liveCategories(entries, favorites = 2, recents = 0)
         assertEquals(CategoryKey.Provider("2"), defaultCategory(categories, preferred = "2"))
         assertEquals(CategoryKey.Favorites, defaultCategory(categories, preferred = "9"))
         assertEquals(CategoryKey.Favorites, defaultCategory(categories, preferred = "unknown"))
@@ -82,17 +82,17 @@ class LiveLogicTest {
 
     @Test
     fun emptyCatalogFallsBackToRecentsThenFavorites() {
-        assertEquals(CategoryKey.Recents, defaultCategory(liveCategories(emptyList(), emptyMap(), 0, 3)))
-        assertEquals(CategoryKey.Favorites, defaultCategory(liveCategories(emptyList(), emptyMap(), 0, 0)))
-        assertTrue(CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), 0, 0)).catalogEmpty)
-        assertFalse(CategoriesUi.Ready(liveCategories(entries, emptyMap(), 0, 0)).catalogEmpty)
+        assertEquals(CategoryKey.Recents, defaultCategory(liveCategories(emptyList(), 0, 3)))
+        assertEquals(CategoryKey.Favorites, defaultCategory(liveCategories(emptyList(), 0, 0)))
+        assertTrue(CategoriesUi.Ready(liveCategories(emptyList(), 0, 0)).catalogEmpty)
+        assertFalse(CategoriesUi.Ready(liveCategories(entries, 0, 0)).catalogEmpty)
         // Toutes les catégories masquées : Favoris et Récents restent utilisables.
-        assertFalse(CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), 2, 0)).catalogEmpty)
+        assertFalse(CategoriesUi.Ready(liveCategories(emptyList(), 2, 0)).catalogEmpty)
     }
 
     @Test
     fun keepsTheOpenCategoryUnlessItDisappearsOrGetsLocked() {
-        val categories = liveCategories(entries, emptyMap(), favorites = 0, recents = 0)
+        val categories = liveCategories(entries, favorites = 0, recents = 0)
         assertEquals(CategoryKey.Provider("2"), keepCategory(CategoryKey.Provider("2"), categories))
         assertEquals(CategoryKey.Recents, keepCategory(CategoryKey.Recents, categories))
         assertEquals(CategoryKey.Provider("1"), keepCategory(CategoryKey.Provider("hidden"), categories))
@@ -202,7 +202,7 @@ class LiveLogicTest {
 
     @Test
     fun emptyFavoritesAndRecentsAreHiddenUnlessOpen() {
-        val categories = liveCategories(listOf(CategoryEntry(id = "1", name = "Infos", isAdult = false, locked = false, hidden = false)), mapOf("1" to 3L), favorites = 0, recents = 2)
+        val categories = liveCategories(listOf(CategoryEntry(id = "1", name = "Infos", isAdult = false, locked = false, hidden = false)), favorites = 0, recents = 2)
         assertEquals(
             listOf(CategoryKey.Recents, CategoryKey.Provider("1")),
             shownCategories(categories, CategoryKey.Provider("1")).map { it.key },
