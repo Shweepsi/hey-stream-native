@@ -232,6 +232,23 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Allègement de l'interface (2026-11-03)
+
+Demandé par Loïc : moins de complexité visuelle. Retenu : compteur des lignes
+de catégories retiré (DESIGN.md le prévoyait pour le Direct : le chiffre reste
+dans l'en-tête de la grille, Films et Séries ; le Direct n'en affiche plus et
+ne les compte plus), aides toujours affichées retirées : elles ne se montrent
+plus qu'au premier usage (Direct : tant qu'aucun favori ; fiche série : tant
+qu'aucun épisode n'est vu ni commencé), numéro d'un épisode sans titre écrit
+une fois. Reste à faire (docs/TODO.md) : aux Films et aux Séries, ne compter
+que la catégorie ouverte (le chargement compte encore toutes les catégories). **Gardé** : le nom des catégories du fournisseur, avec
+son préfixe (« |FR| ✪ ACTION »), comme décidé le 2026-11-02, et l'étiquette
+« FILMS / SÉRIES » au-dessus des catégories. Même principe aux Réglages
+(textes d'introduction d'une phrase, mise en garde de la déconnexion retirée au
+profit de la fenêtre de confirmation, version du cœur seulement si elle diffère,
+crédits au chevron). Non touché : « Mises à jour » de « À propos » (repris par
+la PR du parcours de mise à jour). Voir `DESIGN.md`, « Allègement ».
+
 ## Erreurs du lecteur (2026-11-03)
 
 - **Le cœur décide** (`playback_retry(status, attempt)`, fonction pure) : 509

@@ -19,11 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
-import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
-import io.github.shweepsi.heystream.ui.theme.tabular
-import java.text.NumberFormat
 
 /** Intitulé d'un panneau (« CATÉGORIES »). */
 @Composable
@@ -38,16 +35,15 @@ fun PanelLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Ligne de catégorie : nom, nombre d'entrées (absent si inconnu), cadenas si
- * verrouillée par le contrôle parental. La catégorie ouverte est
- * [selected] (texte demi-gras).
+ * Ligne de catégorie : nom, cadenas si verrouillée par le contrôle parental.
+ * La catégorie ouverte est [selected] (texte demi-gras). Pas de compteur : le
+ * nombre de titres s'écrit une fois, dans l'en-tête de la liste.
  */
 @Composable
 fun CategoryRow(
     name: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    count: Long? = null,
     selected: Boolean = false,
     locked: Boolean = false,
     icon: ImageVector? = null,
@@ -87,13 +83,6 @@ fun CategoryRow(
                     contentDescription = stringResource(R.string.category_locked),
                     modifier = Modifier.size(dimens.icon * 0.9f),
                     tint = Hs.colors.textSecondary,
-                )
-            } else if (count != null) {
-                Text(
-                    text = NumberFormat.getIntegerInstance(currentLocale()).format(count),
-                    style = Hs.type.small.tabular(),
-                    color = Hs.colors.textSecondary,
-                    maxLines = 1,
                 )
             }
         }

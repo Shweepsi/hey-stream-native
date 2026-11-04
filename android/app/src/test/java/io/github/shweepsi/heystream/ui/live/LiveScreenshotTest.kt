@@ -101,8 +101,7 @@ class LiveScreenshotTest {
             "world" to "International",
             "radio" to "Radios",
         ).map { (id, name) -> CategoryEntry(id, name, isAdult = id == "adult", locked = id == "adult", hidden = false) }
-        val counts = mapOf("news" to 38L, "general" to 64L, "sport" to 120L, "cinema" to 92L, "kids" to 41L, "docs" to 57L, "music" to 33L, "local" to 24L, "world" to 210L, "radio" to 18L)
-        return CategoriesUi.Ready(liveCategories(entries, counts, favorites = 12, recents = 5))
+        return CategoriesUi.Ready(liveCategories(entries, favorites = 12, recents = 5))
     }
 
     private val preview = LivePreview(
@@ -189,7 +188,7 @@ class LiveScreenshotTest {
     fun liveTvDownloading() = live(
         "live_downloading",
         Device.Tv,
-        LiveUiState(categories = CategoriesUi.Ready(liveCategories(emptyList(), emptyMap(), 0, 0)), downloading = true),
+        LiveUiState(categories = CategoriesUi.Ready(liveCategories(emptyList(), 0, 0)), downloading = true),
         items = emptyList(),
     )
 

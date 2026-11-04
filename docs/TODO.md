@@ -45,6 +45,10 @@ ligne quand sa PR est fusionnée.
 - Banc d'essai : temps d'enregistrement et de recherche sur 100 000 entrées,
   plus la taille de l'index pour chaque option FTS5 ci-dessus (box de 2 Go).
 - Télécharger direct, films et séries en parallèle.
+- Films et Séries : ne compter que la catégorie ouverte (en-tête de la grille).
+  Le chargement compte encore chaque catégorie du fournisseur (une requête
+  `COUNT` chacune) alors que seul le nombre de la catégorie ouverte s'affiche ;
+  le lire à part, ou prendre le total de la pagination.
 
 ## Dépôt
 

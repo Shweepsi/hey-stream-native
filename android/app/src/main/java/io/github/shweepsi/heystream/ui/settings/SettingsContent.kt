@@ -819,7 +819,6 @@ private fun SubscriptionPane(ui: AccountUi, signingOut: Boolean, actions: Settin
                 .heightIn(min = 1.dp)
                 .background(Hs.colors.separator),
         )
-        Paragraph(stringResource(R.string.settings_sign_out_warning))
         HsButton(
             text = stringResource(if (signingOut) R.string.settings_signing_out else R.string.settings_sign_out),
             onClick = actions::signOut,
@@ -842,9 +841,10 @@ private fun AboutPane(
     val dimens = Hs.dimens
     Pane(stringResource(R.string.settings_section_about)) {
         Logo(size = if (dimens.isTv) 26.dp else 30.dp)
+        val otherCore = coreVersionToShow(appVersion, coreVersion)
         Text(
-            text = if (coreVersion != null) {
-                stringResource(R.string.settings_about_versions, appVersion, coreVersion)
+            text = if (otherCore != null) {
+                stringResource(R.string.settings_about_versions, appVersion, otherCore)
             } else {
                 stringResource(R.string.settings_about_version, appVersion)
             },
@@ -946,6 +946,14 @@ private fun DevToolsSection(ui: DevToolsUi, actions: SettingsActions) {
     }
 }
 
+/**
+ * Version du cœur à écrire après celle de l'app : seulement si elle diffère
+ * (l'app, les liaisons et le cœur portent le même numéro ; le « -t » de l'APK
+ * testeur n'y change rien).
+ */
+internal fun coreVersionToShow(appVersion: String, coreVersion: String?): String? =
+    coreVersion?.takeIf { it != appVersion.substringBefore('-') }
+
 /** Crédit : nom et licence ; ouvre le texte de la licence s'il est fourni. */
 @Composable
 private fun CreditRow(name: String, license: String, onClick: (() -> Unit)? = null) {
@@ -966,13 +974,8 @@ private fun CreditRow(name: String, license: String, onClick: (() -> Unit)? = nu
                 )
                 Text(license, style = Hs.type.small, color = Hs.colors.textSecondary, maxLines = 1)
             }
+            // Le chevron suffit : toute la ligne s'ouvre (libellé « Voir la licence » pour l'accessibilité).
             if (onClick != null) {
-                Text(
-                    stringResource(R.string.settings_about_show_license),
-                    style = Hs.type.small,
-                    color = LocalContentColor.current,
-                    maxLines = 1,
-                )
                 Icon(Lucide.ChevronRight, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(dimens.icon))
             }
         }

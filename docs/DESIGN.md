@@ -116,6 +116,30 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
   VOST ; sur la fiche, l'année déjà montrée par la ligne d'infos quitte le
   titre. Les chaînes gardent leurs mentions.
 
+## Allègement (2026-11-03)
+
+Principe : une information s'écrit **une fois**, et une aide n'occupe pas
+l'écran en permanence.
+
+- **Catégories** : le nom du fournisseur, tel quel (inchangé), sans compteur à
+  droite. Le nombre de titres de la catégorie ouverte s'écrit seulement dans
+  l'en-tête de la grille (Films, Séries : « ACTION  579 films ») ; le Direct
+  n'affiche aucun nombre de chaînes.
+- **Pas d'aide permanente** : « Maintenez OK sur une chaîne… » (sous l'aperçu
+  du Direct) ne se montre que tant qu'il n'y a aucun favori ; « Maintenez OK ou
+  appuyez sur MENU… » (épisodes) que tant qu'aucun épisode n'est vu ni commencé.
+  Une catégorie Favoris vide n'est pas listée (rien ne l'explique là).
+- **Épisode sans titre** : « Épisode 2 » sans numéro à côté quand aucun épisode
+  de la liste n'a de titre ; sinon le numéro reste en tête de toutes les lignes
+  (alignement).
+- **Options qui se comprennent seules** : « Doublée, sans sous-titres » plutôt
+  qu'un paragraphe d'explication.
+- **Réglages** : une phrase d'introduction par volet au plus, sans exemples ni
+  rappels que la fenêtre de confirmation ou le message d'erreur donnent au
+  bon moment (mise en garde de la déconnexion, blocage après 5 codes faux). La
+  version du cœur n'est écrite que si elle diffère de celle de l'app. Les
+  lignes qui s'ouvrent (crédits) montrent un chevron, pas un libellé répété.
+
 ## Animations
 
 Niveau moyen :
@@ -144,8 +168,7 @@ Niveau moyen :
 
 ### Direct — 3 panneaux
 
-1. Catégories avec leur nombre de chaînes ; **Favoris** et **Récents** en
-   tête.
+1. Catégories, sans compteur ; **Favoris** et **Récents** en tête.
 2. Chaînes : **numéro** du fournisseur (absent s'il n'en donne pas), logo,
    nom, et le programme en cours **seulement s'il est déjà en cache** ; sinon
    la ligne n'a pas de deuxième ligne de texte. Jamais de requête pour remplir

@@ -352,6 +352,8 @@ private fun LivePanels(
         PreviewPanel(
             preview = state.preview,
             message = state.message?.resolve(),
+            // Le geste des favoris s'explique tant qu'il n'y en a aucun (pas d'aide permanente).
+            showFavoriteHint = state.favoriteIds.isEmpty(),
             layout = layout,
             nowSecs = nowSecs,
             modifier = Modifier
@@ -419,7 +421,6 @@ private fun CategoriesPanel(
                         if (category.key == CategoryKey.Favorites) R.string.favorites else R.string.recents,
                     ),
                     onClick = { onSelect(category) },
-                    count = category.count,
                     selected = isSelected,
                     locked = category.locked,
                     icon = when (category.key) {
@@ -643,6 +644,7 @@ private fun ChannelRow(
 private fun PreviewPanel(
     preview: LivePreview?,
     message: String?,
+    showFavoriteHint: Boolean,
     layout: LiveLayout,
     nowSecs: Long,
     modifier: Modifier,
@@ -668,7 +670,7 @@ private fun PreviewPanel(
         }
         if (!layout.compact && message != null) {
             LiveToast(message, Modifier.padding(top = 8.dp))
-        } else if (!layout.compact) {
+        } else if (!layout.compact && showFavoriteHint) {
             Text(
                 text = stringResource(if (isTv) R.string.live_favorite_hint_tv else R.string.live_favorite_hint_touch),
                 style = Hs.type.small,

@@ -26,6 +26,17 @@ class SettingsLogicTest {
     }
 
     @Test
+    fun coreVersionIsShownOnlyWhenItDiffers() {
+        assertNull(coreVersionToShow("0.9.4", "0.9.4"))
+        // L'APK du testeur ajoute « -t » à l'app, pas au cœur.
+        assertNull(coreVersionToShow("0.9.4-t", "0.9.4"))
+        assertEquals("0.9.3", coreVersionToShow("0.9.4", "0.9.3"))
+        assertEquals("0.9.3", coreVersionToShow("0.9.4-t", "0.9.3"))
+        // Bibliothèque native pas encore chargée.
+        assertNull(coreVersionToShow("0.9.4", null))
+    }
+
+    @Test
     fun sectionOutcomes() {
         assertEquals(RefreshOutcome.Updated, refresh(refreshed = true, items = 3_330u).toResult().outcome)
         assertEquals(3_330L, refresh(refreshed = true, items = 3_330u).toResult().items)
