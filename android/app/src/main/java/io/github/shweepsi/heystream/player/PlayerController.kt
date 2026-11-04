@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -16,7 +17,9 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -31,6 +34,8 @@ import io.github.shweepsi.heystream.core.RetryAction
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.Telemetry
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import okhttp3.OkHttpClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,6 +102,12 @@ class PlayerController(
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
+    /** Mesures d'ouverture dans le journal (essais sur appareil, voir [PerfProbe]). */
+    private val perf = PerfProbe()
+
+    /** Essai : le lecteur garde ses décodeurs entre deux flux (mode premier plan de Media3). */
+    private var keepDecoders = false
+
     /** Décodeurs matériels qui ont planté : écartés jusqu'à la fin de l'app. */
     private val bannedDecoders: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
@@ -154,6 +165,8 @@ class PlayerController(
             if (!live && current != null) resumeMs = player.currentPosition
         }
         player.stop()
+        // En arrière-plan, les décodeurs sont rendus au système.
+        if (keepDecoders) player.setForegroundMode(false)
     }
 
     /**
@@ -164,6 +177,7 @@ class PlayerController(
      */
     fun onForeground() {
         inBackground = false
+        if (keepDecoders) exoPlayer?.setForegroundMode(true)
         if (!isHeld) resume()
     }
 
@@ -283,6 +297,7 @@ class PlayerController(
     }
 
     private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
+        perf.open()
         stats?.opening()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
@@ -306,12 +321,35 @@ class PlayerController(
     }
 
     private fun create(): ExoPlayer {
-        val http = DefaultHttpDataSource.Factory()
-            .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
-            .setConnectTimeoutMs(10_000)
-            .setReadTimeoutMs(15_000)
-            // Les panneaux redirigent souvent vers un serveur de flux (http ↔ https).
-            .setAllowCrossProtocolRedirects(true)
+        // Variantes d'essai (journal Android), lues une fois à la création du lecteur.
+        keepDecoders = PerfProbe.flag("HSExpFg")
+        val asyncQueueing = PerfProbe.flag("HSExpAsync")
+        val quickStart = PerfProbe.flag("HSExpBuf")
+        val okHttp = PerfProbe.flag("HSExpOk")
+        if (Log.isLoggable(PerfProbe.TAG, Log.DEBUG)) {
+            Log.d(PerfProbe.TAG, "variantes fg=$keepDecoders async=$asyncQueueing buf=$quickStart ok=$okHttp")
+        }
+        val http: DataSource.Factory = if (okHttp) {
+            // Essai : connexions gardées (redirection du panneau) et chronométrage de chaque saut.
+            val client = OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .eventListenerFactory { perf.okHttpEvents() }
+                .build()
+            OkHttpDataSource.Factory(client)
+                .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
+                .setTransferListener(perf.transfer)
+        } else {
+            DefaultHttpDataSource.Factory()
+                .setTransferListener(perf.transfer)
+                .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
+                .setConnectTimeoutMs(10_000)
+                .setReadTimeoutMs(15_000)
+                // Les panneaux redirigent souvent vers un serveur de flux (http ↔ https).
+                .setAllowCrossProtocolRedirects(true)
+        }
         val extractors = DefaultExtractorsFactory()
             // Flux TS continus : démarrer sans attendre une image clé IDR.
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
@@ -322,9 +360,10 @@ class PlayerController(
             .setEnableDecoderFallback(true)
             // Un décodeur qui a planté n'est plus proposé (le premier de la liste revient s'il ne reste rien).
             .setMediaCodecSelector(codecSelector)
+            .also { if (asyncQueueing) it.forceEnableMediaCodecAsynchronousQueueing() }
         val loadControl = DefaultLoadControl.Builder()
             // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
-            .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
+            .setBufferDurationsMs(15_000, 50_000, if (quickStart) 500 else 1_000, 2_500)
             // Plafond selon le tas de l'appareil (voir `BufferSize`).
             .setTargetBufferBytes(BufferSize.bytesFor(context))
             .build()
@@ -346,6 +385,7 @@ class PlayerController(
             .also {
                 it.addListener(listener)
                 it.addAnalyticsListener(analytics)
+                if (keepDecoders) it.setForegroundMode(true)
             }
     }
 
@@ -376,6 +416,7 @@ class PlayerController(
             stats?.state(playbackState)
             when (playbackState) {
                 Player.STATE_READY -> {
+                    perf.mark("ready")
                     attempt = 0
                     _status.update {
                         it.copy(reconnectAttempt = 0, failed = false, ended = false, problem = null, offline = false)
@@ -417,6 +458,7 @@ class PlayerController(
             format: Format,
             decoderReuseEvaluation: DecoderReuseEvaluation?,
         ) {
+            perf.mark("format_video ${format.width}x${format.height} ${format.sampleMimeType} reuse=${decoderReuseEvaluation?.result ?: -1}")
             stats?.format("video", format)
         }
 
@@ -434,7 +476,12 @@ class PlayerController(
             initializedTimestampMs: Long,
             initializationDurationMs: Long,
         ) {
+            perf.mark("decoder_video ${initializationDurationMs}ms $decoderName")
             stats?.decoder("video", decoderName, initializationDurationMs)
+        }
+
+        override fun onRenderedFirstFrame(eventTime: AnalyticsListener.EventTime, output: Any, renderTimeMs: Long) {
+            perf.mark("first_frame")
         }
 
         override fun onAudioDecoderInitialized(
@@ -443,6 +490,7 @@ class PlayerController(
             initializedTimestampMs: Long,
             initializationDurationMs: Long,
         ) {
+            perf.mark("decoder_audio ${initializationDurationMs}ms $decoderName")
             stats?.decoder("audio", decoderName, initializationDurationMs)
         }
 
