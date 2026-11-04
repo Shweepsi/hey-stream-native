@@ -232,6 +232,35 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Zapping : décodeurs gardés (2026-11-04)
+
+- Mesure (Mi Box, sonde de la PR d'essai #56) : sur ≈ 860 ms entre la demande
+  d'ouverture et la première image, ≈ 450 ms sont du réseau du fournisseur
+  (redirection et réponse du serveur de flux), ≈ 160 ms la lecture du flux
+  jusqu'au format vidéo, ≈ 125 ms le décodeur jusqu'à la première image, et
+  ≈ 120 ms avant même la requête (le fil du lecteur libère encore l'ancien
+  flux et son décodeur).
+- **Mode premier plan de Media3** (`setForegroundMode(true)`) : les décodeurs
+  restent ouverts entre deux flux ; la libération et la recréation du
+  décodeur matériel disparaissent du chemin du zapping (≈ −90 ms, régulier sur
+  deux manches alternées). Media3 réutilise le décodeur quand le format suit
+  (même codec, taille compatible), sinon en crée un autre comme avant.
+- **Rendus au système** : `setForegroundMode(false)` à la mise en
+  arrière-plan, et aussi quand le lecteur n'a pas servi depuis 30 s app
+  visible (navigation dans le catalogue ou les réglages : un décodeur matériel
+  ne reste pas tenu pour rien sur une box qui en a très peu) ; `true` dès qu'un
+  flux s'ouvre ou au retour. Un seul endroit règle ce mode
+  (`PlayerController.applyForegroundMode`, propriété `decodersHeld` testée).
+  La règle « jamais deux flux » ne change pas : l'ancien flux est toujours
+  fermé avant l'ouverture du suivant (seuls les décodeurs, et leur surface,
+  survivent à l'arrêt).
+- **Décodeur écarté** : une erreur de lecture réinitialise les moteurs de
+  rendu dans Media3 (même en mode premier plan) : le décodeur écarté après un
+  plantage n'est pas repris par réutilisation.
+- Écartés après mesure : réduire le tampon de démarrage (la lecture part déjà
+  ≈ 20 ms après la première image), l'ouverture du décodeur elle-même
+  (≈ 45 ms).
+
 ## Allègement de l'interface (2026-11-03)
 
 Demandé par Loïc : moins de complexité visuelle. Retenu : compteur des lignes

@@ -61,7 +61,9 @@ data class PlaybackStatus(
  * Le lecteur unique de l'app (Media3, décodage matériel). Les abonnements
  * n'acceptent souvent qu'une connexion : l'aperçu du direct et le plein
  * écran sont **le même lecteur**, et changer de flux ferme l'ancien avant
- * d'ouvrir le nouveau. Jamais deux flux ouverts, même un instant.
+ * d'ouvrir le nouveau. Jamais deux flux ouverts, même un instant. Seuls les
+ * décodeurs survivent à l'arrêt d'un flux (mode premier plan de Media3, voir
+ * [decodersHeld]) : le zapping ne les recrée pas à chaque chaîne.
  *
  * À utiliser depuis le fil principal. Les URL ne sont jamais journalisées.
  */
@@ -96,6 +98,32 @@ class PlayerController(
 
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    /**
+     * Les décodeurs restent ouverts entre deux flux (mode premier plan de
+     * Media3 : pas de libération puis de recréation du décodeur matériel à
+     * chaque chaîne, ≈ 90 ms de gagnés sur la Mi Box) tant que l'app est
+     * visible et que le lecteur a servi il y a moins de [DECODERS_IDLE_MS].
+     * Au-delà (navigation dans le catalogue ou les réglages), ou en
+     * arrière-plan, ils sont rendus au système. Une erreur de lecture
+     * réinitialise les moteurs de rendu (Media3) : un décodeur écarté
+     * ([bannedDecoders]) n'est pas repris.
+     */
+    internal var decodersHeld = false
+        private set
+
+    /** Lecteur inutilisé depuis [DECODERS_IDLE_MS] : décodeurs rendus. */
+    private var idleReleased = false
+    private val releaseIdleDecoders = Runnable {
+        idleReleased = true
+        applyForegroundMode()
+    }
+
+    /** Le seul endroit qui règle le mode premier plan : app visible et lecteur récemment utilisé. */
+    private fun applyForegroundMode() {
+        decodersHeld = !inBackground && !idleReleased
+        exoPlayer?.setForegroundMode(decodersHeld)
+    }
 
     /** Décodeurs matériels qui ont planté : écartés jusqu'à la fin de l'app. */
     private val bannedDecoders: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -141,11 +169,16 @@ class PlayerController(
             clearMediaItems()
         }
         _status.value = PlaybackStatus()
+        // Un zapping rouvre un flux aussitôt ; sinon les décodeurs sont rendus au bout d'un moment.
+        handler.removeCallbacks(releaseIdleDecoders)
+        if (exoPlayer != null) handler.postDelayed(releaseIdleDecoders, DECODERS_IDLE_MS)
     }
 
     /** L'app passe en arrière-plan : le flux est fermé (connexion libérée). */
     fun onBackground() {
         inBackground = true
+        // Décodeurs rendus au système dès l'arrière-plan.
+        applyForegroundMode()
         val player = exoPlayer ?: return
         cancelRetry()
         // Flux pas encore rouvert (retenu) : sa reprise et sa position restent.
@@ -164,6 +197,7 @@ class PlayerController(
      */
     fun onForeground() {
         inBackground = false
+        applyForegroundMode()
         if (!isHeld) resume()
     }
 
@@ -249,6 +283,8 @@ class PlayerController(
 
     fun release() {
         stop()
+        handler.removeCallbacks(releaseIdleDecoders)
+        decodersHeld = false
         networkCallback?.let { callback -> runCatching { connectivity?.unregisterNetworkCallback(callback) } }
         networkCallback = null
         exoPlayer?.release()
@@ -260,6 +296,11 @@ class PlayerController(
         stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
         cancelRetry()
         watchNetwork()
+        handler.removeCallbacks(releaseIdleDecoders)
+        if (idleReleased) {
+            idleReleased = false
+            applyForegroundMode()
+        }
         // Le lecteur sert à tous les titres : un choix de pistes (sous-titres
         // coupés par la langue « Doublée », piste choisie à la main) ne
         // doit pas suivre au titre suivant.
@@ -346,6 +387,9 @@ class PlayerController(
             .also {
                 it.addListener(listener)
                 it.addAnalyticsListener(analytics)
+                // Zapping : décodeurs gardés entre deux flux (voir [decodersHeld]).
+                decodersHeld = !inBackground && !idleReleased
+                it.setForegroundMode(decodersHeld)
             }
     }
 
@@ -506,6 +550,9 @@ class PlayerController(
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
         private const val MAX_LIVE_EDGE_JUMPS = 3
+
+        /** Lecteur inutilisé : au bout de ce délai, les décodeurs gardés pour le zapping sont rendus. */
+        const val DECODERS_IDLE_MS = 30_000L
         private const val LIVE_EDGE_WINDOW_MS = 30_000L
     }
 }
