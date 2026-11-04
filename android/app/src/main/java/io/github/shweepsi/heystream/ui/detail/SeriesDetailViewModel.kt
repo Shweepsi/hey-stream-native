@@ -185,7 +185,8 @@ class SeriesDetailViewModel(private val session: CoreSession, private val id: Lo
             val ids = known.seasons.flatMap { season -> season.episodes.map { it.id } }
             val watched = ids.filterTo(HashSet()) { core.isWatched(PlaybackKind.EPISODE, it) }
             val positions = HashMap<Long, Long>()
-            ids.forEach { episode -> core.progress(PlaybackKind.EPISODE, episode)?.let { positions[episode] = it } }
+            // Position 0 : épisode proposé à la fin du précédent, pas encore commencé.
+            ids.forEach { episode -> core.progress(PlaybackKind.EPISODE, episode)?.takeIf { it > 0 }?.let { positions[episode] = it } }
             episodeRows(known, watched, positions, resume, cachedItem?.name)
         }
         return UserData(cachedItem, favorite, rows, resume)

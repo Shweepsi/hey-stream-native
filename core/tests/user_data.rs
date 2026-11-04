@@ -332,14 +332,20 @@ fn watched_marks_survive_rewatching_and_can_be_undone() {
     assert!(catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
     assert_eq!(catalog.continue_watching(None, 10).unwrap().len(), 1);
 
-    // À la main : vu retire de « Continuer », non vu retire la marque.
+    // À la main : vu retire de « Continuer » (la position reste, pour
+    // « Reprendre »), non vu retire la marque et ramène la reprise.
     catalog
         .set_watched(PlaybackKind::Movie, 11, None, true, 40)
         .unwrap();
     assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    assert_eq!(
+        catalog.progress(PlaybackKind::Movie, 11).unwrap(),
+        Some(600_000)
+    );
     catalog
         .set_watched(PlaybackKind::Movie, 11, None, false, 50)
         .unwrap();
+    assert_eq!(catalog.continue_watching(None, 10).unwrap().len(), 1);
     assert_eq!(
         watched(&catalog, Section::Movies),
         [(10, false), (11, false)]
@@ -420,4 +426,186 @@ fn finished_episode_supersedes_older_series_progress() {
         catalog.continue_watching(None, 10).unwrap()[0].resume.id,
         503
     );
+}
+
+#[test]
+fn a_hand_made_seen_mark_keeps_the_position_but_hides_it() {
+    let mut catalog = catalog_with_content();
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 600_000, None), 10)
+        .unwrap();
+    let bar = |c: &Catalog| {
+        c.item(Section::Movies, 11)
+            .unwrap()
+            .unwrap()
+            .progress
+            .map(|p| p.position_ms)
+    };
+    assert_eq!(bar(&catalog), Some(600_000));
+
+    // Vu à la main : plus de barre, plus dans « Continuer », mais « Reprendre »
+    // reste possible depuis la fiche.
+    catalog
+        .set_watched(PlaybackKind::Movie, 11, None, true, 20)
+        .unwrap();
+    assert_eq!(bar(&catalog), None);
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    assert_eq!(
+        catalog.progress(PlaybackKind::Movie, 11).unwrap(),
+        Some(600_000)
+    );
+
+    // Relancé : une reprise plus récente réapparaît, avec la coche.
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 900_000, None), 30)
+        .unwrap();
+    assert_eq!(bar(&catalog), Some(900_000));
+    assert_eq!(catalog.continue_watching(None, 10).unwrap().len(), 1);
+    assert!(catalog.is_watched(PlaybackKind::Movie, 11).unwrap());
+
+    // Vu jusqu'au bout : la position part avec la fin de lecture.
+    catalog
+        .save_progress(&resume(PlaybackKind::Movie, 11, 5_990_000, None), 40)
+        .unwrap();
+    assert_eq!(catalog.progress(PlaybackKind::Movie, 11).unwrap(), None);
+}
+
+#[test]
+fn finishing_an_episode_offers_the_next_unwatched_one() {
+    let mut catalog = catalog_with_content();
+    // Fiche de la série : deux saisons à la suite, dans l'ordre de la lecture.
+    catalog
+        .remember_episodes(50, &[501, 502, 503, 601, 602])
+        .unwrap();
+    // 502 déjà vu à la main : on le saute.
+    catalog
+        .set_watched(PlaybackKind::Episode, 502, Some(50), true, 5)
+        .unwrap();
+
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 5_990_000, Some(50)), 10)
+        .unwrap();
+    let entries = catalog.continue_watching(None, 10).unwrap();
+    assert_eq!(entries.len(), 1);
+    let next = &entries[0];
+    assert_eq!(next.resume.kind, PlaybackKind::Episode);
+    assert_eq!((next.resume.id, next.resume.series_id), (503, Some(50)));
+    // Une reprise à 0 : ni position ni durée, donc pas de barre sur l'affiche.
+    assert_eq!((next.resume.position_ms, next.resume.duration_ms), (0, 0));
+    assert_eq!(next.updated_at, 10);
+    let progress = catalog
+        .item(Section::Series, 50)
+        .unwrap()
+        .unwrap()
+        .progress
+        .unwrap();
+    assert_eq!((progress.position_ms, progress.duration_ms), (0, 0));
+
+    // Regardé plus de 30 s : la vraie position remplace la proposition.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 503, 900_000, Some(50)), 20)
+        .unwrap();
+    let entries = catalog.continue_watching(None, 10).unwrap();
+    assert_eq!(
+        (entries[0].resume.id, entries[0].resume.position_ms),
+        (503, 900_000)
+    );
+
+    // Fin de la saison 1 : le premier épisode de la saison 2.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 503, 5_990_000, Some(50)), 30)
+        .unwrap();
+    assert_eq!(
+        catalog.continue_watching(None, 10).unwrap()[0].resume.id,
+        601
+    );
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 601, 5_990_000, Some(50)), 40)
+        .unwrap();
+    assert_eq!(
+        catalog.continue_watching(None, 10).unwrap()[0].resume.id,
+        602
+    );
+
+    // Dernier épisode : la série quitte « Continuer ».
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 602, 5_990_000, Some(50)), 50)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+}
+
+#[test]
+fn no_next_episode_is_offered_without_an_order_or_after_a_hand_made_mark() {
+    let mut catalog = catalog_with_content();
+    // Ordre inconnu (fiche jamais chargée) : rien n'est proposé.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 5_990_000, Some(50)), 10)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+
+    // Marqué vu à la main : rien non plus.
+    catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    catalog
+        .set_watched(PlaybackKind::Episode, 502, Some(50), true, 20)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+}
+
+#[test]
+fn the_next_episode_keeps_a_position_already_saved() {
+    let mut catalog = catalog_with_content();
+    catalog.remember_episodes(50, &[501, 502]).unwrap();
+    // 502 commencé (45 min) puis laissé pour revoir 501 jusqu'au bout.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 2_700_000, Some(50)), 5)
+        .unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 5_990_000, Some(50)), 10)
+        .unwrap();
+    let entries = catalog.continue_watching(None, 10).unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].resume.id, 502);
+    assert_eq!(entries[0].resume.position_ms, 2_700_000);
+    assert_eq!(entries[0].updated_at, 10);
+    // Seule la date change : titre et extension de la vraie reprise restent.
+    assert_eq!(entries[0].resume.title, "Contenu 502");
+    assert_eq!(entries[0].resume.extension.as_deref(), Some("mkv"));
+}
+
+#[test]
+fn migration_8_adds_the_episode_order_which_the_next_sheet_fills_in() {
+    let dir = std::env::temp_dir().join(format!("hs-order-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("catalog.db");
+    {
+        let mut catalog = Catalog::open(&path).unwrap();
+        let series: Vec<Series> = from_value(json!([{"series_id": 50, "name": "Lupin"}])).unwrap();
+        catalog.store_series(&[], &series, 0).unwrap();
+        catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    }
+    // Base de la version précédente : les épisodes y sont retenus sans ordre.
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE series_episode DROP COLUMN sort_order;
+             PRAGMA user_version = 7;",
+        )
+        .unwrap();
+    }
+    let mut catalog = Catalog::open(&path).unwrap();
+    // Ordre pas encore connu : rien n'est proposé à la fin de 501.
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 501, 5_990_000, Some(50)), 10)
+        .unwrap();
+    assert!(catalog.continue_watching(None, 10).unwrap().is_empty());
+    // La fiche rouverte retient l'ordre : la fin de 502 propose 503.
+    catalog.remember_episodes(50, &[501, 502, 503]).unwrap();
+    catalog
+        .save_progress(&resume(PlaybackKind::Episode, 502, 5_990_000, Some(50)), 20)
+        .unwrap();
+    assert_eq!(
+        catalog.continue_watching(None, 10).unwrap()[0].resume.id,
+        503
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
 }

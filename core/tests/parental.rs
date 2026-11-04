@@ -690,3 +690,56 @@ fn provider_flag_is_per_section_and_does_not_unmark_adult_names() {
         Err(Error::ParentalLock)
     ));
 }
+
+#[test]
+fn the_current_pin_is_checked_alone_and_counts_as_an_attempt() {
+    let mut c = catalog();
+    c.set_pin("4321", None, 0).unwrap();
+    assert!(matches!(c.verify_pin("0000", 1), Err(Error::WrongPin)));
+    c.verify_pin("4321", 2).unwrap();
+    // La seule vérification ne déverrouille rien.
+    assert!(!c.is_parental_unlocked());
+    // Cinq codes faux : blocage, même avec le bon code.
+    for guess in ["1000", "1001", "1002", "1003", "1004"] {
+        assert!(matches!(c.verify_pin(guess, 10), Err(Error::WrongPin)));
+    }
+    assert!(matches!(
+        c.verify_pin("4321", 11),
+        Err(Error::TooManyAttempts { .. })
+    ));
+}
+
+#[test]
+fn clearing_the_pin_needs_the_code_and_locks_adult_content_again() {
+    let mut c = catalog();
+    // Aucun code : rien à supprimer.
+    assert!(matches!(c.clear_pin("1234", 0), Err(Error::WrongPin)));
+    c.set_pin("1234", None, 0).unwrap();
+    c.unlock_parental("1234", 1).unwrap();
+    assert_eq!(
+        ids(c.items(Section::Movies, Some("2"), 0, 10).unwrap()),
+        [20]
+    );
+
+    // Un mauvais code ne supprime rien.
+    assert!(matches!(c.clear_pin("0000", 2), Err(Error::WrongPin)));
+    assert!(c.has_pin().unwrap());
+    assert!(c.is_parental_unlocked());
+
+    // Le bon code : plus de code, et les catégories adultes sont verrouillées.
+    c.clear_pin("1234", 3).unwrap();
+    assert!(!c.has_pin().unwrap());
+    assert!(!c.is_parental_unlocked());
+    assert!(matches!(
+        c.items(Section::Movies, Some("2"), 0, 10),
+        Err(Error::ParentalLock)
+    ));
+    assert_eq!(
+        ids(c.items(Section::Movies, None, 0, 10).unwrap()),
+        [10, 30]
+    );
+
+    // Un nouveau code se crée sans l'ancien.
+    c.set_pin("5678", None, 4).unwrap();
+    c.unlock_parental("5678", 5).unwrap();
+}

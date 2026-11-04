@@ -157,6 +157,9 @@ const MIGRATIONS: &[&str] = &[
             OR instr(raw_name, 'ᴴ') > 0 OR instr(raw_name, 'ᵁ') > 0
             OR instr(raw_name, 'ᶠ') > 0 OR instr(raw_name, '⁴') > 0
             OR instr(raw_name, 'ᴷ') > 0);",
+    // 8 : ordre des épisodes d'une série, pour proposer le suivant dans
+    // « Continuer » à la fin d'un épisode
+    crate::user_data::MIGRATION_8,
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -674,7 +677,9 @@ pub(crate) const PROGRESS_JOIN: &str = concat!(
     not_superseded!(),
     "
                             ORDER BY r.updated_at DESC, r.rowid DESC LIMIT 1)
-    END"
+    END AND ",
+    // Reprise masquée par une marque « vu » plus récente : ni barre sur l'affiche.
+    not_marked_seen!("p")
 );
 
 /// Caractères après lesquels un mot commence, pour le classement de la

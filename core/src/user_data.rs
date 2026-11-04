@@ -5,7 +5,7 @@
 //! entrée qui disparaît du catalogue est simplement masquée, et réapparaît si
 //! le fournisseur la remet.
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::catalog::{Catalog, CatalogItem, ITEM_COLUMNS, PROGRESS_JOIN, Section, row_to_item};
 use crate::error::Result;
@@ -55,6 +55,13 @@ pub(crate) const MIGRATION_4: &str = "
         episode_id INTEGER NOT NULL,
         PRIMARY KEY (series_id, episode_id)
     );
+";
+
+/// Ordre des épisodes d'une série (celui de la fiche), pour proposer l'épisode
+/// suivant à la fin d'un épisode. `NULL` tant que la fiche n'a pas été
+/// rechargée depuis cette migration : pas de proposition sans ordre connu.
+pub(crate) const MIGRATION_8: &str = "
+    ALTER TABLE series_episode ADD COLUMN sort_order INTEGER;
 ";
 
 /// Nombre de récents gardés par section.
@@ -214,10 +221,21 @@ impl Catalog {
     // --- Reprise de lecture -----------------------------------------------
 
     /// Enregistre la position de lecture. Moins de 30 s : rien n'est retenu.
-    /// Contenu terminé : l'entrée est retirée de « Continuer ».
+    /// Contenu terminé : l'entrée est retirée de « Continuer ». Un épisode
+    /// terminé propose le suivant (`offer_next_episode`).
     pub fn save_progress(&mut self, resume: &Resume, now: i64) -> Result<()> {
         if resume.is_finished() {
-            return self.insert_watched(resume.kind, resume.id, resume.series_id, true, now);
+            // La fin de lecture et l'épisode suivant dans une seule transaction :
+            // une proposition qui échoue ne laisse pas un épisode fini sans suite.
+            let tx = self.conn.transaction()?;
+            Self::mark_watched(&tx, resume.kind, resume.id, resume.series_id, true, now)?;
+            if resume.kind == PlaybackKind::Episode
+                && let Some(series_id) = resume.series_id
+            {
+                Self::offer_next_episode(&tx, series_id, resume, now)?;
+            }
+            tx.commit()?;
+            return Ok(());
         }
         if resume.position_ms < MIN_POSITION_MS {
             return Ok(());
@@ -253,6 +271,8 @@ impl Catalog {
 
     /// Marque un film ou un épisode comme vu (fin de lecture, ou à la main) ou
     /// non vu. Vu, il quitte « Continuer » ; le revoir ne retire pas la marque.
+    /// Marqué à la main, il garde sa position (« Reprendre » sur la fiche) :
+    /// masquée tant que la marque est la plus récente, de retour avec « non vu ».
     pub fn set_watched(
         &mut self,
         kind: PlaybackKind,
@@ -272,7 +292,8 @@ impl Catalog {
         }
     }
 
-    /// `ended` : vu jusqu'au bout. Pour une série, une reprise plus ancienne
+    /// `ended` : vu jusqu'au bout, la position n'a plus d'objet et est effacée ;
+    /// à la main, elle est gardée. Pour une série, une reprise plus ancienne
     /// que le dernier épisode fini n'est plus « le dernier épisode regardé ».
     fn insert_watched(
         &mut self,
@@ -282,19 +303,68 @@ impl Catalog {
         ended: bool,
         now: i64,
     ) -> Result<()> {
-        {
-            let tx = self.conn.transaction()?;
-            tx.execute(
-                "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at, ended)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![kind.key(), id, series_id, now, ended],
-            )?;
+        let tx = self.conn.transaction()?;
+        Self::mark_watched(&tx, kind, id, series_id, ended, now)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Écrit la marque « vu » (et efface la position d'une fin de lecture)
+    /// dans la transaction de l'appelant.
+    fn mark_watched(
+        tx: &Transaction<'_>,
+        kind: PlaybackKind,
+        id: i64,
+        series_id: Option<i64>,
+        ended: bool,
+        now: i64,
+    ) -> Result<()> {
+        tx.execute(
+            "INSERT OR REPLACE INTO watched (kind, id, series_id, watched_at, ended)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![kind.key(), id, series_id, now, ended],
+        )?;
+        if ended {
             tx.execute(
                 "DELETE FROM resume WHERE kind = ?1 AND id = ?2",
                 params![kind.key(), id],
             )?;
-            tx.commit()?;
         }
+        Ok(())
+    }
+
+    /// Après un épisode vu jusqu'au bout : le premier épisode suivant pas encore
+    /// vu (ordre de la fiche, saison suivante comprise) est proposé dans
+    /// « Continuer », par une reprise à 0. Rien si c'était le dernier, ni si
+    /// l'ordre n'est pas connu. Une reprise déjà gardée pour cet épisode (position,
+    /// titre, image, extension) reste telle quelle : seule sa date change.
+    fn offer_next_episode(
+        tx: &Transaction<'_>,
+        series_id: i64,
+        finished: &Resume,
+        now: i64,
+    ) -> Result<()> {
+        let next: Option<i64> = tx
+            .query_row(
+                "SELECT e.episode_id FROM series_episode e
+                 WHERE e.series_id = ?1
+                   AND e.sort_order > (SELECT sort_order FROM series_episode
+                                       WHERE series_id = ?1 AND episode_id = ?2)
+                   AND NOT EXISTS (SELECT 1 FROM watched w
+                                   WHERE w.kind = 'episode' AND w.id = e.episode_id)
+                 ORDER BY e.sort_order LIMIT 1",
+                params![series_id, finished.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(next) = next else { return Ok(()) };
+        tx.execute(
+            "INSERT INTO resume
+                (kind, id, position_ms, duration_ms, updated_at, title, image, extension, series_id)
+             VALUES ('episode', ?1, 0, 0, ?2, ?3, ?4, NULL, ?5)
+             ON CONFLICT (kind, id) DO UPDATE SET updated_at = excluded.updated_at",
+            params![next, now, finished.title, finished.image, series_id],
+        )?;
         Ok(())
     }
 
@@ -310,10 +380,11 @@ impl Catalog {
             .is_some())
     }
 
-    /// Retient la liste des épisodes d'une série, lue dans sa fiche : une
-    /// série est vue quand tous ses épisodes connus le sont (le catalogue ne
-    /// connaît pas les épisodes). La marque suit ensuite chaque épisode vu ou
-    /// non vu, sans recharger la fiche.
+    /// Retient la liste des épisodes d'une série, lue dans sa fiche, dans
+    /// l'ordre de la lecture : une série est vue quand tous ses épisodes
+    /// connus le sont (le catalogue ne connaît pas les épisodes). La marque
+    /// suit ensuite chaque épisode vu ou non vu, sans recharger la fiche.
+    /// L'ordre sert à proposer l'épisode suivant (`offer_next_episode`).
     pub fn remember_episodes(&mut self, series_id: i64, episode_ids: &[i64]) -> Result<()> {
         let tx = self.conn.transaction()?;
         tx.execute(
@@ -322,10 +393,11 @@ impl Catalog {
         )?;
         {
             let mut insert = tx.prepare_cached(
-                "INSERT OR IGNORE INTO series_episode (series_id, episode_id) VALUES (?1, ?2)",
+                "INSERT OR IGNORE INTO series_episode (series_id, episode_id, sort_order)
+                 VALUES (?1, ?2, ?3)",
             )?;
-            for &id in episode_ids {
-                insert.execute(params![series_id, id])?;
+            for (index, &id) in episode_ids.iter().enumerate() {
+                insert.execute(params![series_id, id, index as i64])?;
             }
         }
         tx.commit()?;
@@ -365,10 +437,11 @@ impl Catalog {
                 ) AS rank
                 FROM resume r
              ) r
-             WHERE r.rank = 1 AND (?2 IS NULL OR r.kind = ?2) AND {}{}
+             WHERE r.rank = 1 AND (?2 IS NULL OR r.kind = ?2) AND {} AND {}{}
              ORDER BY updated_at DESC, id
              LIMIT ?1",
             not_superseded!(),
+            not_marked_seen!("r"),
             self.resume_lock_filter()
         ))?;
         let rows = stmt.query_map(params![limit as i64, kind.map(PlaybackKind::key)], |r| {

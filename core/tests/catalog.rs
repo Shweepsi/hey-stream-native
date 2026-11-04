@@ -355,6 +355,7 @@ fn names_cleaned_with_older_rules_are_cleaned_again_on_open() {
         let conn = rusqlite::Connection::open(&path).unwrap();
         conn.execute_batch(
             "UPDATE item SET name = '4KL Apollo 13', search_key = '4kl apollo 13';
+             ALTER TABLE series_episode DROP COLUMN sort_order;
              PRAGMA user_version = 5;",
         )
         .unwrap();
@@ -439,6 +440,7 @@ fn titles_cleaned_with_the_previous_rules_are_cleaned_again_on_open() {
             "UPDATE item SET name = 'Dune (2021) FHD' WHERE section = 'movies' AND id = 1;
              UPDATE item SET name = '15.Aout.2001.1080p.TF1.WEB-DL' WHERE section = 'movies' AND id = 4;
              UPDATE item SET name = 'Some.Movie.2020.WEB-DL' WHERE section = 'movies' AND id = 5;
+             ALTER TABLE series_episode DROP COLUMN sort_order;
              PRAGMA user_version = 6;",
         )
         .unwrap();

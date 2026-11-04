@@ -36,6 +36,7 @@
     <string name="pin_title_confirm">Confirm the code</string>
     <string name="pin_create_message">Adult categories are locked. Choose a 4-digit code to open them.</string>
     <string name="pin_mismatch">The codes do not match. Try again.</string>
+    <string name="pin_remove_message">Enter the current code to remove it. Adult categories stay locked: opening one will offer to create a new code.</string>
     <string name="pin_delete">Delete</string>
     <string name="error_invalid_server_url">The server address is not valid.</string>
     <string name="error_missing_server">Enter the server address.</string>

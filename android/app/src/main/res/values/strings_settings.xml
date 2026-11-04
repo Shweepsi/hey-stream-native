@@ -23,6 +23,7 @@
     <string name="settings_parental_unlocked">Adult categories are unlocked while the app stays on screen</string>
     <string name="settings_parental_create">Create a code</string>
     <string name="settings_parental_change">Change the code</string>
+    <string name="settings_parental_remove">Remove the code</string>
     <string name="settings_parental_lock_now">Lock now</string>
     <string name="settings_parental_note">Unlocking with the code ends as soon as the app goes to the background or the screen turns off. After 5 wrong codes, entry is blocked for 30 seconds.</string>
 

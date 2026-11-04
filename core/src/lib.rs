@@ -6,14 +6,36 @@
 //! `null` au lieu d'une liste vide, ou des entrées incomplètes. Une entrée
 //! illisible est ignorée, jamais fatale pour toute la liste.
 
-/// Condition SQL sur une reprise `r` : pour un épisode, être plus récente que
-/// le dernier épisode de sa série vu jusqu'au bout (sinon ce n'est plus « le
-/// dernier épisode regardé »). Macro pour l'insérer dans des requêtes `const`.
+/// Condition SQL sur une reprise `r` : pour un épisode, ne pas être plus
+/// ancienne que le dernier épisode de sa série vu jusqu'au bout (sinon ce n'est
+/// plus « le dernier épisode regardé »). `>=` : la reprise à 0 de l'épisode
+/// suivant, proposée à la fin d'un épisode, est écrite dans la même seconde que
+/// cette fin. À la seconde près, seule cette reprise proposée peut avoir la
+/// date de la fin (celle de l'épisode fini est effacée). Macro pour l'insérer
+/// dans des requêtes `const`.
 macro_rules! not_superseded {
     () => {
-        "(r.series_id IS NULL OR r.updated_at > COALESCE(
+        "(r.series_id IS NULL OR r.updated_at >= COALESCE(
             (SELECT MAX(w.watched_at) FROM watched w
              WHERE w.series_id = r.series_id AND w.kind = 'episode' AND w.ended = 1), -1))"
+    };
+}
+
+/// Condition SQL sur une reprise d'alias `$r` (`"r"`, `"p"`) : pas masquée par
+/// une marque « vu » mise depuis (à la main : la position est gardée, pour
+/// « Reprendre » sur la fiche, mais le contenu quitte « Continuer » et perd sa
+/// barre). Relancer le contenu écrit une reprise plus récente, qui réapparaît.
+macro_rules! not_marked_seen {
+    ($r:literal) => {
+        concat!(
+            "NOT EXISTS (SELECT 1 FROM watched w WHERE w.kind = ",
+            $r,
+            ".kind AND w.id = ",
+            $r,
+            ".id AND w.watched_at >= ",
+            $r,
+            ".updated_at)"
+        )
     };
 }
 

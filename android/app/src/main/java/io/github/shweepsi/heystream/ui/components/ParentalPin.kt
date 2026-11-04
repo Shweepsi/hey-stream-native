@@ -57,6 +57,9 @@ enum class PinPurpose {
 
     /** Réglages : changer le code (l'actuel d'abord). */
     Change,
+
+    /** Réglages : supprimer le code (l'actuel seulement). */
+    Remove,
 }
 
 private enum class PinStep { Current, New, Confirm }
@@ -82,7 +85,7 @@ fun ParentalPinDialog(
 ) {
     val session = appGraph().session
     val scope = rememberCoroutineScope()
-    var step by remember { mutableStateOf(if (purpose == PinPurpose.Change) PinStep.Current else PinStep.New) }
+    var step by remember { mutableStateOf(if (purpose == PinPurpose.Change || purpose == PinPurpose.Remove) PinStep.Current else PinStep.New) }
     var entered by remember { mutableStateOf("") }
     var current by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf<String?>(null) }
@@ -95,7 +98,11 @@ fun ParentalPinDialog(
             try {
                 when {
                     purpose == PinPurpose.Unlock -> session.withCore { it.unlockParental(pin) }
+                    purpose == PinPurpose.Remove -> session.withCore { it.clearPin(pin) }
                     step == PinStep.Current -> {
+                        // L'ancien code est vérifié tout de suite (et compté dans les
+                        // 5 essais) : pas de nouveau code à saisir pour rien.
+                        session.withCore { it.verifyPin(pin) }
                         current = pin
                         step = PinStep.New
                         busy = false
@@ -141,7 +148,11 @@ fun ParentalPinDialog(
         step == PinStep.New -> R.string.pin_title_new
         else -> R.string.pin_title_confirm
     }
-    val message = if (purpose == PinPurpose.Create && step == PinStep.New && unlockAfterSet) R.string.pin_create_message else null
+    val message = when {
+        purpose == PinPurpose.Create && step == PinStep.New && unlockAfterSet -> R.string.pin_create_message
+        purpose == PinPurpose.Remove -> R.string.pin_remove_message
+        else -> null
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         PinPad(

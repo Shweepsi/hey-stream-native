@@ -76,6 +76,26 @@ impl Catalog {
         Ok(())
     }
 
+    /// Vérifie un code sans rien déverrouiller : changement ou suppression du
+    /// code, dont l'ancien est contrôlé dès la première étape. Compte dans les
+    /// 5 essais, comme le déverrouillage.
+    pub fn verify_pin(&mut self, pin: &str, now: i64) -> Result<()> {
+        self.check_pin(pin, now)
+    }
+
+    /// Supprime le code PIN, après avoir vérifié `current` (mêmes essais que le
+    /// déverrouillage). Les catégories adultes sont verrouillées comme avant
+    /// tout code : en ouvrir une propose d'en créer un.
+    pub fn clear_pin(&mut self, current: &str, now: i64) -> Result<()> {
+        self.check_pin(current, now)?;
+        self.conn.execute(
+            "DELETE FROM setting WHERE key IN (?1, ?2, ?3)",
+            params![PIN_KEY, FAILURES_KEY, BLOCKED_UNTIL_KEY],
+        )?;
+        self.parental_unlocked = false;
+        Ok(())
+    }
+
     /// Déverrouille les catégories adultes pour la session.
     pub fn unlock_parental(&mut self, pin: &str, now: i64) -> Result<()> {
         self.check_pin(pin, now)?;

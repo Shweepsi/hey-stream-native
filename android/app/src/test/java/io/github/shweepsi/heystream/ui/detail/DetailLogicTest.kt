@@ -213,7 +213,10 @@ class DetailLogicTest {
     fun firstButtonResumesTheEpisodeInProgressElseTheFirstUnwatched() {
         val rows = episodeRows(series, watched = setOf(11L, 12L), positions = emptyMap(), resume = null)
         assertEquals(PlayTarget(21, 2, 1, resume = false), playTarget(rows, resumeEpisodeId = null))
-        assertEquals(PlayTarget(12, 1, 2, resume = true), playTarget(rows, resumeEpisodeId = 12))
+        val started = episodeRows(series, watched = setOf(11L, 12L), positions = mapOf(12L to 600_000L), resume = null)
+        assertEquals(PlayTarget(12, 1, 2, resume = true, progress = started[1].progress), playTarget(started, resumeEpisodeId = 12))
+        // Épisode proposé à la fin du précédent : sans position, « Lecture » et non « Reprendre ».
+        assertEquals(PlayTarget(21, 2, 1, resume = false), playTarget(rows, resumeEpisodeId = 21))
         // Épisode en cours absent de la fiche : premier non vu.
         assertEquals(PlayTarget(21, 2, 1, resume = false), playTarget(rows, resumeEpisodeId = 99))
 

@@ -224,6 +224,49 @@ fn series_and_next_episode() {
     core.set_watched(PlaybackKind::Episode, 2, Some(7), false)
         .unwrap();
     assert!(!series_watched());
+
+    // La fiche a retenu l'ordre des épisodes : la fin du 1 propose le 2.
+    let episode = |id: i64, position_ms: i64| Resume {
+        kind: PlaybackKind::Episode,
+        id,
+        position_ms,
+        duration_ms: 1_000_000,
+        title: "Lupin".into(),
+        image: None,
+        extension: None,
+        series_id: Some(7),
+    };
+    core.set_watched(PlaybackKind::Episode, 1, Some(7), false)
+        .unwrap();
+    core.save_progress(episode(1, 990_000)).unwrap();
+    let next = core
+        .continue_watching(Some(PlaybackKind::Episode), 10)
+        .unwrap();
+    assert_eq!(next.len(), 1);
+    assert_eq!((next[0].resume.id, next[0].resume.position_ms), (2, 0));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_pin_is_checked_then_cleared_with_its_code() {
+    let panel = panel(vec![]);
+    let dir = temp_dir("pin");
+    let core = open(&panel, &dir);
+    core.set_pin("4321".into(), None).unwrap();
+    assert!(matches!(
+        core.verify_pin("0000".into()),
+        Err(HeyStreamError::WrongPin)
+    ));
+    core.verify_pin("4321".into()).unwrap();
+    assert!(matches!(
+        core.clear_pin("0000".into()),
+        Err(HeyStreamError::WrongPin)
+    ));
+    assert!(core.has_pin().unwrap());
+    core.clear_pin("4321".into()).unwrap();
+    assert!(!core.has_pin().unwrap());
+    drop(core);
+    drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

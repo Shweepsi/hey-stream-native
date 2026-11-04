@@ -118,6 +118,8 @@ interface SettingsActions {
 
     fun changePin() {}
 
+    fun removePin() {}
+
     fun lockNow() {}
 
     fun language(choice: LanguageChoice) {}
@@ -538,6 +540,12 @@ private fun SwitchMark(checked: Boolean) {
 private fun ParentalPane(ui: ParentalUi, actions: SettingsActions) {
     val dimens = Hs.dimens
     val first = remember { FocusRequester() }
+    // Le code supprimé, son bouton disparaît : le focus passe au premier bouton.
+    var hadPin by remember { mutableStateOf(ui.hasPin) }
+    LaunchedEffect(ui.hasPin) {
+        if (hadPin && !ui.hasPin) runCatching { first.requestFocus() }
+        hadPin = ui.hasPin
+    }
     Pane(stringResource(R.string.settings_section_parental)) {
         Paragraph(stringResource(R.string.settings_parental_intro))
         if (ui.error != null) {
@@ -573,6 +581,13 @@ private fun ParentalPane(ui: ParentalUi, actions: SettingsActions) {
                         icon = Lucide.Lock,
                     )
                 }
+            }
+            if (ui.hasPin) {
+                HsButton(
+                    text = stringResource(R.string.settings_parental_remove),
+                    onClick = actions::removePin,
+                    icon = Lucide.Trash,
+                )
             }
             Text(stringResource(R.string.settings_parental_note), style = Hs.type.small, color = Hs.colors.textSecondary)
         }
