@@ -12,7 +12,7 @@ use crate::account::{AccountKey, AccountMatch, account_match};
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::model::{Category, LiveStream, Movie, Series};
-use crate::names::{clean_name, search_name};
+use crate::names::{clean_name, clean_title, search_name};
 
 /// Section du catalogue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,6 +136,27 @@ const MIGRATIONS: &[&str] = &[
     "UPDATE item SET name = raw_name, raw_name = NULL
      WHERE raw_name IS NOT NULL
        AND (lower(raw_name) LIKE '%4k%' OR lower(raw_name) LIKE '%hd%');",
+    // 7 : titres des films et des séries (`names::clean_title`) : espaces en
+    // trop, noms de fichiers à points, mentions techniques en fin de nom. Ceux
+    // qui peuvent changer repartent du nom brut et sont recalculés à
+    // l'ouverture (pas tout le catalogue, lourd sur la Mi Box). Le filtre
+    // est volontairement large (tout nom avec un point ou un tiret bas, même
+    // précédé de « FR - ») : un nom recalculé en trop ne change pas. Les
+    // chaînes gardent leur nom. `LIKE` : le tiret bas est un joker, d'où
+    // `instr`.
+    "UPDATE item SET name = raw_name, raw_name = NULL
+     WHERE section IN ('movies', 'series') AND raw_name IS NOT NULL
+       AND (instr(raw_name, '  ') > 0 OR instr(raw_name, '( ') > 0 OR instr(raw_name, ' )') > 0
+            OR instr(raw_name, '.') > 0 OR instr(raw_name, '_') > 0
+            OR instr(raw_name, char(9)) > 0 OR instr(raw_name, char(160)) > 0
+            OR lower(raw_name) LIKE '%hd%' OR lower(raw_name) LIKE '%4k%'
+            OR lower(raw_name) LIKE '%hevc%' OR lower(raw_name) LIKE '%265%'
+            OR lower(raw_name) LIKE '%264%' OR lower(raw_name) LIKE '%10bit%'
+            OR lower(raw_name) LIKE '%720p%' OR lower(raw_name) LIKE '%1080p%'
+            OR lower(raw_name) LIKE '%2160p%'
+            OR instr(raw_name, 'ᴴ') > 0 OR instr(raw_name, 'ᵁ') > 0
+            OR instr(raw_name, 'ᶠ') > 0 OR instr(raw_name, '⁴') > 0
+            OR instr(raw_name, 'ᴷ') > 0);",
 ];
 
 /// Cache du catalogue d'un abonnement.
@@ -418,7 +439,7 @@ impl Catalog {
             let mut insert = tx.prepare(INSERT_ITEM)?;
             for m in movies {
                 let raw = display_name(m.name.as_deref());
-                let name = clean_name(&raw);
+                let name = clean_title(&raw);
                 insert.execute(params![
                     "movies",
                     m.stream_id,
@@ -451,7 +472,7 @@ impl Catalog {
             let mut insert = tx.prepare(INSERT_ITEM)?;
             for s in series {
                 let raw = display_name(s.name.as_deref());
-                let name = clean_name(&raw);
+                let name = clean_title(&raw);
                 insert.execute(params![
                     "series",
                     s.series_id,
@@ -681,9 +702,10 @@ const INSERT_ITEM: &str = "INSERT OR REPLACE INTO item
      epg_channel_id, rating, plot, is_adult, raw_name)
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)";
 
-/// Lignes enregistrées avant le nom affiché (migration 5) : `name` brut est
-/// gardé dans `raw_name`, puis remplacé par le nom affiché, avec ses clés de
-/// tri et de recherche. Ne fait rien une fois toutes les lignes traitées.
+/// Lignes sans `raw_name` : enregistrées avant le nom affiché (migration 5),
+/// ou remises à zéro par une migration (6, 7) pour être recalculées. `name`
+/// est gardé dans `raw_name`, puis remplacé par le nom affiché, avec ses clés
+/// de tri et de recherche. Ne fait rien une fois toutes les lignes traitées.
 fn clean_stored_names(tx: &rusqlite::Transaction<'_>) -> Result<()> {
     let rows: Vec<(String, i64, String)> = {
         let mut select = tx.prepare("SELECT section, id, name FROM item WHERE raw_name IS NULL")?;
@@ -695,7 +717,12 @@ fn clean_stored_names(tx: &rusqlite::Transaction<'_>) -> Result<()> {
          WHERE section = ?1 AND id = ?2",
     )?;
     for (section, id, raw) in rows {
-        let name = clean_name(&raw);
+        // Chaînes : `clean_name` ; films et séries : `clean_title`.
+        let name = if section == "live" {
+            clean_name(&raw)
+        } else {
+            clean_title(&raw)
+        };
         let search = fold(&search_name(&raw));
         update.execute(params![section, id, name, sort_key(&name), search])?;
     }

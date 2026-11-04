@@ -193,6 +193,9 @@ Constats :
   ait à le demander). Il crée l'étiquette `vX.Y.Z` et la release GitHub avec
   l'APK. Une version déjà publiée n'est pas republiée ; lancement à la main
   encore possible.
+- **Numérotation** (2026-11-03) : la version 0.8.0 est sautée (c'était celle
+  de la PR #46, abandonnée). Après la 0.7.5, la série continue en **0.9.x**,
+  une version par PR qui change l'app.
 - **CI et publication** (2026-10-31) : pour garder les PR rapides, le test
   sur émulateur ne tourne plus sur les PR, seulement sur main (ou à la main).
   La release attend donc que **toute la CI android soit verte sur main,
@@ -201,6 +204,27 @@ Constats :
   main, corriger puis fusionner ; la version (non publiée) part avec la
   correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
   `ffi/` change, et à chaque push sur main.
+
+## Noms affichés (2026-11-02, 2026-11-03)
+
+- **Chaînes, films, séries** : la mention du français (« FR - », « |FR| »,
+  « _fr ») et la mention de qualité en tête (« 4K », « 4KL », « UHD »,
+  « FHD », « HD ») sont retirées du nom affiché, sans badge (2026-11-02). Les
+  autres langues restent écrites ; les catégories gardent leur nom.
+- **Films et séries seulement** (2026-11-03, `names::clean_title`) : une
+  seule espace entre les mots ; un nom de fichier de publication devient un
+  titre (« 15.Aout.2001.1080p.TF1.WEB-DL » donne « 15 Aout (2001) ») ; les
+  mentions techniques en fin de nom (HD, FHD, UHD, 4K, HDR, HEVC, x265…) sont
+  retirées. **MULTI, VOSTFR et VOST restent** : elles disent quelle version
+  on lance. **Les chaînes gardent leurs mentions** (« TF1 ᵁᴴᴰ » distingue
+  deux flux d'une même chaîne).
+- **L'année** reste dans le titre des grilles, où elle distingue les
+  homonymes (« Dune (1984) », « Dune (2021) ») ; la fiche, qui la montre déjà
+  sur sa ligne d'infos, l'ôte du titre (`names::title_without_year`).
+- **Tout reste cherchable** : la clé de recherche garde le nom du
+  fournisseur, mentions comprises.
+- Les noms déjà enregistrés sont recalculés à l'ouverture (migrations 6 et
+  7), sans recharger le catalogue.
 
 ## Image publique et listes M3U (réflexion, 2026-10-29)
 

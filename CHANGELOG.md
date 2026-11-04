@@ -4,6 +4,22 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.0 — 2026-11-03
+
+- Noms des films et des séries (les chaînes ne changent pas) : une seule
+  espace entre les mots, aucune après « ( » ni avant « ) » (« 9 Bullets
+  ( 2022) » devient « 9 Bullets (2022) ») ; un nom de fichier de publication
+  devient un titre (« 15.Aout.2001.1080p.TF1.WEB-DL » donne « 15 Aout
+  (2001) ») ; les mentions techniques en fin de nom disparaissent (« Dune
+  (2021) FHD » donne « Dune (2021) » : HD, FHD, UHD, 4K, HDR, HEVC, x265…).
+  MULTI, VOSTFR et VOST restent. Tout reste cherchable. Les noms qui peuvent
+  changer sont recalculés à l'ouverture (migration 7 du catalogue).
+- Fiches : le titre n'affiche plus l'année quand la ligne d'infos la montre
+  déjà (« 22 Jump Street (2014) » au-dessus de « 2014 »). Les grilles la
+  gardent : elle distingue « Dune (1984) » de « Dune (2021) ».
+- Numérotation : la version 0.8.0 est sautée, la série continue en 0.9.x
+  (`docs/DECISIONS.md`, « Versions »).
+
 ## 0.7.5 — 2026-11-02
 
 - Noms : la mention de qualité en tête (« 4K », « 4KL », « UHD », « FHD »,

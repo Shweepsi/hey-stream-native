@@ -110,7 +110,11 @@ Style « gris doux », décidé le 2026-10-29 (maquettes A, B, C : A retenue).
   (« FR - », « |FR| », « _fr »), implicite dans l'app, ni la mention de
   qualité en tête (« 4K », « 4KL », « UHD », « FHD », « HD »), sans badge à la
   place (décidé le 2026-11-02) ; les autres langues restent écrites, les
-  catégories gardent leur nom.
+  catégories gardent leur nom. Films et séries seulement (2026-11-03) :
+  espaces en trop, noms de fichiers de publication et mentions techniques en
+  fin de nom (« FHD », « HDR », « x265 »…) nettoyés, sauf MULTI, VOSTFR et
+  VOST ; sur la fiche, l'année déjà montrée par la ligne d'infos quitte le
+  titre. Les chaînes gardent leurs mentions.
 
 ## Animations
 

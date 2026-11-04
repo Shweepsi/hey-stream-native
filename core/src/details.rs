@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::client::XtreamClient;
 use crate::error::{Error, Result};
 use crate::lenient::{list, opt_i64, opt_string, required_i64};
-use crate::names::clean_name;
+use crate::names::clean_title;
 
 /// Fiche d'un film.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -215,7 +215,7 @@ impl XtreamClient {
                 .as_ref()
                 .and_then(|d| d.name.clone())
                 .or(info.name.clone())
-                .map(|n| clean_name(&n)),
+                .map(|n| clean_title(&n)),
             plot: info.plot(),
             year: info.year(),
             duration_secs: info.movie_duration_secs(),
@@ -288,7 +288,7 @@ impl XtreamClient {
                 .name
                 .clone()
                 .or(info.title.clone())
-                .map(|n| clean_name(&n)),
+                .map(|n| clean_title(&n)),
             plot: info.plot(),
             year: info.year(),
             rating: info.rating.clone(),
