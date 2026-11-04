@@ -4,6 +4,15 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.5 — 2026-11-04
+
+- Zapping plus rapide : le lecteur garde ses décodeurs ouverts d'une chaîne à
+  l'autre (mode premier plan de Media3) au lieu de libérer puis recréer le
+  décodeur matériel à chaque changement. Sur la Mi Box, la première image
+  arrive ≈ 90 ms plus tôt (médiane 862 → 770 ms sur 40 zappings alternés) ;
+  le décodeur est réutilisé sans reconfiguration deux fois sur trois. Les
+  décodeurs sont rendus au système dès que l'app passe en arrière-plan.
+
 ## 0.9.4 — 2026-11-03
 
 - Interface plus légère à l'œil, sans rien changer aux données ni aux noms :

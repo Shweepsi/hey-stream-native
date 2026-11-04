@@ -232,6 +232,27 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Zapping : décodeurs gardés (2026-11-04)
+
+- Mesure (Mi Box, sonde de la PR d'essai #56) : sur ≈ 860 ms entre la demande
+  d'ouverture et la première image, ≈ 450 ms sont du réseau du fournisseur
+  (redirection et réponse du serveur de flux), ≈ 160 ms la lecture du flux
+  jusqu'au format vidéo, ≈ 125 ms le décodeur jusqu'à la première image, et
+  ≈ 120 ms avant même la requête (le fil du lecteur libère encore l'ancien
+  flux et son décodeur).
+- **Mode premier plan de Media3** (`setForegroundMode(true)`) : les décodeurs
+  restent ouverts entre deux flux ; la libération et la recréation du
+  décodeur matériel disparaissent du chemin du zapping (≈ −90 ms, régulier sur
+  deux manches alternées). Media3 réutilise le décodeur quand le format suit
+  (même codec, taille compatible), sinon en crée un autre comme avant.
+- **Arrière-plan** : `setForegroundMode(false)` à la mise en arrière-plan
+  (décodeurs rendus au système, pour les autres applis), `true` au retour.
+  La règle « jamais deux flux » ne change pas : l'ancien flux est toujours
+  fermé avant l'ouverture du suivant (seuls les décodeurs restent).
+- Écartés après mesure : réduire le tampon de démarrage (la lecture part déjà
+  ≈ 20 ms après la première image), l'ouverture du décodeur elle-même
+  (≈ 45 ms).
+
 ## Allègement de l'interface (2026-11-03)
 
 Demandé par Loïc : moins de complexité visuelle. Retenu : compteur des lignes
