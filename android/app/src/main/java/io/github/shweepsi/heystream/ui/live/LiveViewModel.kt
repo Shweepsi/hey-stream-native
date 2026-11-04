@@ -175,13 +175,9 @@ class LiveViewModel(
                 val entries = core.categories(Section.LIVE)
                 val favorites = core.favorites(Section.LIVE, 0u, FAVORITES_LIMIT.toUInt()).mapTo(HashSet()) { it.id }
                 val recents = core.recents(Section.LIVE, RECENTS_LIMIT.toUInt()).size
-                // Jamais de comptage d'une catégorie verrouillée (le cœur le refuse).
-                val counts = entries.filter { !it.locked }.mapNotNull { entry ->
-                    runCatching { entry.id to core.count(Section.LIVE, entry.id).toLong() }.getOrNull()
-                }.toMap()
                 // Secondaire : sans elle, l'ouverture habituelle.
                 val last = runCatching { core.lastCategory(Section.LIVE) }.getOrNull()?.let(::liveCategoryKeyOf)
-                Loaded(liveCategories(entries, counts, favorites.size, recents), favorites, last)
+                Loaded(liveCategories(entries, favorites.size, recents), favorites, last)
             }
         }
         result.onSuccess { loaded ->

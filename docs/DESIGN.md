@@ -123,12 +123,17 @@ l'écran en permanence.
 
 - **Catégories** : le nom du fournisseur, tel quel (inchangé), sans compteur à
   droite. Le nombre de titres de la catégorie ouverte s'écrit seulement dans
-  l'en-tête de la grille (Films, Séries : « ACTION  579 films »).
-- **Pas d'aide permanente** : ni « Maintenez OK… » sous l'aperçu du Direct, ni
-  au-dessus des épisodes. Seul un état vide explique le geste (catégorie
-  Favoris vide : « Maintenez OK sur une chaîne… »).
-- **Épisode sans titre** : « Épisode 2 » sans numéro à côté ; avec un titre, le
-  numéro reste en tête de ligne.
+  l'en-tête de la grille (Films, Séries : « ACTION  579 films ») ; le Direct
+  n'affiche aucun nombre de chaînes.
+- **Pas d'aide permanente** : « Maintenez OK sur une chaîne… » (sous l'aperçu
+  du Direct) ne se montre que tant qu'il n'y a aucun favori ; « Maintenez OK ou
+  appuyez sur MENU… » (épisodes) que tant qu'aucun épisode n'est vu ni commencé.
+  Une catégorie Favoris vide n'est pas listée (rien ne l'explique là).
+- **Épisode sans titre** : « Épisode 2 » sans numéro à côté quand aucun épisode
+  de la liste n'a de titre ; sinon le numéro reste en tête de toutes les lignes
+  (alignement).
+- **Options qui se comprennent seules** : « Doublée, sans sous-titres » plutôt
+  qu'un paragraphe d'explication.
 - **Réglages** : une phrase d'introduction par volet au plus, sans exemples ni
   rappels que la fenêtre de confirmation ou le message d'erreur donnent au
   bon moment (mise en garde de la déconnexion, blocage après 5 codes faux). La

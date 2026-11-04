@@ -35,7 +35,10 @@ data class LiveCategory(
     val key: CategoryKey,
     /** Nom du fournisseur ; `null` pour Favoris et Récents (textes de l'app). */
     val name: String?,
-    /** Nombre de chaînes ; `null` s'il est inconnu ou si la catégorie est verrouillée. */
+    /**
+     * Nombre de chaînes de Favoris et Récents (une colonne vide est masquée) ;
+     * `null` pour les catégories du fournisseur : leur nombre n'est plus affiché.
+     */
     val count: Long?,
     /** Catégorie adulte verrouillée par le contrôle parental. */
     val locked: Boolean = false,
@@ -172,11 +175,10 @@ const val RECENTS_LIMIT = 50
 
 /**
  * Catégories du panneau : Favoris et Récents, puis celles du fournisseur
- * (ordre du cœur). Une catégorie verrouillée n'a pas de nombre.
+ * (ordre du cœur), sans nombre.
  */
 fun liveCategories(
     provider: List<CategoryEntry>,
-    counts: Map<String, Long>,
     favorites: Int,
     recents: Int,
 ): List<LiveCategory> = buildList(provider.size + 2) {
@@ -187,7 +189,7 @@ fun liveCategories(
             LiveCategory(
                 key = CategoryKey.Provider(entry.id),
                 name = entry.name,
-                count = if (entry.locked) null else counts[entry.id],
+                count = null,
                 locked = entry.locked,
             ),
         )

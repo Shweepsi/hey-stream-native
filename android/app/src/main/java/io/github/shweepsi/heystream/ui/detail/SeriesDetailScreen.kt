@@ -201,9 +201,12 @@ private fun SeriesBody(
             item(key = "episodes-label", contentType = "label") {
                 EpisodesLabel(state)
             }
+            val showNumbers = state.episodes.any { it.title != null }
             items(state.episodes, key = { it.id }, contentType = { "episode" }) { episode ->
                 EpisodeItem(
                     episode = episode,
+                    // Numéros partout ou nulle part : une liste mêlant épisodes titrés et sans titre reste alignée.
+                    showNumber = showNumbers,
                     onClick = { playEpisode(episode.id) },
                     onToggleWatched = { onToggleEpisodeWatched(episode.id) },
                     modifier = if (episode.id == lastPlayed) Modifier.focusRequester(restore) else Modifier,
@@ -298,7 +301,11 @@ private fun SeasonTabs(seasons: List<Long>, selected: Long?, onSelect: (Long) ->
 private fun seasonName(season: Long): String =
     if (season == 0L) stringResource(R.string.detail_specials) else stringResource(R.string.detail_season, season)
 
-/** Intitulé « Épisodes », puis l'état de la liste s'il y a lieu (chargement, erreur, vide). */
+/**
+ * Intitulé « Épisodes », puis l'état de la liste s'il y a lieu (chargement,
+ * erreur, vide), ou l'aide de la marque « vu » tant qu'aucun épisode n'est vu
+ * ni commencé (pas d'aide permanente).
+ */
 @Composable
 private fun EpisodesLabel(state: SeriesDetailState) {
     val dimens = Hs.dimens
@@ -308,6 +315,8 @@ private fun EpisodesLabel(state: SeriesDetailState) {
             state.episodesError != null -> state.episodesError.resolve()
             state.episodesLoading -> stringResource(R.string.detail_episodes_loading)
             state.episodes.isEmpty() -> stringResource(R.string.detail_episodes_empty)
+            state.episodes.none { it.watched || it.progress != null } ->
+                stringResource(if (dimens.isTv) R.string.detail_episode_hint_tv else R.string.detail_episode_hint_touch)
             else -> null
         }
         if (message != null) {
@@ -328,6 +337,7 @@ private fun EpisodesLabel(state: SeriesDetailState) {
 @Composable
 private fun EpisodeItem(
     episode: EpisodeRow,
+    showNumber: Boolean,
     onClick: () -> Unit,
     onToggleWatched: () -> Unit,
     modifier: Modifier = Modifier,
@@ -357,8 +367,8 @@ private fun EpisodeItem(
             horizontalArrangement = Arrangement.spacedBy(if (dimens.isTv) 12.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Sans titre, « Épisode 2 » dit déjà le numéro : pas de « 2  Épisode 2 ».
-            if (episode.title != null) {
+            // Aucun titre dans la liste : « Épisode 2 » dit déjà le numéro, pas de « 2  Épisode 2 ».
+            if (showNumber) {
                 Text(
                     text = episode.number.toString(),
                     style = Hs.type.body.tabular(),
