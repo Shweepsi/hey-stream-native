@@ -1,7 +1,10 @@
 package io.github.shweepsi.heystream.player
 
+import android.content.Context
 import android.os.Looper
 import androidx.media3.common.Player
+import io.github.shweepsi.heystream.core.RetryAction
+import io.github.shweepsi.heystream.core.StopReason
 import java.time.Duration
 import org.robolectric.Shadows.shadowOf
 
@@ -48,3 +51,15 @@ internal fun advanceMainUntil(maxSimulatedMs: Long = 30_000, done: () -> Boolean
         Thread.sleep(2)
     }
 }
+
+/**
+ * Règle de relance des tests : 1, 2, 4, 8, 8, 8 s puis abandon, sans code HTTP.
+ * Sous Robolectric la bibliothèque native du cœur n'est pas là ; la vraie règle
+ * est testée en Rust (`core/tests/playback.rs`).
+ */
+internal fun testRetryPolicy(status: Int?, attempt: Int): RetryAction =
+    if (attempt >= 6) RetryAction.Stop(StopReason.FAILED) else RetryAction.Retry(minOf(1 shl attempt, 8).toUInt())
+
+/** Lecteur de test : règle ci-dessus, et réseau présent sauf si [offline] dit le contraire. */
+internal fun testController(context: Context, offline: () -> Boolean = { false }) =
+    PlayerController(context, retryPolicy = ::testRetryPolicy, offline = offline)

@@ -49,15 +49,20 @@ object CrashReports {
         if (value) init(context)
     }
 
-    /** Lecture abandonnée après toutes les reconnexions ; [code] : nom du code d'erreur Media3. */
-    fun playbackFailed(code: String, live: Boolean) {
-        Telemetry.event("play_failed", "code" to code, "live" to live)
+    /**
+     * Lecture abandonnée (toutes les reconnexions, ou un refus qu'un essai ne
+     * change pas) ; [code] : nom du code d'erreur Media3, [httpStatus] : code
+     * HTTP du fournisseur s'il a répondu.
+     */
+    fun playbackFailed(code: String, live: Boolean, httpStatus: Int? = null) {
+        Telemetry.event("play_failed", "code" to code, "http" to httpStatus, "live" to live)
         if (!started || !enabled) return
         Sentry.captureMessage("Lecture abandonnée : $code", SentryLevel.WARNING) { scope ->
             scope.setTag("source", "player")
             scope.setTag("playback_error", code)
             scope.setTag("live", live.toString())
-            scope.fingerprint = listOf("playback", code)
+            httpStatus?.let { scope.setTag("http_status", it.toString()) }
+            scope.fingerprint = listOfNotNull("playback", code, httpStatus?.toString())
         }
     }
 

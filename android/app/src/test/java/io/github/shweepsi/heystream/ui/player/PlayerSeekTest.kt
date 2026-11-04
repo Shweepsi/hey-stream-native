@@ -7,9 +7,9 @@ import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.ParentalFakeCore
 import io.github.shweepsi.heystream.data.fakeSession
 import io.github.shweepsi.heystream.player.Opens
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.advanceMainUntil
 import io.github.shweepsi.heystream.player.runMainUntil
+import io.github.shweepsi.heystream.player.testController
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -21,7 +21,7 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(AndroidJUnit4::class)
 class PlayerSeekTest {
     private val core = ParentalFakeCore().apply { add(Section.MOVIES, 7, "Film") }
-    private val controller = PlayerController(RuntimeEnvironment.getApplication())
+    private val controller = testController(RuntimeEnvironment.getApplication())
     private val opens = Opens().also { controller.player.addListener(it) }
 
     @After

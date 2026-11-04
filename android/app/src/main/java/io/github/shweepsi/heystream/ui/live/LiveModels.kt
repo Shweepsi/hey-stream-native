@@ -7,6 +7,7 @@ import io.github.shweepsi.heystream.core.NowNext
 import io.github.shweepsi.heystream.core.Programme
 import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.ui.UiText
+import io.github.shweepsi.heystream.ui.message
 import io.github.shweepsi.heystream.ui.components.PinPurpose
 
 /** Catégorie du direct : Favoris et Récents en tête, puis celles du fournisseur. */
@@ -100,7 +101,14 @@ sealed interface LivePlayback {
     /** Coupure : nouvelle tentative en cours. */
     data object Reconnecting : LivePlayback
 
-    /** Lecture abandonnée ; [error] : erreur du cœur avant la lecture, sinon message générique. */
+    /** Coupure sans aucun réseau : la lecture reprend au retour de la connexion. */
+    data object Offline : LivePlayback
+
+    /**
+     * Lecture abandonnée ; [error] : erreur du cœur avant la lecture, ou raison
+     * donnée par le lecteur (abonnement utilisé ailleurs, compte refusé…), sinon
+     * message générique.
+     */
     data class Failed(val error: UiText? = null) : LivePlayback
 }
 
@@ -241,8 +249,8 @@ fun channelClick(previewId: Long?, clickedId: Long): ChannelClick =
 fun livePlaybackOf(status: PlaybackStatus, hasPreview: Boolean, previewError: UiText?): LivePlayback = when {
     !hasPreview -> LivePlayback.Idle
     previewError != null -> LivePlayback.Failed(previewError)
-    status.failed -> LivePlayback.Failed()
-    status.reconnectAttempt > 0 -> LivePlayback.Reconnecting
+    status.failed -> LivePlayback.Failed(status.problem?.message())
+    status.reconnectAttempt > 0 -> if (status.offline) LivePlayback.Offline else LivePlayback.Reconnecting
     status.active -> LivePlayback.Playing
     else -> LivePlayback.Idle
 }

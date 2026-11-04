@@ -740,3 +740,41 @@ fn language_preference_last_category_and_track_choice() {
     drop(panel);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn playback_retry_decides_from_the_http_status() {
+    use heystream::{RetryAction, StopReason, playback_retry};
+
+    assert_eq!(
+        playback_retry(Some(509), 0),
+        RetryAction::Stop {
+            reason: StopReason::SubscriptionInUse
+        }
+    );
+    assert_eq!(
+        playback_retry(Some(403), 2),
+        RetryAction::Stop {
+            reason: StopReason::AccountRefused
+        }
+    );
+    assert_eq!(
+        playback_retry(Some(404), 0),
+        RetryAction::Retry { delay_secs: 1 }
+    );
+    assert_eq!(
+        playback_retry(Some(404), 1),
+        RetryAction::Stop {
+            reason: StopReason::NotFound
+        }
+    );
+    assert_eq!(
+        playback_retry(None, 3),
+        RetryAction::Retry { delay_secs: 8 }
+    );
+    assert_eq!(
+        playback_retry(None, 6),
+        RetryAction::Stop {
+            reason: StopReason::Failed
+        }
+    );
+}

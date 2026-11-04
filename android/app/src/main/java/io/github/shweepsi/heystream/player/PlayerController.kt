@@ -1,8 +1,12 @@
 package io.github.shweepsi.heystream.player
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -13,17 +17,20 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory
 import io.github.shweepsi.heystream.BuildConfig
+import io.github.shweepsi.heystream.core.RetryAction
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.Telemetry
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,13 +40,19 @@ import kotlinx.coroutines.flow.update
 data class PlaybackStatus(
     /** Un flux est chargé (aperçu ou plein écran). */
     val active: Boolean = false,
+    /** Le flux est ouvert chez le fournisseur : il se charge ou se lit (pas arrêté, ni fini, ni en reconnexion). */
+    val streaming: Boolean = false,
     val live: Boolean = false,
     val playing: Boolean = false,
     val buffering: Boolean = false,
     /** Coupure : nouvelle tentative en cours (numéro de l'essai). */
     val reconnectAttempt: Int = 0,
-    /** Lecture abandonnée après plusieurs essais. */
+    /** Lecture abandonnée (plusieurs essais, ou une raison qu'un essai ne change pas). */
     val failed: Boolean = false,
+    /** Raison de l'abandon, quand on sait la dire ; `null` : message général. */
+    val problem: PlaybackProblem? = null,
+    /** Aucun réseau pendant la reconnexion : `Pas de connexion Internet` plutôt que `Reconnexion…`. */
+    val offline: Boolean = false,
     /** Fin d'un film ou d'un épisode. */
     val ended: Boolean = false,
 )
@@ -53,7 +66,13 @@ data class PlaybackStatus(
  * À utiliser depuis le fil principal. Les URL ne sont jamais journalisées.
  */
 @OptIn(UnstableApi::class)
-class PlayerController(private val context: Context) {
+class PlayerController(
+    private val context: Context,
+    /** Règle de relance : celle du cœur ; les tests donnent la leur (pas de bibliothèque native sous Robolectric). */
+    private val retryPolicy: (status: Int?, attempt: Int) -> RetryAction = ::corePolicy,
+    /** Plus aucun réseau ? Lu à chaque échec ; remplacé dans les tests. */
+    private val offline: () -> Boolean = { isSystemOffline(context) },
+) {
     private val handler = Handler(Looper.getMainLooper())
     private var exoPlayer: ExoPlayer? = null
     private var current: MediaItem? = null
@@ -63,13 +82,23 @@ class PlayerController(private val context: Context) {
     private var live = false
     private var attempt = 0
 
-    /** Dernière erreur du flux en cours, pour le rapport si la lecture est abandonnée. */
-    private var lastError: PlaybackException? = null
+    /** Abandon dû à une panne de connexion (sans réponse du fournisseur) : le retour du réseau relance. */
+    private var networkFailure = false
+
+    /** Retours au bord du direct dans la fenêtre en cours ([LIVE_EDGE_WINDOW_MS]), et l'heure du dernier. */
+    private var liveEdgeJumps = 0
+    private var lastLiveEdgeJump = 0L
     private var resumeOnForeground = false
     private var pendingRetry: Runnable? = null
 
     /** App en arrière-plan : aucun flux ne s'ouvre avant son retour. */
     private var inBackground = false
+
+    private val connectivity = context.getSystemService(ConnectivityManager::class.java)
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    /** Décodeurs matériels qui ont planté : écartés jusqu'à la fin de l'app. */
+    private val bannedDecoders: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
@@ -171,12 +200,57 @@ class PlayerController(private val context: Context) {
         val item = current ?: return
         if (isHeld) return
         attempt = 0
+        liveEdgeJumps = 0
         if (!live) resumeMs = exoPlayer?.currentPosition ?: resumeMs
         open(item, if (live) 0 else resumeMs)
     }
 
+    /**
+     * Le réseau est revenu : une reconnexion qui attendait son délai part tout
+     * de suite ; une lecture abandonnée faute de connexion repart d'elle-même.
+     * Seulement après une panne de connexion ([networkFailure]), jamais après
+     * un refus du fournisseur, un décodeur planté ou un flux qui se termine.
+     */
+    internal fun onNetworkBack() {
+        val item = current ?: return
+        // Un refus ou une panne du fournisseur n'a rien à voir avec le réseau : ses délais restent.
+        if (inBackground || isHeld || !networkFailure) return
+        val waiting = pendingRetry
+        when {
+            waiting != null -> {
+                handler.removeCallbacks(waiting)
+                waiting.run()
+            }
+            _status.value.failed -> {
+                networkFailure = false
+                attempt = 0
+                liveEdgeJumps = 0
+                // « Reconnexion… » plutôt que la carte d'échec, le temps que le flux reparte.
+                _status.update { it.copy(failed = false, problem = null, offline = false, buffering = true, reconnectAttempt = 1) }
+                if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
+                val play = live || (exoPlayer?.playWhenReady ?: true)
+                open(item, if (live) 0 else resumeMs, playWhenReady = play)
+            }
+        }
+    }
+
+    /** S'abonne au réseau par défaut (une fois) : le retour de la connexion relance la lecture. */
+    private fun watchNetwork() {
+        if (networkCallback != null) return
+        val manager = connectivity ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                handler.post { onNetworkBack() }
+            }
+        }
+        // Sans accès à l'état du réseau, la reconnexion garde ses délais.
+        if (runCatching { manager.registerDefaultNetworkCallback(callback) }.isSuccess) networkCallback = callback
+    }
+
     fun release() {
         stop()
+        networkCallback?.let { callback -> runCatching { connectivity?.unregisterNetworkCallback(callback) } }
+        networkCallback = null
         exoPlayer?.release()
         exoPlayer = null
     }
@@ -185,13 +259,15 @@ class PlayerController(private val context: Context) {
         stats?.finish(exoPlayer)
         stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
         cancelRetry()
+        watchNetwork()
         // Le lecteur sert à tous les titres : un choix de pistes (sous-titres
         // coupés par la langue « Doublée », piste choisie à la main) ne
         // doit pas suivre au titre suivant.
         exoPlayer?.let { it.trackSelectionParameters = resetTracks(it.trackSelectionParameters) }
         this.live = live
         attempt = 0
-        lastError = null
+        liveEdgeJumps = 0
+        networkFailure = false
         current = item
         resumeMs = startMs.coerceAtLeast(0)
         _status.value = PlaybackStatus(active = true, live = live, buffering = true)
@@ -224,6 +300,11 @@ class PlayerController(private val context: Context) {
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
             .build()
 
+    private val codecSelector = MediaCodecSelector { mimeType, requiresSecure, requiresTunneling ->
+        val all = MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
+        all.filter { it.name !in bannedDecoders }.ifEmpty { all }
+    }
+
     private fun create(): ExoPlayer {
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent("HeyStream/${BuildConfig.VERSION_NAME}")
@@ -239,6 +320,8 @@ class PlayerController(private val context: Context) {
             // FFmpeg seulement pour l'audio que l'appareil ne décode pas (MP2, AC-3).
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
+            // Un décodeur qui a planté n'est plus proposé (le premier de la liste revient s'il ne reste rien).
+            .setMediaCodecSelector(codecSelector)
         val loadControl = DefaultLoadControl.Builder()
             // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
             .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
@@ -284,6 +367,7 @@ class PlayerController(private val context: Context) {
                 it.copy(
                     playing = player.isPlaying,
                     buffering = player.playbackState == Player.STATE_BUFFERING,
+                    streaming = player.playbackState == Player.STATE_BUFFERING || player.playbackState == Player.STATE_READY,
                 )
             }
         }
@@ -293,18 +377,34 @@ class PlayerController(private val context: Context) {
             when (playbackState) {
                 Player.STATE_READY -> {
                     attempt = 0
-                    _status.update { it.copy(reconnectAttempt = 0, failed = false, ended = false) }
+                    _status.update {
+                        it.copy(reconnectAttempt = 0, failed = false, ended = false, problem = null, offline = false)
+                    }
                 }
                 // Un flux en direct qui « se termine » est une coupure du serveur.
-                Player.STATE_ENDED -> if (live) scheduleRetry() else _status.update { it.copy(ended = true) }
+                Player.STATE_ENDED -> if (live) scheduleRetry(null) else _status.update { it.copy(ended = true) }
                 else -> Unit
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            stats?.error(error, attempt)
-            lastError = error
-            scheduleRetry()
+            stats?.error(error, attempt, httpStatusOf(error))
+            // Trop loin derrière le direct : retour à son bord, sans compter comme une panne.
+            // Trois fois par fenêtre de 30 s : un flux qui y retombe sans cesse suit les relances.
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastLiveEdgeJump > LIVE_EDGE_WINDOW_MS) liveEdgeJumps = 0
+            if (live && error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && liveEdgeJumps < MAX_LIVE_EDGE_JUMPS) {
+                liveEdgeJumps += 1
+                lastLiveEdgeJump = now
+                exoPlayer?.run {
+                    seekToDefaultPosition()
+                    prepare()
+                }
+                return
+            }
+            // Décodeur planté en cours de route : écarté, le nouvel essai en prend un autre.
+            failedDecoderOf(error)?.let { name -> if (bannedDecoders.add(name)) stats?.decoderDropped(name) }
+            scheduleRetry(error)
         }
     }
 
@@ -360,18 +460,30 @@ class PlayerController(private val context: Context) {
         }
     }
 
-    /** Reconnexion : 1, 2, 4, 8 s… (8 s au plus), puis abandon après [MAX_ATTEMPTS]. */
-    private fun scheduleRetry() {
+    /**
+     * Suite d'un échec ([error] : `null` pour un direct qui se termine). Le
+     * cœur décide selon le code HTTP ([nextStep]) : reconnexion après 1, 2, 4,
+     * 8 s…, ou abandon avec sa raison (abonnement utilisé ailleurs, compte
+     * refusé, flux introuvable, format non pris en charge).
+     */
+    private fun scheduleRetry(error: PlaybackException?) {
         val item = current ?: return
         cancelRetry()
-        if (attempt >= MAX_ATTEMPTS) {
-            // Seul le code d'erreur part : son message contient l'URL du flux.
-            CrashReports.playbackFailed(lastError?.errorCodeName ?: "ENDED", live)
-            _status.update { it.copy(failed = true, buffering = false, reconnectAttempt = 0) }
-            return
+        val noNetwork = offline()
+        networkFailure = isConnectivityFailure(error, noNetwork)
+        val delayMs = when (val step = nextStep(error, attempt, noNetwork, retryPolicy)) {
+            is Step.Retry -> step.delayMs
+            is Step.Stop -> {
+                // Seuls les codes partent : le message de l'erreur contient l'URL du flux.
+                CrashReports.playbackFailed(error?.errorCodeName ?: "ENDED", live, httpStatusOf(error))
+                _status.update {
+                    it.copy(failed = true, buffering = false, reconnectAttempt = 0, problem = step.problem, offline = false)
+                }
+                return
+            }
         }
         attempt += 1
-        _status.update { it.copy(reconnectAttempt = attempt, buffering = true) }
+        _status.update { it.copy(reconnectAttempt = attempt, buffering = true, offline = noNetwork) }
         if (!live) resumeMs = exoPlayer?.currentPosition?.takeIf { it > 0 } ?: resumeMs
         val retry = Runnable {
             pendingRetry = null
@@ -381,7 +493,7 @@ class PlayerController(private val context: Context) {
             if (current === item) open(item, if (live) 0 else resumeMs, playWhenReady = play)
         }
         pendingRetry = retry
-        handler.postDelayed(retry, (1000L shl (attempt - 1)).coerceAtMost(8_000))
+        handler.postDelayed(retry, delayMs)
     }
 
     private fun cancelRetry() {
@@ -393,6 +505,14 @@ class PlayerController(private val context: Context) {
         /** Avance et recul rapides (spec : +30 s, −10 s, appuis cumulés). */
         const val SEEK_FORWARD_MS = 30_000L
         const val SEEK_BACK_MS = 10_000L
-        private const val MAX_ATTEMPTS = 6
+        private const val MAX_LIVE_EDGE_JUMPS = 3
+        private const val LIVE_EDGE_WINDOW_MS = 30_000L
     }
+}
+
+/** Aucun réseau actif : le fournisseur ne peut pas répondre. */
+private fun isSystemOffline(context: Context): Boolean {
+    val manager = context.getSystemService(ConnectivityManager::class.java) ?: return false
+    val network = manager.activeNetwork ?: return true
+    return manager.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == false
 }

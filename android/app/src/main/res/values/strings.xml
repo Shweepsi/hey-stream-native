@@ -29,6 +29,11 @@
     <string name="category_empty">This category is empty</string>
     <string name="playback_reconnecting">Reconnecting…</string>
     <string name="playback_failed">The stream could not be played</string>
+    <string name="playback_offline">No Internet connection</string>
+    <string name="playback_in_use">This subscription is already in use on another device. Stop the stream there, then try again.</string>
+    <string name="playback_refused">The provider refused the account: it may have expired or been suspended.</string>
+    <string name="playback_not_found">The provider could not find this stream.</string>
+    <string name="playback_unsupported">This device cannot play this video format.</string>
     <string name="pin_title_unlock">Enter the parental code</string>
     <string name="pin_title_current">Enter the current code</string>
     <string name="pin_title_create">Create a parental code</string>

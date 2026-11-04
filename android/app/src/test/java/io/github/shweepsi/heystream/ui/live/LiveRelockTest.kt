@@ -6,9 +6,9 @@ import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.ParentalFakeCore
 import io.github.shweepsi.heystream.data.fakeSession
 import io.github.shweepsi.heystream.player.Opens
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.runMainUntil
 import io.github.shweepsi.heystream.player.settleMain
+import io.github.shweepsi.heystream.player.testController
 import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.cancel
 import org.junit.After
@@ -32,7 +32,7 @@ class LiveRelockTest {
         add(Section.LIVE, NEWS, "Info continue")
     }
     private val session = fakeSession(core)
-    private val controller = PlayerController(RuntimeEnvironment.getApplication())
+    private val controller = testController(RuntimeEnvironment.getApplication())
     private val opens = Opens().also { controller.player.addListener(it) }
 
     @After

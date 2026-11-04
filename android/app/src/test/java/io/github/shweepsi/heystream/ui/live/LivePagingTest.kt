@@ -5,8 +5,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.data.ParentalFakeCore
 import io.github.shweepsi.heystream.data.fakeSession
-import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.runMainUntil
+import io.github.shweepsi.heystream.player.testController
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -21,7 +21,7 @@ import org.robolectric.RuntimeEnvironment
 class LivePagingTest {
     private val core = ParentalFakeCore().apply { add(Section.LIVE, 1L, "Info continue") }
     private val session = fakeSession(core)
-    private val controller = PlayerController(RuntimeEnvironment.getApplication())
+    private val controller = testController(RuntimeEnvironment.getApplication())
 
     @After
     fun release() {
