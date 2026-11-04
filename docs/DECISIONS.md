@@ -232,6 +232,26 @@ Constats :
   dernière catégorie, puis l'ouverture habituelle. Aux Films et aux Séries,
   elle passe avant « Continuer ».
 
+## Profil de référence tiré de l'usage (2026-11-04)
+
+- L'APK n'embarquait que les profils des bibliothèques : après chaque
+  installation ou mise à jour (fréquentes, une PR = une version), le code de
+  l'appli tournait interprété ou en JIT jusqu'à ce qu'Android le compile
+  d'après l'usage (démarrage ≈ 480 à 610 ms selon l'heure sur la Mi Box,
+  ≈ 440 ms une fois l'appli apprise).
+- **Profil tiré de l'usage réel** : `cmd package dump-profiles` sur
+  l'appareil de référence après une longue séance, converti en règles
+  explicites (`scripts/profil_reference.mjs`). Des règles génériques par
+  classe (`HSPL<classe>;->**(**)**`) avaient été essayées d'abord : quasi sans
+  effet (≈ −25 ms), les jokers ne semblant pas appliqués.
+- Mesure (protocole ProfileInstaller : `INSTALL_PROFILE` puis
+  `compile -m speed-profile`, deux manches alternées) : démarrage à froid
+  ≈ 480 → ≈ 400 ms ; premier défilement de la grille inchangé (≈ 9 %).
+- **Régénérer** après un changement important de l'interface ou des
+  bibliothèques : `scripts/profil_reference.sh` (usage à la main sur la Mi
+  Box, aucun script n'appelle le panneau ; le script ne fait qu'extraire et
+  convertir le profil).
+
 ## Zapping : décodeurs gardés (2026-11-04)
 
 - Mesure (Mi Box, sonde de la PR d'essai #56) : sur ≈ 860 ms entre la demande

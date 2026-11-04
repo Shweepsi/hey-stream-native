@@ -4,6 +4,17 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.6 — 2026-11-04
+
+- Démarrage plus rapide après chaque installation ou mise à jour : l'APK
+  embarque un profil de référence (Baseline Profile) tiré de l'usage réel
+  sur la Mi Box (démarrage, Direct, zapping, plein écran, Films, fiches,
+  Séries, recherche) : 15 086 méthodes et 3 457 classes, appli et
+  bibliothèques, compilées à l'avance au lieu d'attendre que l'usage les
+  désigne. Mi Box, démarrage à froid après installation : ≈ 480 → ≈ 400 ms
+  (−17 %, 16 mesures de chaque côté). Régénération :
+  `scripts/profil_reference.sh`.
+
 ## 0.9.5 — 2026-11-04
 
 - Zapping plus rapide : le lecteur garde ses décodeurs ouverts d'une chaîne à
