@@ -50,11 +50,6 @@ ligne quand sa PR est fusionnée.
   `COUNT` chacune) alors que seul le nombre de la catégorie ouverte s'affiche ;
   le lire à part, ou prendre le total de la pagination.
 
-## Accessibilité
-
-- Le cœur des favoris se distingue par la couleur seule (vide, trait rouge) :
-  ajouter une différence de forme ou un libellé.
-
 ## Dépôt
 
 - Supprimer automatiquement les branches fusionnées (réglage GitHub).
