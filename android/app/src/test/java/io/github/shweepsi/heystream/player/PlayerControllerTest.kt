@@ -60,6 +60,36 @@ class PlayerControllerTest {
     }
 
     @Test
+    fun decodersStayOpenForZappingAndAreReleasedInTheBackground() {
+        // Lecteur créé app visible : décodeurs gardés.
+        assertTrue(controller.decodersHeld)
+        controller.playVod("file:///absent/film.mkv", startMs = 0)
+        assertTrue(controller.decodersHeld)
+        controller.onBackground()
+        assertFalse(controller.decodersHeld)
+        controller.onForeground()
+        assertTrue(controller.decodersHeld)
+    }
+
+    @Test
+    fun decodersAreReleasedWhenThePlayerStaysIdleButNotBetweenTwoZaps() {
+        controller.playLive("file:///absent/a.ts")
+        // Zapping : un autre flux dans la seconde, les décodeurs restent.
+        controller.stop()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
+        controller.playLive("file:///absent/b.ts")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(PlayerController.DECODERS_IDLE_MS - 1_000))
+        assertTrue(controller.decodersHeld)
+        // Lecteur laissé de côté (catalogue, réglages) : rendus au bout du délai.
+        controller.stop()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(PlayerController.DECODERS_IDLE_MS + 100))
+        assertFalse(controller.decodersHeld)
+        // Retour sur une chaîne : repris.
+        controller.playLive("file:///absent/c.ts")
+        assertTrue(controller.decodersHeld)
+    }
+
+    @Test
     fun networkReturnReconnectsWithoutWaitingForTheDelay() {
         offline = true
         controller.playVod("file:///absent/film.mkv", startMs = 0)

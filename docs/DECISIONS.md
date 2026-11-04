@@ -265,10 +265,18 @@ Constats :
   décodeur matériel disparaissent du chemin du zapping (≈ −90 ms, régulier sur
   deux manches alternées). Media3 réutilise le décodeur quand le format suit
   (même codec, taille compatible), sinon en crée un autre comme avant.
-- **Arrière-plan** : `setForegroundMode(false)` à la mise en arrière-plan
-  (décodeurs rendus au système, pour les autres applis), `true` au retour.
+- **Rendus au système** : `setForegroundMode(false)` à la mise en
+  arrière-plan, et aussi quand le lecteur n'a pas servi depuis 30 s app
+  visible (navigation dans le catalogue ou les réglages : un décodeur matériel
+  ne reste pas tenu pour rien sur une box qui en a très peu) ; `true` dès qu'un
+  flux s'ouvre ou au retour. Un seul endroit règle ce mode
+  (`PlayerController.applyForegroundMode`, propriété `decodersHeld` testée).
   La règle « jamais deux flux » ne change pas : l'ancien flux est toujours
-  fermé avant l'ouverture du suivant (seuls les décodeurs restent).
+  fermé avant l'ouverture du suivant (seuls les décodeurs, et leur surface,
+  survivent à l'arrêt).
+- **Décodeur écarté** : une erreur de lecture réinitialise les moteurs de
+  rendu dans Media3 (même en mode premier plan) : le décodeur écarté après un
+  plantage n'est pas repris par réutilisation.
 - Écartés après mesure : réduire le tampon de démarrage (la lecture part déjà
   ≈ 20 ms après la première image), l'ouverture du décodeur elle-même
   (≈ 45 ms).
@@ -277,9 +285,12 @@ Constats :
 
 Demandé par Loïc : moins de complexité visuelle. Retenu : compteur des lignes
 de catégories retiré (DESIGN.md le prévoyait pour le Direct : le chiffre reste
-dans l'en-tête de la grille, Films et Séries), aides toujours affichées
-retirées (Direct : favoris ; fiche série : « vu »), numéro d'un épisode sans
-titre écrit une fois. **Gardé** : le nom des catégories du fournisseur, avec
+dans l'en-tête de la grille, Films et Séries ; le Direct n'en affiche plus et
+ne les compte plus), aides toujours affichées retirées : elles ne se montrent
+plus qu'au premier usage (Direct : tant qu'aucun favori ; fiche série : tant
+qu'aucun épisode n'est vu ni commencé), numéro d'un épisode sans titre écrit
+une fois. Reste à faire (docs/TODO.md) : aux Films et aux Séries, ne compter
+que la catégorie ouverte (le chargement compte encore toutes les catégories). **Gardé** : le nom des catégories du fournisseur, avec
 son préfixe (« |FR| ✪ ACTION »), comme décidé le 2026-11-02, et l'étiquette
 « FILMS / SÉRIES » au-dessus des catégories. Même principe aux Réglages
 (textes d'introduction d'une phrase, mise en garde de la déconnexion retirée au

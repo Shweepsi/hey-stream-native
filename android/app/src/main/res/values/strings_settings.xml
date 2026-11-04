@@ -31,7 +31,7 @@
     <string name="settings_tracks_title">Language of films and episodes</string>
     <string name="settings_tracks_intro">Audio track and subtitles picked at launch; you can change them in the player.</string>
     <string name="settings_tracks_auto">Automatic</string>
-    <string name="settings_tracks_dubbed">Dubbed</string>
+    <string name="settings_tracks_dubbed">Dubbed, no subtitles</string>
     <string name="settings_tracks_original">Original version with subtitles</string>
     <string name="settings_language_system">System language</string>
     <string name="settings_language_french" translatable="false">Français</string>

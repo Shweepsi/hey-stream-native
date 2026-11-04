@@ -14,4 +14,6 @@
     <string name="live_recents_empty_message">The channels you watch appear here.</string>
     <string name="live_fullscreen">Full screen</string>
     <string name="live_exit_fullscreen">Exit full screen</string>
+    <string name="live_favorite_hint_tv">Hold OK on a channel to add it to your favorites.</string>
+    <string name="live_favorite_hint_touch">Press and hold a channel to add it to your favorites.</string>
 </resources>
