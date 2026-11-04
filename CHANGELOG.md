@@ -4,6 +4,23 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.6 — 2026-11-04
+
+- Démarrage plus rapide après une installation ou une mise à jour : l'APK
+  embarque un profil de référence (Baseline Profile) tiré de l'usage réel
+  sur la Mi Box (démarrage, Direct, zapping, plein écran, Films, fiches,
+  Séries, recherche), qui permet à Android de compiler à l'avance le code de
+  l'appli et des bibliothèques au lieu d'attendre que l'usage le désigne. Le
+  fichier de règles compte 15 086 méthodes et 3 457 classes ; le profil binaire
+  embarqué passe de 5,6 à 10,9 Ko (R8 ignore les règles dont la classe est
+  fusionnée ou générée à la compilation). Mi Box, démarrage à froid une fois le
+  profil installé et l'appli compilée de force : ≈ 480 → ≈ 400 ms (−17 %, 16
+  mesures de chaque côté). Après une installation simple, sans compilation
+  forcée : le profil s'installe au premier lancement, et quand le système
+  recompile l'appli (`compile -r bg-dexopt`) le démarrage passe de ≈ 535 à
+  ≈ 370 ms (−31 %, deux manches) ; l'APK sans ce profil n'est pas recompilé
+  par le système (≈ 535 ms, statut inchangé). Régénération : `ANDROID_SERIAL=… scripts/profil_reference.sh`.
+
 ## 0.9.5 — 2026-11-04
 
 - Zapping plus rapide : le lecteur garde ses décodeurs ouverts d'une chaîne à
