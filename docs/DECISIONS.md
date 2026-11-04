@@ -245,8 +245,17 @@ Constats :
   classe (`HSPL<classe>;->**(**)**`) avaient été essayées d'abord : quasi sans
   effet (≈ −25 ms), les jokers ne semblant pas appliqués.
 - Mesure (protocole ProfileInstaller : `INSTALL_PROFILE` puis
-  `compile -m speed-profile`, deux manches alternées) : démarrage à froid
-  ≈ 480 → ≈ 400 ms ; premier défilement de la grille inchangé (≈ 9 %).
+  `compile -m speed-profile` forcé, deux manches alternées) : démarrage à froid
+  ≈ 480 → ≈ 400 ms ; premier défilement de la grille inchangé (≈ 9 %). **Limite** :
+  sur une installation simple (par l'app ou à la main), le profil est installé
+  au premier lancement par ProfileInstaller ; le gain vient ensuite, quand
+  Android compile l'appli (maintenance de fond, nuit branchée) : le chemin
+  « installation simple, sans compilation forcée » n'a pas encore été mesuré.
+- **R8** : le profil vient d'un APK minifié ; R8 réécrit les règles à la
+  compilation et ignore celles dont la classe est fusionnée ou générée par la
+  compilation (lambdas synthétiques, fonctions « outline »). Le profil
+  embarqué est un sous-ensemble du fichier de règles (profil binaire de 5,6 à
+  10,9 Ko). Une génération depuis un APK non minifié éviterait cette perte.
 - **Régénérer** après un changement important de l'interface ou des
   bibliothèques : `scripts/profil_reference.sh` (usage à la main sur la Mi
   Box, aucun script n'appelle le panneau ; le script ne fait qu'extraire et

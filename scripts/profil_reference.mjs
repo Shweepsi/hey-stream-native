@@ -24,6 +24,8 @@ const classes = new Set()
 let section = null
 let unreadable = 0
 for (const raw of readFileSync(input, 'utf8').split('\n')) {
+  // Nouveau fichier dex du dump (« base.apk [index=1] [checksum=…] ») : sections à relire.
+  if (/^\S.*\[index=\d+\]/.test(raw)) section = null
   if (/^\thot methods:/.test(raw)) section = 'H'
   else if (/^\tstartup methods:/.test(raw)) section = 'S'
   else if (/^\tpost startup methods:/.test(raw)) section = 'P'
@@ -49,6 +51,13 @@ for (const raw of readFileSync(input, 'utf8').split('\n')) {
   const flags = methods.get(key) ?? new Set()
   flags.add(section)
   methods.set(key, flags)
+}
+// Rien d'exploitable (mauvais paquet, appli jamais lancée, format d'ART changé) :
+// on n'écrase surtout pas le profil du dépôt.
+const total = methods.size + unreadable
+if (methods.size === 0 || classes.size === 0 || unreadable > total * 0.01) {
+  console.error(`profil inexploitable : ${classes.size} classes, ${methods.size} méthodes, ${unreadable} lignes illisibles ; ${output} inchangé`)
+  process.exit(1)
 }
 const header = [
   "# Profil de référence (Baseline Profile) tiré de l'usage réel sur l'appareil de",

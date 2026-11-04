@@ -6,14 +6,16 @@ Une entrée par version, la plus récente en haut. La version vient de
 
 ## 0.9.6 — 2026-11-04
 
-- Démarrage plus rapide après chaque installation ou mise à jour : l'APK
+- Démarrage plus rapide après une installation ou une mise à jour : l'APK
   embarque un profil de référence (Baseline Profile) tiré de l'usage réel
   sur la Mi Box (démarrage, Direct, zapping, plein écran, Films, fiches,
-  Séries, recherche) : 15 086 méthodes et 3 457 classes, appli et
-  bibliothèques, compilées à l'avance au lieu d'attendre que l'usage les
-  désigne. Mi Box, démarrage à froid après installation : ≈ 480 → ≈ 400 ms
-  (−17 %, 16 mesures de chaque côté). Régénération :
-  `scripts/profil_reference.sh`.
+  Séries, recherche), qui permet à Android de compiler à l'avance le code de
+  l'appli et des bibliothèques au lieu d'attendre que l'usage le désigne. Le
+  fichier de règles compte 15 086 méthodes et 3 457 classes ; le profil binaire
+  embarqué passe de 5,6 à 10,9 Ko (R8 ignore les règles dont la classe est
+  fusionnée ou générée à la compilation). Mi Box, démarrage à froid une fois le
+  profil installé et l'appli compilée : ≈ 480 → ≈ 400 ms (−17 %, 16 mesures de
+  chaque côté). Régénération : `ANDROID_SERIAL=… scripts/profil_reference.sh`.
 
 ## 0.9.5 — 2026-11-04
 
