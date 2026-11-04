@@ -14,8 +14,12 @@ Une entrée par version, la plus récente en haut. La version vient de
   fichier de règles compte 15 086 méthodes et 3 457 classes ; le profil binaire
   embarqué passe de 5,6 à 10,9 Ko (R8 ignore les règles dont la classe est
   fusionnée ou générée à la compilation). Mi Box, démarrage à froid une fois le
-  profil installé et l'appli compilée : ≈ 480 → ≈ 400 ms (−17 %, 16 mesures de
-  chaque côté). Régénération : `ANDROID_SERIAL=… scripts/profil_reference.sh`.
+  profil installé et l'appli compilée de force : ≈ 480 → ≈ 400 ms (−17 %, 16
+  mesures de chaque côté). Après une installation simple, sans compilation
+  forcée : le profil s'installe au premier lancement, et quand le système
+  recompile l'appli (`compile -r bg-dexopt`) le démarrage passe de ≈ 535 à
+  ≈ 370 ms (−31 %, deux manches) ; l'APK sans ce profil n'est pas recompilé
+  par le système (≈ 535 ms, statut inchangé). Régénération : `ANDROID_SERIAL=… scripts/profil_reference.sh`.
 
 ## 0.9.5 — 2026-11-04
 

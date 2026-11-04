@@ -246,11 +246,17 @@ Constats :
   effet (≈ −25 ms), les jokers ne semblant pas appliqués.
 - Mesure (protocole ProfileInstaller : `INSTALL_PROFILE` puis
   `compile -m speed-profile` forcé, deux manches alternées) : démarrage à froid
-  ≈ 480 → ≈ 400 ms ; premier défilement de la grille inchangé (≈ 9 %). **Limite** :
-  sur une installation simple (par l'app ou à la main), le profil est installé
-  au premier lancement par ProfileInstaller ; le gain vient ensuite, quand
-  Android compile l'appli (maintenance de fond, nuit branchée) : le chemin
-  « installation simple, sans compilation forcée » n'a pas encore été mesuré.
+  ≈ 480 → ≈ 400 ms ; premier défilement de la grille inchangé (≈ 9 %).
+- **Installation simple** (sans compilation forcée, mesuré le 2026-11-04 sur la
+  Mi Box, deux manches alternées) : juste après l'installation et un premier
+  lancement (ProfileInstaller écrit le profil), le démarrage est le même avec
+  ou sans le profil (≈ 530 ms : la compilation à l'installation ne l'utilise
+  pas encore). Quand le système recompile l'appli (`cmd package compile -r
+  bg-dexopt`, sans `-f`, équivalent de la maintenance de fond), l'APK avec
+  le profil est recompilé et démarre en ≈ 370 ms (346 à 388, −31 %) ; l'APK
+  public, lui, n'est pas recompilé (statut inchangé, ≈ 535 ms) : sans ce profil,
+  le système n'améliore pas le démarrage. Le gain arrive donc à la première
+  maintenance de fond après l'installation, pas à l'instant de l'installation.
 - **R8** : le profil vient d'un APK minifié ; R8 réécrit les règles à la
   compilation et ignore celles dont la classe est fusionnée ou générée par la
   compilation (lambdas synthétiques, fonctions « outline »). Le profil
