@@ -7,6 +7,7 @@ import io.github.shweepsi.heystream.core.AccountInfo
 import io.github.shweepsi.heystream.core.CategoryEntry
 import io.github.shweepsi.heystream.core.Section
 import io.github.shweepsi.heystream.core.SectionRefresh
+import io.github.shweepsi.heystream.core.TrackPreference
 import io.github.shweepsi.heystream.core.coreVersion
 import io.github.shweepsi.heystream.data.CoreSession
 import io.github.shweepsi.heystream.data.RefreshState
@@ -136,6 +137,8 @@ data class SettingsState(
     /** Déconnexion terminée : l'écran passe à la connexion. */
     val signedOut: Boolean = false,
     val coreVersion: String? = null,
+    /** Langue des films et des épisodes. */
+    val trackPreference: TrackPreference = TrackPreference.AUTO,
 )
 
 class SettingsViewModel(private val session: CoreSession, private val player: PlayerController) : ViewModel() {
@@ -146,6 +149,10 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
     private val catalogRequested = MutableStateFlow(false)
     private val signOut = MutableStateFlow(SignOutState())
     private val core = MutableStateFlow<String?>(null)
+    private val trackPreference = MutableStateFlow(TrackPreference.AUTO)
+
+    /** Un choix a été fait à l'écran : la lecture de départ ne le remplace plus. */
+    private var preferenceChosen = false
 
     private data class SignOutState(val running: Boolean = false, val done: Boolean = false)
 
@@ -159,10 +166,17 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
 
     private val account = session.account.map { accountUiOf(it, System.currentTimeMillis() / 1000) }
 
-    private val extras = combine(account, signOut, core, ::Triple)
+    private data class Extras(
+        val account: AccountUi,
+        val signOut: SignOutState,
+        val core: String?,
+        val trackPreference: TrackPreference,
+    )
+
+    private val extras = combine(account, signOut, core, trackPreference, ::Extras)
 
     val state: StateFlow<SettingsState> = combine(section, categories, parental, catalog, extras) { section, categories, parental, catalog, extras ->
-        val (account, signOut, core) = extras
+        val (account, signOut, core, preference) = extras
         SettingsState(
             section = section,
             categories = categories,
@@ -172,6 +186,7 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
             signingOut = signOut.running,
             signedOut = signOut.done,
             coreVersion = core,
+            trackPreference = preference,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
@@ -193,10 +208,28 @@ class SettingsViewModel(private val session: CoreSession, private val player: Pl
             // La bibliothèque native est chargée avec le cœur de la session.
             core.value = runCatching { session.withCore { coreVersion() } }.getOrNull()
         }
+        viewModelScope.launch {
+            val stored = runCatching { session.withCore { it.trackPreference() } }.getOrDefault(TrackPreference.AUTO)
+            // Un choix fait avant la fin de cette lecture l'emporte.
+            if (!preferenceChosen) trackPreference.value = stored
+        }
     }
 
     fun select(value: SettingsSection) {
         section.value = value
+    }
+
+    /** Langue des films et des épisodes : retenue par le cœur, appliquée au prochain lancement. */
+    fun setTrackPreference(choice: TrackPreference) {
+        preferenceChosen = true
+        trackPreference.value = choice
+        viewModelScope.launch {
+            runCatching { session.withCore { it.setTrackPreference(choice) } }.onFailure {
+                // Non retenu par le cœur : l'écran montre ce qui est vraiment gardé.
+                val kept = runCatching { session.withCore { it.trackPreference() } }.getOrNull()
+                if (kept != null && trackPreference.value == choice) trackPreference.value = kept
+            }
+        }
     }
 
     fun selectCategorySection(value: Section) {

@@ -10,6 +10,7 @@ import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -184,6 +185,10 @@ class PlayerController(private val context: Context) {
         stats?.finish(exoPlayer)
         stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
         cancelRetry()
+        // Le lecteur sert à tous les titres : un choix de pistes (sous-titres
+        // coupés par la langue « Doublée », piste choisie à la main) ne
+        // doit pas suivre au titre suivant.
+        exoPlayer?.let { it.trackSelectionParameters = resetTracks(it.trackSelectionParameters) }
         this.live = live
         attempt = 0
         lastError = null
@@ -210,6 +215,14 @@ class PlayerController(private val context: Context) {
         player.playWhenReady = playWhenReady
         player.prepare()
     }
+
+    /** Pistes audio et sous-titres : celles par défaut du flux, aucun choix retenu. */
+    private fun resetTracks(parameters: TrackSelectionParameters): TrackSelectionParameters =
+        parameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
 
     private fun create(): ExoPlayer {
         val http = DefaultHttpDataSource.Factory()

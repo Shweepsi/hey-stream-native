@@ -18,6 +18,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.shweepsi.heystream.BuildConfig
 import io.github.shweepsi.heystream.core.AppUpdate
 import io.github.shweepsi.heystream.core.Section
+import io.github.shweepsi.heystream.core.TrackPreference
 import io.github.shweepsi.heystream.data.CrashReports
 import io.github.shweepsi.heystream.data.DevTools
 import io.github.shweepsi.heystream.ui.appGraph
@@ -100,6 +101,8 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
             }
 
             override fun lockNow() = viewModel.lockNow()
+
+            override fun trackPreference(choice: TrackPreference) = viewModel.setTrackPreference(choice)
 
             override fun language(choice: LanguageChoice) {
                 if (choice == language) return

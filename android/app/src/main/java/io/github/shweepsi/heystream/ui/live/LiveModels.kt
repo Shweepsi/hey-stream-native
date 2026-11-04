@@ -192,19 +192,32 @@ fun shownCategories(categories: List<LiveCategory>, selected: CategoryKey?): Lis
 
 /**
  * Catégorie ouverte à l'arrivée : celle de [preferred] (chaîne venue de la
- * recherche) si elle est ouverte, sinon Favoris s'il y en a, sinon la
+ * recherche) si elle est ouverte, sinon la dernière ouverte ([last], retenue
+ * par le cœur) si elle s'ouvre encore, sinon Favoris s'il y en a, sinon la
  * première catégorie du fournisseur non verrouillée.
  */
-fun defaultCategory(categories: List<LiveCategory>, preferred: String? = null): CategoryKey {
+fun defaultCategory(categories: List<LiveCategory>, preferred: String? = null, last: CategoryKey? = null): CategoryKey {
     if (preferred != null) {
         categories.firstOrNull { (it.key as? CategoryKey.Provider)?.id == preferred && !it.locked }?.let { return it.key }
     }
+    // Dernière catégorie ouverte : si elle existe, n'est pas verrouillée, et n'est pas Favoris ou Récents vide.
+    last?.let { key ->
+        categories.firstOrNull { it.key == key && !it.locked && (key is CategoryKey.Provider || (it.count ?: 0L) > 0L) }
+    }?.let { return it.key }
     val favorites = categories.firstOrNull { it.key == CategoryKey.Favorites }
     if ((favorites?.count ?: 0) > 0) return CategoryKey.Favorites
     categories.firstOrNull { it.key is CategoryKey.Provider && !it.locked }?.let { return it.key }
     val recents = categories.firstOrNull { it.key == CategoryKey.Recents }
     if ((recents?.count ?: 0) > 0) return CategoryKey.Recents
     return CategoryKey.Favorites
+}
+
+/** Clé retenue par le cœur → catégorie (`null` si elle n'est pas reconnue). */
+fun liveCategoryKeyOf(stored: String): CategoryKey? = when {
+    stored == "favorites" -> CategoryKey.Favorites
+    stored == "recents" -> CategoryKey.Recents
+    stored.startsWith("category:") -> CategoryKey.Provider(stored.removePrefix("category:"))
+    else -> null
 }
 
 /**

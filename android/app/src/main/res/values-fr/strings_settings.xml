@@ -28,6 +28,11 @@
     <string name="settings_parental_note">Le déverrouillage par le code prend fin dès que l’app passe en arrière-plan ou que l’écran s’éteint. Après 5 codes faux, la saisie est bloquée 30 secondes.</string>
 
     <string name="settings_language_intro">Langue des textes de l’app.</string>
+    <string name="settings_tracks_title">Langue des films et épisodes</string>
+    <string name="settings_tracks_intro">Piste audio et sous-titres choisis au lancement d’un film ou d’un épisode ; vous pouvez toujours les changer dans le lecteur. « Doublée » : piste dans la langue de l’app, sans sous-titres. « Version originale » : piste d’origine, avec les sous-titres dans la langue de l’app.</string>
+    <string name="settings_tracks_auto">Automatique</string>
+    <string name="settings_tracks_dubbed">Doublée</string>
+    <string name="settings_tracks_original">Version originale sous-titrée</string>
     <string name="settings_language_system">Langue du système</string>
 
     <string name="settings_catalog_intro">Le catalogue est enregistré sur cet appareil et mis à jour automatiquement une fois par jour. Vous pouvez aussi le mettre à jour maintenant.</string>

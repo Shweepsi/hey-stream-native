@@ -51,6 +51,7 @@ mod names;
 mod parental;
 mod recording;
 mod telemetry;
+mod tracks;
 mod update;
 mod url;
 mod user_data;
@@ -70,6 +71,7 @@ pub use recording::{
     RecordingSummary, SCRUBBED_HOST, clear_recording, export_recording, recording_summary,
 };
 pub use telemetry::{EventLog, TelemetryKind, TelemetryTarget, UploadOutcome, upload_telemetry};
+pub use tracks::{TrackChoice, TrackInfo, TrackPreference, choose_tracks};
 pub use update::{
     AppUpdate, GITHUB_API, TESTER_APK_SUFFIX, UPDATE_REPO, check_tester_update, check_update,
     download_update,

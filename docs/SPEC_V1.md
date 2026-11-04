@@ -66,7 +66,10 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   tap sur un côté de la vidéo pour avancer ou reculer, glissement vertical à
   droite pour le volume et à gauche pour la luminosité (rendue au système en
   quittant le lecteur).
-- Choix de la **piste audio** et des **sous-titres** intégrés au flux.
+- Choix de la **piste audio** et des **sous-titres** intégrés au flux. Au
+  lancement, ils suivent le réglage « Langue des films et épisodes »
+  (Automatique, Doublée, Version originale sous-titrée) ; un choix fait ensuite
+  dans le lecteur l'emporte. Pas pour le direct.
 
 ## Confort
 
@@ -81,6 +84,12 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   Une série est vue quand tous ses épisodes connus le sont (liste des
   épisodes lue à la dernière ouverture de sa fiche). Un contenu court n'est
   pas « vu » avant d'avoir passé la moitié.
+
+- **Dernière catégorie** : le Direct, les Films et les Séries s'ouvrent sur la
+  dernière catégorie ouverte si elle s'ouvre encore (elle existe, n'est ni
+  masquée ni verrouillée, et Favoris, Récents ou « Continuer » ne sont pas
+  vides) ; sinon, l'ouverture habituelle. Aux Films et aux Séries, elle passe
+  avant « Continuer ».
 
 ## Réglages
 
@@ -100,9 +109,10 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   sans aucune catégorie reste visible, sauf s'il est marqué adulte.
 - Les catégories masquées quittent la navigation et la recherche ; leurs
   favoris et récents restent visibles.
-- Langue, mise à jour manuelle du catalogue, déconnexion.
+- Langue de l'app et langue des films et épisodes, mise à jour manuelle du
+  catalogue, déconnexion.
 - Les données (catalogue, favoris, récents, reprise, vus, code PIN,
-  catégories masquées) appartiennent à l'identifiant : se connecter avec un autre
+  catégories masquées, langue des films, dernière catégorie) appartiennent à l'identifiant : se connecter avec un autre
   identifiant les efface, le même identifiant sur une autre adresse du
   fournisseur les garde et recharge seulement le catalogue. Rien n'est
   effacé avant une connexion réussie (une faute de frappe n'efface rien).

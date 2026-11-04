@@ -46,6 +46,31 @@ class LiveLogicTest {
     }
 
     @Test
+    fun reopensTheLastCategoryWhenItStillOpens() {
+        val categories = liveCategories(entries, counts = mapOf("1" to 38L, "2" to 120L), favorites = 2, recents = 4)
+        assertEquals(CategoryKey.Provider("2"), defaultCategory(categories, last = CategoryKey.Provider("2")))
+        assertEquals(CategoryKey.Recents, defaultCategory(categories, last = CategoryKey.Recents))
+        // Une chaîne venue de la recherche passe avant.
+        assertEquals(CategoryKey.Provider("1"), defaultCategory(categories, preferred = "1", last = CategoryKey.Provider("2")))
+    }
+
+    @Test
+    fun theLastCategoryIsIgnoredWhenLockedGoneOrEmpty() {
+        val categories = liveCategories(entries, emptyMap(), favorites = 2, recents = 0)
+        assertEquals(CategoryKey.Favorites, defaultCategory(categories, last = CategoryKey.Provider("9")))
+        assertEquals(CategoryKey.Favorites, defaultCategory(categories, last = CategoryKey.Provider("gone")))
+        assertEquals(CategoryKey.Favorites, defaultCategory(categories, last = CategoryKey.Recents))
+    }
+
+    @Test
+    fun categoryKeysSurviveStorage() {
+        listOf(CategoryKey.Favorites, CategoryKey.Recents, CategoryKey.Provider("12"), CategoryKey.Provider("a:b")).forEach {
+            assertEquals(it, liveCategoryKeyOf(it.listKey))
+        }
+        assertNull(liveCategoryKeyOf("n'importe quoi"))
+    }
+
+    @Test
     fun channelFromSearchOpensItsCategoryUnlessLocked() {
         val categories = liveCategories(entries, emptyMap(), favorites = 2, recents = 0)
         assertEquals(CategoryKey.Provider("2"), defaultCategory(categories, preferred = "2"))

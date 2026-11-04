@@ -120,6 +120,7 @@ class VodViewModel(private val session: CoreSession, val section: Section) : Vie
     fun onCategoryClick(category: VodCategory) {
         if (!category.locked) {
             userSelection.value = category.key
+            rememberCategory(category.key)
             return
         }
         viewModelScope.launch {
@@ -133,6 +134,12 @@ class VodViewModel(private val session: CoreSession, val section: Section) : Vie
         val request = _pin.value ?: return
         _pin.value = null
         userSelection.value = request.key
+        rememberCategory(request.key)
+    }
+
+    /** Retient la catégorie choisie : la section s'ouvrira dessus la prochaine fois. */
+    private fun rememberCategory(key: CategoryKey) {
+        viewModelScope.launch { runCatching { session.withCore { it.setLastCategory(section, key.listKey) } } }
     }
 
     fun onPinDismiss() {
@@ -197,5 +204,7 @@ internal fun readData(core: HeyStreamCore, section: Section): VodData {
         // Absent : verrouillé ou retiré du catalogue.
         id?.let { core.item(section, it) }?.let { posterOf(it, Progress(resume.positionMs, resume.durationMs)) }
     }.distinctBy { it.id }
-    return VodData(categories, continueItems, countFavorites(core, section))
+    // Secondaire : sans elle, l'ouverture habituelle.
+    val last = runCatching { core.lastCategory(section) }.getOrNull()?.let(::vodCategoryKeyOf)
+    return VodData(categories, continueItems, countFavorites(core, section), last)
 }
