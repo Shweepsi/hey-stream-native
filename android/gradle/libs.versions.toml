@@ -38,6 +38,8 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
+# Variante de mesure seulement (-Pheystream.mesure=true), jamais dans l'APK publié.
+compose-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing", version = "1.12.1" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }

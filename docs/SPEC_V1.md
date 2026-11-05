@@ -70,6 +70,12 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   lancement, ils suivent le réglage « Langue des films et épisodes »
   (Automatique, Doublée, Version originale sous-titrée) ; un choix fait ensuite
   dans le lecteur l'emporte. Pas pour le direct.
+- **Infos du flux** (appui long sur OK à la télécommande, 0.9.11) : codec,
+  résolution, images par seconde et plage dynamique (SDR, HDR10, HLG, Dolby
+  Vision), débit vidéo, décodeur vidéo, audio (codec, voies, fréquence) et son
+  décodeur, débit réseau mesuré, images perdues. Aucune adresse ni
+  identifiant ; Retour ou un nouvel appui long le ferme. Un appui court sur OK
+  agit au relâchement.
 
 ## Confort
 

@@ -167,6 +167,10 @@ val glitchtipDsn: String = providers.environmentVariable("GLITCHTIP_DSN").orNull
 // et clé d'envoi : secrets de la CI. L'APK public n'envoie rien.
 val testerBuild: Boolean = providers.gradleProperty("heystream.testeur").orNull == "true"
 
+// Variante de mesure (-Pheystream.mesure=true) : profilable par adb et traces Compose
+// (`runtime-tracing`) pour voir dans Perfetto quelles fonctions composables coûtent. Jamais publiée.
+val measureBuild: Boolean = providers.gradleProperty("heystream.mesure").orNull == "true"
+
 fun buildConfigText(name: String): String = providers.environmentVariable(name).orNull?.trim().orEmpty()
     .also { require(it.none { c -> c == '"' || c == '\\' || c == '$' }) { "$name invalide" } }
 
@@ -186,6 +190,8 @@ android {
         versionCode = appVersionCode
         // APK testeur : X.Y.Z-t (Réglages › À propos, données d'usage, rapports).
         versionName = if (testerBuild) "$appVersion-t" else appVersion
+        // <profileable> du manifeste : ouvert à adb pour le testeur et la mesure, fermé pour l'APK public.
+        manifestPlaceholders["profileableShell"] = (testerBuild || measureBuild).toString()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += rustAbis }
     }
@@ -259,6 +265,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
+    if (measureBuild) implementation(libs.compose.runtime.tracing)
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)

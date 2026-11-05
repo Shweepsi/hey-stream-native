@@ -9,8 +9,13 @@ import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.advanceEventTime
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.keyDown
+import androidx.compose.ui.test.keyUp
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
@@ -101,6 +106,45 @@ class PlayerKeysTest {
         compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
         assertEquals(2, actions.toggles)
+    }
+
+    @Test
+    fun longOkOpensTheStreamInfoWithoutPausing() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput {
+            keyDown(Key.DirectionCenter)
+            advanceEventTime(600)
+            keyDown(Key.DirectionCenter)
+            advanceEventTime(100)
+            keyUp(Key.DirectionCenter)
+        }
+        compose.waitForIdle()
+        // Appui long : les infos s'ouvrent, la lecture n'est pas touchée, les commandes restent cachées.
+        assertEquals(0, actions.toggles)
+        assertTrue(chrome.info)
+        assertFalse(chrome.visible)
+        compose.onNodeWithText("Stream info").assertIsDisplayed()
+        // Un appui court agit toujours (au relâchement) : pause et commandes.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+        assertTrue(chrome.visible)
+    }
+
+    @Test
+    fun okActsOnReleaseNotOnPress() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+        assertFalse(chrome.info)
     }
 
     @Test
