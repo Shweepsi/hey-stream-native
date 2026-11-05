@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -207,8 +208,9 @@ private fun HomeTile(
                     modifier = Modifier.size(if (low) dimens.iconLarge * 0.67f else dimens.iconLarge),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(title, style = Hs.type.display, color = LocalContentColor.current, maxLines = 1)
-                    Text(subtitle, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 1)
+                    Text(title, style = Hs.type.display, color = LocalContentColor.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Deux lignes : en police agrandie, « Chaînes et programme » n'est plus coupé après « et ».
+                    Text(subtitle, style = Hs.type.body, color = Hs.colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

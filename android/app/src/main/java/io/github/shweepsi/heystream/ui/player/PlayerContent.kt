@@ -677,7 +677,7 @@ private fun Controls(
                 HsIconButton(
                     icon = Lucide.RotateCcw,
                     caption = (BACK_STEP_MS / 1000).toString(),
-                    label = stringResource(R.string.player_rewind),
+                    label = stringResource(R.string.player_rewind, BACK_STEP_MS / 1000),
                     onClick = { actions.nudge(forward = false) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )
@@ -693,7 +693,7 @@ private fun Controls(
                 HsIconButton(
                     icon = Lucide.RotateCw,
                     caption = (FORWARD_STEP_MS / 1000).toString(),
-                    label = stringResource(R.string.player_forward),
+                    label = stringResource(R.string.player_forward, FORWARD_STEP_MS / 1000),
                     onClick = { actions.nudge(forward = true) },
                     modifier = Modifier.focusProperties { up = focus.seek },
                 )

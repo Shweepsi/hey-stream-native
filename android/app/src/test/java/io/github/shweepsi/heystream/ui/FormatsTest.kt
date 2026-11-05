@@ -9,7 +9,9 @@ import io.github.shweepsi.heystream.ui.home.subscriptionOf
 import java.time.ZoneId
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -53,6 +55,35 @@ class FormatsTest {
         assertEquals("March 14, 2027", Formats.longDate(march14, Locale.US, paris))
         assertEquals("10:00", Formats.timeOfSeconds(march14, Locale.FRANCE, paris))
         assertEquals("dimanche 14 mars", Formats.dayAndDate(march14 * 1000, Locale.FRANCE, paris))
+    }
+
+    @Test
+    fun clockFollowsTheDeviceSettingNotTheLanguage() {
+        val afternoon = 1_805_014_800L + 3 * 3600 // 14 mars 2027, 13 h à Paris
+        // Appli en anglais sur une box réglée en 24 h : « 13:00 », pas « 1:00 PM ».
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.US, paris, is24Hour = true))
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.FRANCE, paris, is24Hour = true))
+        val twelve = Formats.timeOfSeconds(afternoon, Locale.US, paris, is24Hour = false)
+        assertTrue(twelve, twelve.startsWith("1:00") && twelve.contains("PM"))
+        // Sans réglage fourni : l'usage de la langue, comme avant.
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.FRANCE, paris))
+        assertEquals("13:00", Formats.time(afternoon * 1000, Locale.FRANCE, paris, is24Hour = true))
+    }
+
+    @Test
+    fun languageDecidesTheClockOnlyWhenTheDeviceHasNoSetting() {
+        assertTrue(uses24Hour(Locale.FRANCE))
+        assertTrue(uses24Hour(Locale.GERMANY))
+        assertFalse(uses24Hour(Locale.US))
+    }
+
+    @Test
+    fun deviceClockSettingWins() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        android.provider.Settings.System.putString(context.contentResolver, android.provider.Settings.System.TIME_12_24, "24")
+        assertTrue(is24HourClock(context))
+        android.provider.Settings.System.putString(context.contentResolver, android.provider.Settings.System.TIME_12_24, "12")
+        assertFalse(is24HourClock(context))
     }
 
     @Test

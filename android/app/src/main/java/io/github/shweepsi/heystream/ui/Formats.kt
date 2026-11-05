@@ -13,14 +13,33 @@ import java.util.Locale
  * les ressources.
  */
 object Formats {
-    /** Heure (« 21:47 », « 9:47 PM »). */
-    fun time(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
-        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
-            .format(Instant.ofEpochMilli(epochMs).atZone(zone))
+    /**
+     * Heure (« 21:47 », « 9:47 PM »). [is24Hour] : réglage d'horloge de l'appareil
+     * (`DateFormat.is24HourFormat`), qui prime sur l'usage de la langue (sinon l'appli
+     * en anglais affiche « 11:48 PM » sur une box réglée en 24 h) ; `null` : usage de la langue.
+     */
+    fun time(
+        epochMs: Long,
+        locale: Locale = Locale.getDefault(),
+        zone: ZoneId = ZoneId.systemDefault(),
+        is24Hour: Boolean? = null,
+    ): String {
+        val moment = Instant.ofEpochMilli(epochMs).atZone(zone)
+        if (is24Hour == null) return DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment)
+        val pattern = DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm")
+        // Un motif que le java.time d'Android ne connaît pas (lettre « B » de certaines langues, Java 16+)
+        // retombe sur le formatage de la langue plutôt que de planter l'écran.
+        return runCatching { DateTimeFormatter.ofPattern(pattern, locale).format(moment) }
+            .getOrElse { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment) }
+    }
 
     /** Heure d'un programme, à partir de secondes Unix. */
-    fun timeOfSeconds(epochSecs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =
-        time(epochSecs * 1000, locale, zone)
+    fun timeOfSeconds(
+        epochSecs: Long,
+        locale: Locale = Locale.getDefault(),
+        zone: ZoneId = ZoneId.systemDefault(),
+        is24Hour: Boolean? = null,
+    ): String = time(epochSecs * 1000, locale, zone, is24Hour)
 
     /** Jour et date sans l'année (« mercredi 28 octobre »). */
     fun dayAndDate(epochMs: Long, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String {

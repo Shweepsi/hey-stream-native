@@ -22,6 +22,8 @@ import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
+import io.github.shweepsi.heystream.ui.detail.episodeNames
+import io.github.shweepsi.heystream.ui.detail.episodeTitle
 import io.github.shweepsi.heystream.ui.detail.visibleItem
 import io.github.shweepsi.heystream.ui.toUiText
 import java.util.Locale
@@ -551,7 +553,8 @@ class PlayerViewModel(
             kind = PlaybackKind.EPISODE,
             id = episodeId,
             title = seriesName ?: info.name.orEmpty(),
-            episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episode.title?.takeIf { it.isNotBlank() }),
+            // Titre sans le code « S01E01 » ni le nom de la série : `null` s'il ne reste rien (pas de répétition de « S1 · E1 »).
+            episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episodeTitle(episode.title, episodeNames(seriesName, info.name))),
             image = info.cover ?: episode.image,
             extension = episode.extension,
             durationMs = (episode.durationSecs ?: 0L) * 1000,
@@ -594,10 +597,16 @@ class PlayerViewModel(
 
     private fun startCountdown(next: Episode, seriesId: Long) {
         // Sans numéro du fournisseur : sa place dans la saison.
-        val index = SeriesInfoMemory.get(seriesId)?.seasons
+        val info = SeriesInfoMemory.get(seriesId)
+        val index = info?.seasons
             ?.firstOrNull { it.number == next.season }?.episodes
             ?.indexOfFirst { it.id == next.id } ?: -1
-        val label = EpisodeLabel(next.season, next.number ?: (index + 1).coerceAtLeast(1).toLong(), next.title?.takeIf { it.isNotBlank() })
+        val label = EpisodeLabel(
+            next.season,
+            next.number ?: (index + 1).coerceAtLeast(1).toLong(),
+            // Le titre de l'écran est le nom de la série : mêmes noms que pour l'épisode en cours.
+            episodeTitle(next.title, episodeNames(_state.value.title.takeIf { it.isNotBlank() }, info?.name)),
+        )
         pendingNext = next
         _state.update { it.copy(next = NextEpisodeUi(label, NEXT_EPISODE_SECONDS)) }
         // En arrière-plan, le compte à rebours attend le retour (onForeground).

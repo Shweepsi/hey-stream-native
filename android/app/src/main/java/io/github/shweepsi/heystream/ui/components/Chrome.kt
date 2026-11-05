@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.Formats
+import io.github.shweepsi.heystream.ui.currentIs24Hour
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -87,7 +88,7 @@ fun Clock(modifier: Modifier = Modifier, showDate: Boolean = true) {
     val now by rememberNow()
     val locale = currentLocale()
     Column(modifier, horizontalAlignment = Alignment.End) {
-        Text(Formats.time(now, locale), style = Hs.type.title.tabular(), maxLines = 1)
+        Text(Formats.time(now, locale, is24Hour = currentIs24Hour()), style = Hs.type.title.tabular(), maxLines = 1)
         if (showDate) {
             Text(Formats.dayAndDate(now, locale), style = Hs.type.small, color = Hs.colors.textSecondary, maxLines = 1)
         }

@@ -4,6 +4,32 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.8 — 2026-11-05
+
+Petits défauts relevés sur la Mi Box (essais des 2 et 3 novembre).
+
+- Les boutons d'avance et de recul du lecteur disent leur pas réel : « Avancer
+  de 30 s » (le bouton saute 30 s ; il était annoncé « 10 s »), « Reculer de
+  10 s ». Le libellé est lu dans les constantes du lecteur, il ne peut plus
+  s'en écarter.
+- L'heure suit le réglage 12/24 h de l'appareil, plus la langue de l'appli :
+  l'appli en anglais sur une box réglée en 24 h n'affiche plus « 11:48 PM »
+  (accueil, Direct, programmes, dernière mise à jour du catalogue). Sans
+  réglage posé, c'est l'usage de la langue du système qui décide, pas celui de
+  l'appli (vérifié sur la Mi Box : `DateFormat.is24HourFormat` passait en 12 h
+  dès que l'appli était en anglais). Un motif d'heure que le java.time
+  d'Android ne connaît pas retombe sur le formatage de la langue.
+- Sous-titre des tuiles de l'accueil : deux lignes au lieu d'une seule coupée
+  net (« Chaînes et » en police agrandie).
+- Lecteur : le sous-titre d'un épisode ne répète plus le code quand le
+  fournisseur ne donne que « S01E01 » (« S1 · E1 · S01E01 » devient
+  « S1 · E1 »), pour l'épisode en cours comme pour le suivant. Le nom de la
+  série est retiré comme sur la fiche (nom du catalogue et de la fiche, avec
+  ou sans l'année) et un code au milieu du titre ne laisse plus « - - ».
+- Listes de catégories du Direct, des Films et des Séries à la TV : texte à
+  13 sp au lieu de 14, pour que davantage de noms tiennent (les plus longs
+  défilent toujours au focus).
+
 ## 0.9.7 — 2026-11-05
 
 Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais des

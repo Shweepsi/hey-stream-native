@@ -1,11 +1,15 @@
 package io.github.shweepsi.heystream.ui
 
 import android.content.Context
+import android.content.res.Resources
+import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.HeyStreamException
@@ -16,6 +20,28 @@ import java.util.Locale
 @ReadOnlyComposable
 // La configuration a toujours au moins une langue ; elle change avec le réglage de langue.
 fun currentLocale(): Locale = LocalConfiguration.current.locales[0]
+
+/** Horloge de l'appareil en 24 h, pour les heures affichées ([Formats.time]) : voir [is24HourClock]. */
+@Composable
+@ReadOnlyComposable
+fun currentIs24Hour(): Boolean = is24HourClock(LocalContext.current)
+
+/**
+ * Réglage « 24 heures » d'Android s'il est posé ; sinon l'usage de la langue du **système**, pas
+ * celle de l'appli (`DateFormat.is24HourFormat` suit la langue de l'appli : une box en français,
+ * sans réglage posé, passait en « 6:26 AM » dès que l'appli était en anglais ; vérifié sur la Mi Box).
+ */
+fun is24HourClock(context: Context): Boolean {
+    when (Settings.System.getString(context.contentResolver, Settings.System.TIME_12_24)) {
+        "24" -> return true
+        "12" -> return false
+    }
+    return uses24Hour(Resources.getSystem().configuration.locales[0])
+}
+
+/** La langue écrit l'heure sur 24 h (motif « H » ou « k »). */
+internal fun uses24Hour(locale: Locale): Boolean =
+    DateFormat.getBestDateTimePattern(locale, "j").any { it == 'H' || it == 'k' }
 
 /** Texte à afficher, choisi hors d'un composable (ViewModel) et traduit à l'affichage. */
 @Immutable

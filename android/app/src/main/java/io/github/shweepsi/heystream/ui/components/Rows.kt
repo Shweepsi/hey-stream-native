@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.Lucide
@@ -37,7 +38,9 @@ fun PanelLabel(text: String, modifier: Modifier = Modifier) {
 /**
  * Ligne de catégorie : nom, cadenas si verrouillée par le contrôle parental.
  * La catégorie ouverte est [selected] (texte demi-gras). Pas de compteur : le
- * nombre de titres s'écrit une fois, dans l'en-tête de la liste.
+ * nombre de titres s'écrit une fois, dans l'en-tête de la liste. [dense] : texte
+ * un peu plus petit à la TV (13 sp au lieu de 14), pour les listes de noms du
+ * fournisseur, souvent longs ; sans effet au doigt.
  */
 @Composable
 fun CategoryRow(
@@ -47,8 +50,10 @@ fun CategoryRow(
     selected: Boolean = false,
     locked: Boolean = false,
     icon: ImageVector? = null,
+    dense: Boolean = false,
 ) {
     val dimens = Hs.dimens
+    val textStyle = Hs.type.body.let { if (dense && dimens.isTv) it.copy(fontSize = 13.sp) else it }
     HsSurface(
         onClick = onClick,
         selected = selected,
@@ -69,7 +74,7 @@ fun CategoryRow(
             }
             Text(
                 text = name,
-                style = Hs.type.body.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
+                style = textStyle.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
                 color = LocalContentColor.current,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
