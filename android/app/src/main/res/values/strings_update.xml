@@ -3,14 +3,19 @@
     <!-- Mises à jour de l'app (releases GitHub). -->
     <string name="update_prompt_title">Hey Stream %1$s is available</string>
     <string name="update_later">Later</string>
-    <string name="update_install">Install</string>
+    <string name="update_install">Download and install</string>
     <string name="update_downloading">Downloading…</string>
     <string name="update_downloading_percent">Downloading… %1$d%%</string>
-    <string name="update_installing">Installing… Hey Stream will close: open it again afterwards.</string>
-    <string name="update_needs_permission">Allow Hey Stream to install apps in the screen that opened. The update will then continue on its own.</string>
+    <string name="update_installing">Android will ask you to confirm: choose Install (right arrow). Hey Stream then closes: open it again.</string>
+    <string name="update_needs_permission">In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it, the update resumes on its own.</string>
     <string name="update_failed_check">Couldn’t check for updates. Check your connection and try again.</string>
     <string name="update_failed_download">The download failed or the file is damaged. Try again.</string>
     <string name="update_failed_install">Android couldn’t install the update.</string>
+    <string name="update_install_again">Install</string>
+    <string name="update_confirm_in_android">Confirm in Android’s window</string>
+    <string name="update_resuming">Resuming the update…</string>
+    <string name="update_permission_denied">Allow Hey Stream in the Android screen. If the switch has no effect, install the update from the APK file on the project’s GitHub page.</string>
+    <string name="update_aborted">Installation cancelled. Press Install again to resume.</string>
 
     <string name="settings_updates">Updates</string>
     <string name="settings_update_source">Updates come from the versions published on the project’s GitHub page.</string>
@@ -19,6 +24,9 @@
     <string name="settings_update_up_to_date">Hey Stream is up to date.</string>
     <string name="settings_update_available">Version %1$s is available.</string>
     <string name="settings_update_install">Install version %1$s</string>
+    <string name="settings_update_download_install">Download and install version %1$s</string>
+    <string name="settings_update_auto">Check for updates automatically</string>
+    <string name="settings_update_auto_detail">At most once a day, when the app opens. Turned off: only the button below checks.</string>
 
     <!-- Outils de test (cachés : sept appuis sur la version). -->
     <string name="settings_dev_title">Test tools</string>

@@ -142,8 +142,18 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
 - L'app cherche une nouvelle version parmi les releases GitHub du projet à
   l'ouverture (une fois par jour au plus) et la propose, de nouveau le
   lendemain après « Plus tard » ; aussi à la demande dans Réglages › À
-  propos. Données gardées ; confirmation d'Android la première fois
-  seulement (Android 12+).
+  propos. Un interrupteur « Rechercher les mises à jour automatiquement »
+  (Réglages › À propos, activé par défaut) coupe la recherche à l'ouverture ;
+  la recherche à la demande reste toujours possible. Données gardées ;
+  confirmation d'Android la première fois seulement (Android 12+).
+- Parcours d'installation : le bouton dit l'étape (« Télécharger et
+  installer », « Téléchargement… 42 % », « Confirmez dans la fenêtre
+  d'Android ») et n'agit pas pendant les deux dernières ; une confirmation
+  annulée se reprend avec l'APK déjà téléchargé. L'autorisation « applis
+  inconnues » ferme souvent l'app : la version voulue est retenue et
+  l'installation reprend à la réouverture, sans appui (« Reprise de la mise à
+  jour… ») ; si l'autorisation reste sans effet (box à profil professionnel),
+  l'aide renvoie vers le fichier APK de la page GitHub.
 - Outils de test cachés (sept appuis sur la version) : enregistrement des
   réponses du fournisseur pendant l'usage, pour les tests automatiques
   (`DECISIONS.md`, « Panneau de référence »).

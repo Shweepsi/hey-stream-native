@@ -49,6 +49,21 @@ class UpdateUiTest {
     }
 
     @Test
+    fun releaseNotesJoinContinuationLines() {
+        val notes = "Trois défauts relevés à la télécommande (essais des\n2 et 3 novembre).\n\n" +
+            "- Après une fermeture par Android, la télécommande\n  retrouve le focus à la réouverture.\n" +
+            "- Le premier favori fait apparaître la ligne Favoris\n  tout de suite, et le dernier retiré\n  la fait disparaître.\n" +
+            "- Un point court.\n\n---\nPied."
+        assertEquals(
+            "Trois défauts relevés à la télécommande (essais des 2 et 3 novembre).\n\n" +
+                "• Après une fermeture par Android, la télécommande retrouve le focus à la réouverture.\n" +
+                "• Le premier favori fait apparaître la ligne Favoris tout de suite, et le dernier retiré la fait disparaître.\n" +
+                "• Un point court.",
+            releaseNotes(notes),
+        )
+    }
+
+    @Test
     fun promptInstallsOrPostpones() {
         var installed = 0
         var later = 0
@@ -58,7 +73,7 @@ class UpdateUiTest {
             }
         }
         compose.onNodeWithText("Hey Stream 0.6.0 is available").assertIsDisplayed()
-        compose.onNodeWithText("Install").performClick()
+        compose.onNodeWithText("Download and install").performClick()
         compose.onNodeWithText("Later").performClick()
         assertEquals(1 to 1, installed to later)
     }
@@ -71,22 +86,92 @@ class UpdateUiTest {
                 UpdatePanel(update, UpdateState.Downloading(update, 0.42f), onInstall = { installed++ }, onLater = {})
             }
         }
-        compose.onNodeWithText("Downloading… 42%").assertIsDisplayed()
-        compose.onNodeWithText("Install").performClick()
+        // Le libellé du bouton dit l'avancement ; un appui n'ouvre pas un deuxième téléchargement.
+        compose.onNodeWithText("Downloading… 42%").assertIsDisplayed().performClick()
         assertEquals(0, installed)
     }
 
     @Test
-    fun installCanBeRetriedWhileAndroidIsSilent() {
+    fun noSecondInstallSessionWhileAndroidAsksToConfirm() {
         var installed = 0
         compose.setContent {
             HeyStreamTheme {
                 UpdatePanel(update, UpdateState.Installing(update), onInstall = { installed++ }, onLater = {})
             }
         }
-        compose.onNodeWithText("Installing… Hey Stream will close: open it again afterwards.").assertIsDisplayed()
+        compose.onNodeWithText("Android will ask you to confirm: choose Install (right arrow). Hey Stream then closes: open it again.").assertIsDisplayed()
+        compose.onNodeWithText("Confirm in Android’s window").assertIsDisplayed().performClick()
+        assertEquals(0, installed)
+    }
+
+    @Test
+    fun cancelledInstallationCanBeResumedWithTheDownloadedFile() {
+        var installed = 0
+        compose.setContent {
+            HeyStreamTheme {
+                UpdatePanel(update, UpdateState.Aborted(update), onInstall = { installed++ }, onLater = {})
+            }
+        }
+        compose.onNodeWithText("Installation cancelled. Press Install again to resume.").assertIsDisplayed()
         compose.onNodeWithText("Install").performClick()
         assertEquals(1, installed)
+    }
+
+    @Test
+    fun permissionHelpExplainsTheScreenThenTheProfileCase() {
+        compose.setContent {
+            HeyStreamTheme {
+                UpdatePanel(update, UpdateState.NeedsPermission(update), onInstall = {}, onLater = {})
+            }
+        }
+        compose.onNodeWithText("In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it, the update resumes on its own.").assertIsDisplayed()
+    }
+
+    @Test
+    fun deniedPermissionPointsToTheApkFile() {
+        compose.setContent {
+            HeyStreamTheme {
+                UpdatePanel(update, UpdateState.NeedsPermission(update, denied = true), onInstall = {}, onLater = {})
+            }
+        }
+        compose.onNodeWithText("Allow Hey Stream in the Android screen. If the switch has no effect, install the update from the APK file on the project’s GitHub page.").assertIsDisplayed()
+    }
+
+    @Test
+    fun resumingShowsItsOwnLabel() {
+        var installed = 0
+        compose.setContent {
+            HeyStreamTheme {
+                UpdatePanel(update, UpdateState.Resuming, onInstall = { installed++ }, onLater = {})
+            }
+        }
+        compose.onNodeWithText("Resuming the update…").assertIsDisplayed().performClick()
+        assertEquals(0, installed)
+    }
+
+    @Test
+    fun autoCheckSwitchIsOffered() {
+        var chosen: Boolean? = null
+        val actions = object : SettingsActions {
+            override fun autoUpdate(enabled: Boolean) {
+                chosen = enabled
+            }
+        }
+        compose.setContent {
+            HeyStreamTheme {
+                SettingsContent(
+                    SettingsState(section = SettingsSection.About),
+                    LanguageChoice.System,
+                    appVersion = "0.5.2",
+                    actions = actions,
+                    autoUpdate = true,
+                )
+            }
+        }
+        compose.onNodeWithText("Check for updates automatically").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("At most once a day, when the app opens. Turned off: only the button below checks.").performScrollTo().assertIsDisplayed()
+        // Activée au départ : un appui la coupe.
+        assertEquals(false, chosen)
     }
 
     @Test
@@ -109,7 +194,7 @@ class UpdateUiTest {
             }
         }
         compose.onNodeWithText("Version 0.6.0 is available.").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Install version 0.6.0").performScrollTo().performClick()
+        compose.onNodeWithText("Download and install version 0.6.0").performScrollTo().performClick()
         assertEquals(update, installing)
     }
 
