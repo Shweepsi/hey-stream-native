@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -52,12 +53,8 @@ class VodFocusTest {
     @get:Rule
     val compose = createComposeRule()
 
-    /** Affiche activable (son libellé d'action est le titre). */
-    private fun poster(index: Int): SemanticsNodeInteraction = compose.onNode(
-        SemanticsMatcher("affiche ${movieTitles[index]}") {
-            it.config.getOrNull(SemanticsActions.OnClick)?.label == movieTitles[index]
-        },
-    )
+    /** Affiche activable (sa description, lue par TalkBack, est le titre). */
+    private fun poster(index: Int): SemanticsNodeInteraction = posterTitled(movieTitles[index])
 
     private fun category(name: String) = compose.onNode(hasText(name) and hasClickAction())
 
@@ -68,9 +65,13 @@ class VodFocusTest {
         }
     }
 
-    /** Affiche activable de libellé [title]. */
+    /** Affiche activable de description [title] (suivie de son avancement si elle est commencée : « Titre, 42 % regardé »). */
     private fun posterTitled(title: String): SemanticsNodeInteraction = compose.onNode(
-        SemanticsMatcher("affiche $title") { it.config.getOrNull(SemanticsActions.OnClick)?.label == title },
+        SemanticsMatcher("affiche $title") {
+            val description = it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
+            (description == title || description?.startsWith("$title, ") == true) &&
+                it.config.getOrNull(SemanticsActions.OnClick) != null
+        },
     )
 
     /** Titres inventés d'une longue catégorie. */

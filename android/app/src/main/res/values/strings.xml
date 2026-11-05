@@ -8,6 +8,7 @@
     <string name="retry">Try again</string>
     <string name="close">Close</string>
     <string name="watched">Watched</string>
+    <string name="poster_in_progress">%1$s, %2$d%% watched</string>
     <string name="live_badge">LIVE</string>
     <string name="category_locked">Locked by parental control</string>
     <string name="favorites">Favorites</string>

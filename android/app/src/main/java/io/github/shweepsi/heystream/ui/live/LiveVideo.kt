@@ -78,6 +78,7 @@ internal fun LiveVideo(
     val fullscreen = state.fullscreen
     val preview = state.preview
     val shape = if (fullscreen) RectangleShape else RoundedCornerShape(dimens.radius)
+    val videoLabel = preview?.let { stringResource(R.string.live_preview_video_of, it.name) } ?: stringResource(R.string.live_preview_video)
     HsSurface(
         onClick = actions::onVideoClick,
         shape = shape,
@@ -86,6 +87,8 @@ internal fun LiveVideo(
         focusScale = FocusScale.NONE,
         onClickLabel = if (fullscreen) null else stringResource(R.string.live_fullscreen),
         modifier = modifier
+            // Lecteur d'écran (au doigt) : la zone se nomme, au lieu d'être un bouton sans libellé.
+            .semantics { contentDescription = videoLabel }
             .focusProperties { canFocus = false }
             .then(if (fullscreen || !isTv) Modifier else Modifier.border(1.dp, Hs.colors.surface2, shape)),
     ) {

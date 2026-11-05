@@ -4,6 +4,22 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.10 — 2026-11-05
+
+Accessibilité (lecteur d'écran), d'après l'analyse des arbres d'écran de la nuit
+du 2 au 3 novembre.
+
+- Affiches (Films, Séries, recherche) : la zone qui prend le focus porte
+  maintenant le titre (« Heat (1995) »), avec « Vu » et l'avancement
+  (« Heat (1995), 42 % regardé ») ; le titre écrit dessous sort de l'arbre
+  d'accessibilité, il était lu deux fois. Le libellé d'action « appuyez deux
+  fois pour titre », qui nommait l'action au lieu de lire le titre, disparaît.
+- Aperçu vidéo du Direct : la zone se nomme (« Aperçu vidéo : France 2 »),
+  au lieu d'être un bouton sans libellé.
+
+Reste à vérifier avec TalkBack, avec Loïc devant la télé : l'état des
+interrupteurs, et un parcours complet de l'accueil à un film.
+
 ## 0.9.9 — 2026-11-05
 
 Parcours de mise à jour de l'appli (essais sur la Mi Box, 3 novembre).
