@@ -1,11 +1,13 @@
 package io.github.shweepsi.heystream.ui
 
 import android.content.Context
+import android.text.format.DateFormat
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.core.HeyStreamException
@@ -16,6 +18,11 @@ import java.util.Locale
 @ReadOnlyComposable
 // La configuration a toujours au moins une langue ; elle change avec le réglage de langue.
 fun currentLocale(): Locale = LocalConfiguration.current.locales[0]
+
+/** Horloge de l'appareil en 24 h (réglage Android), pour les heures affichées ([Formats.time]). */
+@Composable
+@ReadOnlyComposable
+fun currentIs24Hour(): Boolean = DateFormat.is24HourFormat(LocalContext.current)
 
 /** Texte à afficher, choisi hors d'un composable (ViewModel) et traduit à l'affichage. */
 @Immutable

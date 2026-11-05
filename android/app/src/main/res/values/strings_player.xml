@@ -2,8 +2,8 @@
 <resources>
     <!-- Full-screen player for movies and episodes. -->
     <string name="player_pause">Pause</string>
-    <string name="player_rewind">Back 10 s</string>
-    <string name="player_forward">Forward 10 s</string>
+    <string name="player_rewind">Back %1$d s</string>
+    <string name="player_forward">Forward %1$d s</string>
     <string name="player_position">Playback position</string>
     <string name="player_audio">Audio</string>
     <string name="player_subtitles">Subtitles</string>

@@ -44,6 +44,7 @@ import io.github.shweepsi.heystream.ui.components.FocusScale
 import io.github.shweepsi.heystream.ui.components.HsButton
 import io.github.shweepsi.heystream.ui.components.HsSurface
 import io.github.shweepsi.heystream.ui.components.LiveBadge
+import io.github.shweepsi.heystream.ui.currentIs24Hour
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -206,8 +207,8 @@ private fun FullscreenInfo(preview: LivePreview, nowSecs: Long, modifier: Modifi
             if (now != null) {
                 val range = stringResource(
                     R.string.live_time_range,
-                    Formats.timeOfSeconds(now.start, locale),
-                    Formats.timeOfSeconds(now.stop, locale),
+                    Formats.timeOfSeconds(now.start, locale, is24Hour = currentIs24Hour()),
+                    Formats.timeOfSeconds(now.stop, locale, is24Hour = currentIs24Hour()),
                 )
                 Text(
                     text = stringResource(R.string.live_joined, range, now.title),

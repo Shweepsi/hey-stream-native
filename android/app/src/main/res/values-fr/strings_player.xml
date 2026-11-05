@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="player_pause">Pause</string>
-    <string name="player_rewind">Reculer de 10&#160;s</string>
-    <string name="player_forward">Avancer de 10&#160;s</string>
+    <string name="player_rewind">Reculer de %1$d&#160;s</string>
+    <string name="player_forward">Avancer de %1$d&#160;s</string>
     <string name="player_position">Position de lecture</string>
     <string name="player_audio">Audio</string>
     <string name="player_subtitles">Sous-titres</string>

@@ -94,6 +94,7 @@ import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.components.ProgressRail
 import io.github.shweepsi.heystream.ui.components.marqueeWhen
 import io.github.shweepsi.heystream.ui.components.rememberNow
+import io.github.shweepsi.heystream.ui.currentIs24Hour
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
@@ -425,6 +426,7 @@ private fun CategoriesPanel(
                     onClick = { onSelect(category) },
                     selected = isSelected,
                     locked = category.locked,
+                    dense = true,
                     icon = when (category.key) {
                         CategoryKey.Favorites -> Lucide.Heart
                         CategoryKey.Recents -> Lucide.Clock
@@ -708,8 +710,8 @@ private fun NowBlock(preview: LivePreview, nowSecs: Long, compact: Boolean) {
         } else {
             val range = stringResource(
                 R.string.live_time_range,
-                Formats.timeOfSeconds(now.start, locale),
-                Formats.timeOfSeconds(now.stop, locale),
+                Formats.timeOfSeconds(now.start, locale, is24Hour = currentIs24Hour()),
+                Formats.timeOfSeconds(now.stop, locale, is24Hour = currentIs24Hour()),
             )
             Text(
                 text = stringResource(R.string.live_joined, range, preview.name),
@@ -742,8 +744,8 @@ private fun NextRow(next: LiveProgramme, modifier: Modifier = Modifier) {
         Text(
             text = stringResource(
                 R.string.live_time_range,
-                Formats.timeOfSeconds(next.start, locale),
-                Formats.timeOfSeconds(next.stop, locale),
+                Formats.timeOfSeconds(next.start, locale, is24Hour = currentIs24Hour()),
+                Formats.timeOfSeconds(next.stop, locale, is24Hour = currentIs24Hour()),
             ),
             style = Hs.type.body.tabular(),
             color = Hs.colors.textSecondary,
@@ -802,7 +804,7 @@ private fun LiveToast(text: String, modifier: Modifier = Modifier) {
 private fun PreviewClock() {
     val now by rememberNow()
     Text(
-        text = Formats.time(now, currentLocale()),
+        text = Formats.time(now, currentLocale(), is24Hour = currentIs24Hour()),
         style = Hs.type.small.tabular().copy(fontWeight = FontWeight.SemiBold),
         color = HsColors.OnMedia,
         maxLines = 1,

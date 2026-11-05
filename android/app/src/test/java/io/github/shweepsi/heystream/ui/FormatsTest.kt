@@ -10,6 +10,7 @@ import java.time.ZoneId
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -53,6 +54,19 @@ class FormatsTest {
         assertEquals("March 14, 2027", Formats.longDate(march14, Locale.US, paris))
         assertEquals("10:00", Formats.timeOfSeconds(march14, Locale.FRANCE, paris))
         assertEquals("dimanche 14 mars", Formats.dayAndDate(march14 * 1000, Locale.FRANCE, paris))
+    }
+
+    @Test
+    fun clockFollowsTheDeviceSettingNotTheLanguage() {
+        val afternoon = 1_805_014_800L + 3 * 3600 // 14 mars 2027, 13 h à Paris
+        // Appli en anglais sur une box réglée en 24 h : « 13:00 », pas « 1:00 PM ».
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.US, paris, is24Hour = true))
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.FRANCE, paris, is24Hour = true))
+        val twelve = Formats.timeOfSeconds(afternoon, Locale.US, paris, is24Hour = false)
+        assertTrue(twelve, twelve.startsWith("1:00") && twelve.contains("PM"))
+        // Sans réglage fourni : l'usage de la langue, comme avant.
+        assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.FRANCE, paris))
+        assertEquals("13:00", Formats.time(afternoon * 1000, Locale.FRANCE, paris, is24Hour = true))
     }
 
     @Test

@@ -85,6 +85,7 @@ import io.github.shweepsi.heystream.ui.components.MessageState
 import io.github.shweepsi.heystream.ui.components.PanelLabel
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.components.rememberNow
+import io.github.shweepsi.heystream.ui.currentIs24Hour
 import io.github.shweepsi.heystream.ui.currentLocale
 import io.github.shweepsi.heystream.ui.home.Subscription
 import io.github.shweepsi.heystream.ui.home.needsAttention
@@ -734,7 +735,7 @@ private fun CatalogPane(ui: CatalogUi, actions: SettingsActions) {
 private fun catalogUpdatedText(updatedAt: Long?): String {
     if (updatedAt == null) return stringResource(R.string.settings_catalog_never)
     val locale = currentLocale()
-    val time = Formats.timeOfSeconds(updatedAt, locale)
+    val time = Formats.timeOfSeconds(updatedAt, locale, is24Hour = currentIs24Hour())
     return when (Formats.daysAgo(updatedAt, System.currentTimeMillis() / 1000)) {
         0L -> stringResource(R.string.settings_catalog_updated_today, time)
         1L -> stringResource(R.string.settings_catalog_updated_yesterday, time)

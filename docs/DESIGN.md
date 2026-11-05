@@ -79,6 +79,10 @@ Police **Inter** (licence OFL), embarquée dans l'app. Titres 600–700, texte
 | Texte courant | 14–16 | 28–32 | 15–17 |
 | Petit texte (minimum) | 12 | 24 | 13 |
 
+Exceptions : les lignes de catégorie du Direct, des Films et des Séries sont à **13 sp** à la
+TV (0.9.8, listes de noms du fournisseur souvent longs) ; les heures suivent le réglage 12/24 h
+de l'appareil, pas la langue de l'app.
+
 ## Formes et icônes
 
 - Coins arrondis (tuiles, affiches, boutons, panneaux) : **12** dp / pt sur

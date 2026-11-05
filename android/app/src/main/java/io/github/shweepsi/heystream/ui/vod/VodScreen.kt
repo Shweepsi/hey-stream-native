@@ -352,6 +352,7 @@ private fun CategoriesPanel(
                 onClick = { onClick(category) },
                 selected = isSelected,
                 locked = category.locked,
+                dense = true,
                 modifier = if (focusTarget) Modifier.focusRequester(requester) else Modifier,
             )
         }
