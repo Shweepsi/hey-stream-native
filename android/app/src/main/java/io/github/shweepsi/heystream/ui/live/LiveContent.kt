@@ -32,11 +32,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -292,7 +292,9 @@ private fun LivePanels(
     // Focus de départ (télécommande) : la chaîne déjà en aperçu (venue de la recherche,
     // en plein écran : Retour revient sur elle), sinon la première chaîne, sinon la
     // catégorie ouverte. Au doigt, la chaîne en aperçu est seulement montrée.
-    var initialFocusDone by rememberSaveable { mutableStateOf(false) }
+    // `remember`, pas `rememberSaveable` : le focus ne survit pas à la fin du processus (appli fermée par
+    // Android) ; l'indicateur restauré à « fait » le laisserait absent.
+    var initialFocusDone by remember { mutableStateOf(false) }
     val hasChannels = channels.itemCount > 0 && channels.peek(0) != null
     val settled = channels.loadState.refresh is LoadState.NotLoading && state.selected != null
     val previewId by rememberUpdatedState(state.preview?.id)
@@ -515,11 +517,17 @@ private fun ChannelList(
             .collect { actions.onVisibleChannels(it) }
     }
     val previewId = state.preview?.id
+    // Entrée par la flèche droite sans rien à restaurer : la chaîne en aperçu, sinon la première
+    // rangée affichée (et non la rangée « en face » de la catégorie).
+    val entryFocus = remember { FocusRequester() }
+    val entryIndex by remember(listState, channels, previewId) {
+        derivedStateOf { entryRow(listState.layoutInfo.visibleItemsInfo.map { it.index }, previewId) { channels.peek(it)?.id } }
+    }
     LazyColumn(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .focusRestorer(),
+            .focusRestorer(entryFocus),
         contentPadding = PaddingValues(vertical = vertical),
         verticalArrangement = Arrangement.spacedBy(if (isTv) 3.dp else 4.dp),
     ) {
@@ -548,7 +556,8 @@ private fun ChannelList(
                     onToggleFavorite = { actions.onToggleFavorite(channel) },
                     modifier = Modifier
                         .then(if (index == 0) Modifier.focusRequester(firstFocus) else Modifier)
-                        .then(if (channel.id == previewId) Modifier.focusRequester(previewFocus) else Modifier),
+                        .then(if (channel.id == previewId) Modifier.focusRequester(previewFocus) else Modifier)
+                        .then(if (index == entryIndex) Modifier.focusRequester(entryFocus) else Modifier),
                 )
             }
         }

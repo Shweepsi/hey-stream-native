@@ -196,6 +196,31 @@ fun liveCategories(
     }
 }
 
+/**
+ * Favoris après l'ajout ([added]) ou le retrait d'une chaîne : le nombre suit
+ * à ±1, sans recharger les catégories (la liste ouverte garde son ordre et le
+ * focus). Sans cela, la ligne Favoris, masquée à 0, n'apparaîtrait qu'à la
+ * réouverture du Direct.
+ */
+fun withFavoriteToggled(categories: List<LiveCategory>, added: Boolean): List<LiveCategory> =
+    categories.map {
+        if (it.key == CategoryKey.Favorites) {
+            it.copy(count = ((it.count ?: 0L) + if (added) 1 else -1).coerceAtLeast(0L))
+        } else {
+            it
+        }
+    }
+
+/**
+ * Rangée où le focus entre dans la liste des chaînes quand rien n'est à
+ * restaurer (flèche droite depuis une catégorie) : la chaîne en aperçu si elle
+ * est affichée, sinon la première rangée affichée. [visible] : indices des
+ * rangées composées, dans l'ordre ; [idAt] : chaîne d'une rangée (`null` si sa
+ * page n'est pas chargée). `null` : aucune rangée affichée.
+ */
+fun entryRow(visible: List<Int>, previewId: Long?, idAt: (Int) -> Long?): Int? =
+    previewId?.let { id -> visible.firstOrNull { idAt(it) == id } } ?: visible.firstOrNull()
+
 /** Colonne affichée : Favoris et Récents vides sont masqués, sauf s'ils sont ouverts. */
 fun shownCategories(categories: List<LiveCategory>, selected: CategoryKey?): List<LiveCategory> =
     categories.filter { it.key is CategoryKey.Provider || (it.count ?: 0L) > 0L || it.key == selected }
