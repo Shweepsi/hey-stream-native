@@ -51,14 +51,22 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
 - Pas de flou, d'ombres lourdes ni de transparences empilées ; animations de
   focus simples (échelle + bordure).
 - Cible : **60 i/s** lors des déplacements de focus dans une grille d'affiches.
+  Mesuré sur la Mi Box (novembre 2026) : tenu à vitesse normale (1 à 5 % des
+  images en retard après le premier passage, 11 à 24 % lors du premier
+  défilement qui suit un lancement) ; en rafale (touche maintenue), la grille
+  reste correcte à l'usage.
 - **Baseline Profiles** obligatoires pour un démarrage et un défilement fluides.
 
 ### Lecture vidéo
-- **Décodage matériel exclusivement** (Media3/ExoPlayer via MediaCodec) : la
-  puce décode H.264/HEVC/AV1 en 4K ; un décodage logiciel (libmpv/FFmpeg)
-  saturerait les 4 cœurs A55.
-- Extension FFmpeg de Media3 **pour l'audio uniquement** (MP2, AC-3 sans
-  passthrough), fréquent sur les flux TS IPTV.
+- **Décodage matériel d'abord** (Media3/ExoPlayer via MediaCodec) : la puce
+  décode H.264/HEVC/AV1 en 4K ; un décodage logiciel (libmpv/FFmpeg) de ces
+  formats saturerait les 4 cœurs A55.
+- Extension FFmpeg de Media3 (Jellyfin) **en renfort**, après les décodeurs
+  matériels : l'audio que la puce ne décode pas (MP2, AC-3 sans passthrough,
+  fréquents sur les flux TS IPTV) et la vidéo logicielle de secours (vieux
+  Xvid / MPEG-4), en SD, que le processeur décode sans peine. Décision du 3
+  novembre 2026 : le décodeur vidéo FFmpeg est gardé, la règle « matériel
+  exclusivement » ne vaut que pour les formats modernes.
 
 ### Réseau
 - Wi-Fi 5 seulement (pas de port Ethernet intégré) : prévoir un tampon de
@@ -66,13 +74,13 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
 
 ## Objectifs mesurables sur la Mi Box S 2
 
-| Mesure | Objectif |
-|---|---|
-| Démarrage à froid → accueil | < 2 s |
-| Ouverture d'une liste de 50 000 chaînes (cache chaud) | < 500 ms |
-| Changement de chaîne (zapping) | < 1,5 s |
-| Mémoire en lecture | < 300 Mo |
-| Plantages | 0 sur 4 h de lecture continue |
+| Mesure | Objectif | Mesuré sur la Mi Box (2 au 4 novembre 2026) |
+|---|---|---|
+| Démarrage à froid → accueil | < 2 s | 0,43 à 0,45 s (profil installé) ; 0,67 s juste après une installation |
+| Ouverture d'une liste de 50 000 chaînes (cache chaud) | < 500 ms | pas mesuré tel quel |
+| Changement de chaîne (zapping) | < 1,5 s | ≈ 0,8 s (médiane, 20 sur 20) ; dont ≈ 0,45 s de réseau chez le fournisseur |
+| Mémoire en lecture | < 300 Mo | 92 à 102 Mo (PSS, Direct en plein écran, 10 min) |
+| Plantages | 0 sur 4 h de lecture continue | 0 sur ≈ 3 h d'usage actif et ≈ 5 h en arrière-plan ; les 4 h continues restent à rejouer |
 
 ## Premier appareil d'essai : Xiaomi Pad 7
 

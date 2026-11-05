@@ -5,15 +5,18 @@ ligne quand sa PR est fusionnée.
 
 ## Avant la 1.0
 
-1. **Essai sur la Mi Box S 2** (propriétaire) : installer l'APK et vérifier
-   les objectifs de `docs/MATERIEL.md` (démarrage < 2 s, liste < 500 ms,
-   changement de chaîne < 1,5 s, < 300 Mo en lecture, 0 plantage sur 4 h).
+1. **Essai sur la Mi Box S 2** (propriétaire) : objectifs de `docs/MATERIEL.md`
+   tenus (démarrage, zapping, mémoire ; novembre 2026) ; reste « 0 plantage sur
+   4 h de lecture continue » (≈ 3 h d'usage actif et ≈ 5 h en arrière-plan sans
+   plantage jusqu'ici) et l'ouverture d'une liste de 50 000 chaînes.
 2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo C
    appliqué (site et app, 0.5.0) ; reste la fiche Play Store.
 3. **Réponses réelles** : le propriétaire active l'enregistrement (outils de
-   test cachés, sept appuis sur la version), utilise l'app, puis partage le
-   fichier ; en faire les réponses simulées des tests
-   (`core/tests/fixtures/`) et corriger ce qu'elles révèlent.
+   test cachés, sept appuis sur la version, **au doigt seulement** : impossible
+   à la télécommande, à faire depuis une tablette ou un téléphone), utilise
+   l'app, puis partage le fichier ; en faire les réponses simulées des tests
+   (`core/tests/fixtures/`) et corriger ce qu'elles révèlent. Les APK testeur
+   (`docs/COLLECTE.md`) en envoient déjà beaucoup.
 4. **1.0.0** : APK signé pour la publication ; comptes développeur à
    décider ; sort des outils de test et de la mise à jour intégrée
    (interdite par le Play Store) dans la version des magasins.
@@ -44,7 +47,6 @@ ligne quand sa PR est fusionnée.
     et une requête de moins de 3 caractères reste un parcours complet.
 - Banc d'essai : temps d'enregistrement et de recherche sur 100 000 entrées,
   plus la taille de l'index pour chaque option FTS5 ci-dessus (box de 2 Go).
-- Télécharger direct, films et séries en parallèle.
 - Films et Séries : ne compter que la catégorie ouverte (en-tête de la grille).
   Le chargement compte encore chaque catégorie du fournisseur (une requête
   `COUNT` chacune) alors que seul le nombre de la catégorie ouverte s'affiche ;
@@ -57,6 +59,5 @@ ligne quand sa PR est fusionnée.
 
 ## Dépôt
 
-- Supprimer automatiquement les branches fusionnées (réglage GitHub).
 - Étiquettes de version manquantes : v0.2.0 (93e4e9c), v0.3.0 (5d6f88a),
   v0.3.1 (e2ca218).

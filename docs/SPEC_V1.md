@@ -33,9 +33,10 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   **en cours, suivant et les deux d'après**, chacun avec ses heures de début
   et de fin (EPG court de 4 programmes, demandé à la sélection d'une chaîne,
   mis en cache, jamais plus d'une fois toutes les 15 min par chaîne).
-- Chaque ligne de chaîne : **numéro** du fournisseur, logo, nom, et le
-  programme en cours **seulement s'il est déjà en cache** (jamais de requête
-  pour remplir la liste).
+- Chaque ligne de chaîne : logo, nom, et le programme en cours **seulement
+  s'il est déjà en cache** (jamais de requête pour remplir la liste). Le
+  numéro du fournisseur n'est plus affiché dans les listes (0.7.x : le logo et
+  le nom suffisent) ; il reste dans le bandeau du plein écran.
 - Sélectionner une chaîne lance l'aperçu ; **OK** passe en plein écran ;
   **Retour** quitte le plein écran et revient à l'aperçu.
 - Pas de zapping en plein écran, pas de guide en grille, pas de replay.
@@ -151,7 +152,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   propos. Un interrupteur « Rechercher les mises à jour automatiquement »
   (Réglages › À propos, activé par défaut) coupe la recherche à l'ouverture ;
   la recherche à la demande reste toujours possible. Données gardées ;
-  confirmation d'Android la première fois seulement (Android 12+).
+  confirmation d'Android demandée à **chaque** mise à jour sur Android 11 (Mi
+  Box, Shield), la première fois seulement à partir d'Android 12.
 - Parcours d'installation : le bouton dit l'étape (« Télécharger et
   installer », « Téléchargement… 42 % », « Confirmez dans la fenêtre
   d'Android ») et n'agit pas pendant les deux dernières ; une confirmation
