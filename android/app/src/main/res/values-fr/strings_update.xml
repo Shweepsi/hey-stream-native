@@ -6,8 +6,10 @@
     <string name="update_install">Télécharger et installer</string>
     <string name="update_downloading">Téléchargement…</string>
     <string name="update_downloading_percent">Téléchargement… %1$d&#160;%%</string>
-    <string name="update_installing">Android va demander de confirmer : choisissez Installer (flèche droite). Hey Stream se ferme ensuite : rouvrez-le.</string>
-    <string name="update_needs_permission">Dans l’écran d’Android qui s’est ouvert, descendez jusqu’à Hey Stream avant d’appuyer sur OK, puis autorisez-le. Android ferme ensuite l’appli : rouvrez-la, la mise à jour reprendra d’elle-même.</string>
+    <string name="update_installing">Android peut demander de confirmer l’installation. Hey Stream se ferme ensuite : rouvrez-le.</string>
+    <string name="update_installing_tv">Android va demander de confirmer : choisissez Installer (flèche droite). Hey Stream se ferme ensuite : rouvrez-le.</string>
+    <string name="update_needs_permission">Autorisez Hey Stream à installer des applications dans l’écran d’Android qui s’est ouvert. Android peut ensuite fermer l’appli : rouvrez-la dans les 10 minutes, la mise à jour reprendra d’elle-même.</string>
+    <string name="update_needs_permission_tv">Dans l’écran d’Android qui s’est ouvert, descendez jusqu’à Hey Stream avant d’appuyer sur OK, puis autorisez-le. Android ferme ensuite l’appli : rouvrez-la dans les 10 minutes, la mise à jour reprendra d’elle-même.</string>
     <string name="update_failed_check">Impossible de vérifier les mises à jour. Vérifiez la connexion et réessayez.</string>
     <string name="update_failed_download">Le téléchargement a échoué ou le fichier est abîmé. Réessayez.</string>
     <string name="update_failed_install">Android n’a pas pu installer la mise à jour.</string>

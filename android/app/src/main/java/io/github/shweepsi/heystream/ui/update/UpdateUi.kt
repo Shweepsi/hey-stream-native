@@ -96,9 +96,9 @@ fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, on
                 text = stringResource(R.string.update_later),
                 onClick = { if (!busy) onLater() },
             )
-            // Le libellé dit où l'on en est (téléchargement, confirmation d'Android) ; le bouton
-            // n'agit pas à ces étapes mais reste actif : un bouton désactivé perdrait le focus de la
-            // télécommande, et un deuxième appui ouvrirait une nouvelle session d'installation.
+            // Le libellé dit où l'on en est (téléchargement, confirmation d'Android). Le bouton n'agit pas
+            // pendant le téléchargement et la reprise, mais reste actif : un bouton désactivé perdrait le
+            // focus de la télécommande. Pendant la confirmation, il rouvre sa fenêtre.
             HsButton(
                 text = updateButtonLabel(state),
                 onClick = { if (!state.buttonInert()) onInstall() },
@@ -110,9 +110,11 @@ fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, on
     }
 }
 
-/** Étapes où le bouton n'agit pas : téléchargement, confirmation d'Android, reprise. */
-fun UpdateState.buttonInert(): Boolean =
-    this is UpdateState.Downloading || this is UpdateState.Installing || this is UpdateState.Resuming
+/**
+ * Étapes où le bouton n'agit pas : téléchargement et reprise. Pendant la confirmation d'Android il
+ * rouvre la même fenêtre (jamais une deuxième session d'installation).
+ */
+fun UpdateState.buttonInert(): Boolean = this is UpdateState.Downloading || this is UpdateState.Resuming
 
 /**
  * Libellé du bouton selon l'étape : « Télécharger et installer » → « Téléchargement… 42 % » →
@@ -139,9 +141,15 @@ fun updateButtonLabel(state: UpdateState, version: String? = null): String = whe
  */
 @Composable
 fun updateStatus(state: UpdateState): String? = when (state) {
-    is UpdateState.Installing -> stringResource(R.string.update_installing)
-    is UpdateState.NeedsPermission ->
-        stringResource(if (state.denied) R.string.update_permission_denied else R.string.update_needs_permission)
+    // À la TV, la fenêtre d'Android met le focus sur « Annuler » : on le dit. Ailleurs, texte neutre.
+    is UpdateState.Installing -> stringResource(if (Hs.isTv) R.string.update_installing_tv else R.string.update_installing)
+    is UpdateState.NeedsPermission -> stringResource(
+        when {
+            state.denied -> R.string.update_permission_denied
+            Hs.isTv -> R.string.update_needs_permission_tv
+            else -> R.string.update_needs_permission
+        },
+    )
     is UpdateState.Aborted -> stringResource(R.string.update_aborted)
     is UpdateState.Failed -> stringResource(
         when (state.step) {

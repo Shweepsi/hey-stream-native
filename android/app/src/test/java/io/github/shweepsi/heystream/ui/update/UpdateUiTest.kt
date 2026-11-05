@@ -92,16 +92,29 @@ class UpdateUiTest {
     }
 
     @Test
-    fun noSecondInstallSessionWhileAndroidAsksToConfirm() {
-        var installed = 0
+    fun confirmingButtonReopensTheConfirmationInsteadOfAnotherSession() {
+        var pressed = 0
         compose.setContent {
             HeyStreamTheme {
-                UpdatePanel(update, UpdateState.Installing(update), onInstall = { installed++ }, onLater = {})
+                UpdatePanel(update, UpdateState.Installing(update), onInstall = { pressed++ }, onLater = {})
+            }
+        }
+        compose.onNodeWithText("Android may ask you to confirm the installation. Hey Stream then closes: open it again.").assertIsDisplayed()
+        // L'appui est transmis (l'installateur rouvre la fenêtre de la même session) : le bouton n'est pas inerte.
+        compose.onNodeWithText("Confirm in Android’s window").assertIsDisplayed().performClick()
+        assertEquals(1, pressed)
+        assertEquals(false, UpdateState.Installing(update).buttonInert())
+        assertEquals(true, UpdateState.Downloading(update, 0.4f).buttonInert())
+    }
+
+    @Test
+    fun tvConfirmationTextTellsWhereToPress() {
+        compose.setContent {
+            HeyStreamTheme(isTv = true) {
+                UpdatePanel(update, UpdateState.Installing(update), onInstall = {}, onLater = {})
             }
         }
         compose.onNodeWithText("Android will ask you to confirm: choose Install (right arrow). Hey Stream then closes: open it again.").assertIsDisplayed()
-        compose.onNodeWithText("Confirm in Android’s window").assertIsDisplayed().performClick()
-        assertEquals(0, installed)
     }
 
     @Test
@@ -118,13 +131,39 @@ class UpdateUiTest {
     }
 
     @Test
-    fun permissionHelpExplainsTheScreenThenTheProfileCase() {
+    fun permissionHelpIsNeutralOffTheTv() {
         compose.setContent {
             HeyStreamTheme {
                 UpdatePanel(update, UpdateState.NeedsPermission(update), onInstall = {}, onLater = {})
             }
         }
-        compose.onNodeWithText("In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it, the update resumes on its own.").assertIsDisplayed()
+        compose.onNodeWithText("Allow Hey Stream to install apps in the Android screen that opened. Android may then close the app: reopen it within 10 minutes and the update resumes on its own.").assertIsDisplayed()
+    }
+
+    @Test
+    fun permissionHelpExplainsTheScreenOnTheTv() {
+        compose.setContent {
+            HeyStreamTheme(isTv = true) {
+                UpdatePanel(update, UpdateState.NeedsPermission(update), onInstall = {}, onLater = {})
+            }
+        }
+        compose.onNodeWithText("In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it within 10 minutes, the update resumes on its own.").assertIsDisplayed()
+    }
+
+    @Test
+    fun aboutShowsTheResumingLabelWhileTheUpdateIsFoundAgain() {
+        compose.setContent {
+            HeyStreamTheme {
+                SettingsContent(
+                    SettingsState(section = SettingsSection.About),
+                    LanguageChoice.System,
+                    appVersion = "0.5.2",
+                    actions = object : SettingsActions {},
+                    update = UpdateState.Resuming,
+                )
+            }
+        }
+        compose.onNodeWithText("Resuming the update…").performScrollTo().assertIsDisplayed()
     }
 
     @Test

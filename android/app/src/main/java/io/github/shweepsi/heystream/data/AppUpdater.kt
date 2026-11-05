@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
-import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.IntentCompat
 import androidx.core.content.edit
@@ -47,9 +46,9 @@ sealed interface UpdateState {
 
     /**
      * APK confié à l'installateur d'Android, qui remplace l'app (après sa
-     * confirmation, s'il la demande). Le bouton reste inactif : un deuxième
-     * appui ouvrirait une nouvelle session d'installation. Si Android ne répond
-     * pas, le retour à l'app ([AppUpdater.onForeground]) rend la main.
+     * confirmation, s'il la demande). Le bouton rouvre la fenêtre de confirmation de **la même
+     * session** (quittée par Accueil, par exemple), jamais une nouvelle session. Au retour à l'app,
+     * si Android n'a plus la session, « Installer » redevient possible ([AppUpdater.onForeground]).
      */
     data class Installing(val update: AppUpdate) : UpdateState
 
@@ -102,8 +101,13 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
 
     private var job: Job? = null
 
-    /** Moment où l'APK a été confié à Android (horloge monotone). */
-    private var installingSince = 0L
+    /** Session d'installation confiée à Android (`NO_SESSION` sinon) : seules ses réponses comptent. */
+    @Volatile
+    private var installSession = NO_SESSION
+
+    /** Fenêtre de confirmation d'Android pour cette session, rouvrable si l'utilisateur l'a quittée. */
+    @Volatile
+    private var confirmation: Intent? = null
 
     /** APK déjà téléchargé et vérifié, pour un nouvel essai d'installation. */
     private var downloaded: Pair<String, File>? = null
@@ -124,15 +128,20 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
                     // Retour de l'écran d'Android sans autorisation effective : l'aide le dit.
                     _state.value = state.copy(denied = true)
                 }
-            // Retour à l'app sans réponse d'Android (confirmation fermée autrement que par « Annuler ») :
-            // « Installer » redevient possible. Le délai laisse une installation silencieuse aboutir.
-            is UpdateState.Installing ->
-                if (SystemClock.elapsedRealtime() - installingSince > INSTALL_SILENCE_MS) {
-                    _state.value = UpdateState.Aborted(state.update)
-                }
+            // Retour à l'app : si Android n'a plus la session (abandonnée, terminée sans réponse reçue),
+            // « Installer » redevient possible. Tant qu'elle existe, une installation en cours n'est pas
+            // dite annulée, et le bouton rouvre sa confirmation.
+            is UpdateState.Installing -> if (!installSessionExists()) _state.value = UpdateState.Aborted(state.update)
             else -> if (resumePending()) return
         }
         checkIfDue()
+    }
+
+    /** Android connaît encore la session confiée (ou elle est en cours de création). */
+    private fun installSessionExists(): Boolean {
+        val id = installSession
+        if (id == NO_SESSION) return true
+        return runCatching { context.packageManager.packageInstaller.getSessionInfo(id) != null }.getOrDefault(true)
     }
 
     /** Active ou coupe la recherche automatique ; le bouton des réglages cherche toujours. */
@@ -192,6 +201,8 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     /** « Plus tard » : la boîte se ferme, la version sera reproposée le lendemain. */
     fun dismiss() {
         _prompt.value = null
+        // « Plus tard » annule aussi la reprise voulue : l'autorisation donnée ensuite n'installe rien.
+        clearPending()
         val state = _state.value
         if (state is UpdateState.Failed || state is UpdateState.NeedsPermission || state is UpdateState.Installing || state is UpdateState.Aborted) {
             _state.value = state.pendingUpdate()?.let { UpdateState.Available(it) } ?: UpdateState.Idle
@@ -200,9 +211,13 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
 
     /** Télécharge (sauf si c'est déjà fait) puis installe [update]. */
     fun install(update: AppUpdate) {
-        // Pendant le téléchargement, la confirmation d'Android ou la reprise : un deuxième appui
-        // ouvrirait une nouvelle session d'installation.
-        if (job?.isActive == true || _state.value.let { it is UpdateState.Installing || it is UpdateState.Resuming }) return
+        // Confirmation d'Android en cours : on rouvre sa fenêtre, jamais une deuxième session.
+        if (_state.value is UpdateState.Installing) {
+            reopenConfirmation()
+            return
+        }
+        // Pendant le téléchargement ou la reprise, un deuxième appui n'ouvre rien.
+        if (job?.isActive == true || _state.value is UpdateState.Resuming) return
         if (!context.packageManager.canRequestPackageInstalls()) {
             _state.value = UpdateState.NeedsPermission(update)
             // Android ferme souvent l'app quand l'autorisation change : la version voulue est
@@ -222,6 +237,12 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
         job = scope.launch { performInstall(update) }
     }
 
+    /** Rouvre la fenêtre de confirmation de la session en cours (quittée par Accueil, par exemple). */
+    private fun reopenConfirmation() {
+        val intent = confirmation ?: return
+        runCatching { context.startActivity(Intent(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
     /** Téléchargement puis dépôt de l'APK chez l'installateur d'Android. */
     private suspend fun performInstall(update: AppUpdate) {
         val apk = try {
@@ -233,7 +254,10 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             _state.value = UpdateState.Failed(UpdateStep.Download, update)
             return
         }
-        installingSince = SystemClock.elapsedRealtime()
+        // Aucune session « en cours » tant que `commit` n'a pas créé la nouvelle : un retour à l'appli
+        // pendant la copie de l'APK ne doit pas lire la session de l'essai précédent.
+        installSession = NO_SESSION
+        confirmation = null
         _state.value = UpdateState.Installing(update)
         try {
             withContext(Dispatchers.IO) { commit(apk) }
@@ -266,6 +290,8 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
                 return@launch
             }
             if (update != null && update.version == version) {
+                // La boîte s'ouvre (au redémarrage, rien ne la montrait) : téléchargement, puis confirmation.
+                _prompt.value = update
                 performInstall(update)
             } else {
                 _state.value = update?.let { UpdateState.Available(it) } ?: UpdateState.UpToDate
@@ -279,8 +305,20 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
         remove(KEY_PENDING_AT)
     }
 
-    /** Réponse de l'installateur ([InstallReceiver]). */
-    internal fun onInstallResult(status: Int) {
+    /**
+     * L'installateur demande une confirmation pour la session [sessionId] : retenue pour pouvoir la
+     * rouvrir. Faux pour une autre session (abandonnée, ancienne) : rien à montrer.
+     */
+    internal fun rememberConfirmation(sessionId: Int, intent: Intent): Boolean {
+        if (sessionId != installSession) return false
+        confirmation = Intent(intent)
+        return true
+    }
+
+    /** Réponse de l'installateur ([InstallReceiver]) pour la session [sessionId] ; les autres sont ignorées. */
+    internal fun onInstallResult(status: Int, sessionId: Int) {
+        // Abandonner l'ancienne session (nouvel essai) renvoie un refus sur son propre canal.
+        if (sessionId != installSession) return
         val update = _state.value.pendingUpdate() ?: return
         _state.value = when (status) {
             // Confirmation refusée : « Installer » reprend avec l'APK déjà téléchargé.
@@ -313,7 +351,10 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
     /** Confie l'APK à l'installateur d'Android ; sa réponse arrive à [InstallReceiver]. */
     private fun commit(apk: File) {
         val installer = context.packageManager.packageInstaller
-        // Un essai précédent resté en suspens ne sert plus.
+        // Un essai précédent resté en suspens ne sert plus ; ses réponses (refus d'avoir été abandonné)
+        // ne comptent pas : plus aucune session n'est « la bonne » le temps de l'abandonner.
+        installSession = NO_SESSION
+        confirmation = null
         installer.mySessions.forEach { runCatching { installer.abandonSession(it.sessionId) } }
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -326,6 +367,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
             }
         }
         val id = installer.createSession(params)
+        installSession = id
         installer.openSession(id).use { session ->
             session.openWrite("hey-stream.apk", 0, apk.length()).use { out ->
                 apk.inputStream().use { it.copyTo(out) }
@@ -351,8 +393,7 @@ class AppUpdater(private val context: Context, private val scope: CoroutineScope
         /** Une autorisation donnée dans ce délai reprend l'installation ; au-delà, on l'oublie. */
         const val PENDING_MAX_MS = 10L * 60 * 1000
 
-        /** Sans réponse d'Android depuis ce délai, le retour à l'app rend la main. */
-        const val INSTALL_SILENCE_MS = 5_000L
+        const val NO_SESSION = -1
     }
 }
 
@@ -367,9 +408,13 @@ fun UpdateState.pendingUpdate(): AppUpdate? = when (this) {
     else -> null
 }
 
-/** Installation en cours ou qui attend l'utilisateur : une vérification automatique n'y touche pas. */
+/**
+ * Installation en cours ou qui attend l'utilisateur : une vérification automatique n'y touche pas.
+ * Une installation annulée ([UpdateState.Aborted]) n'en fait pas partie : la recherche quotidienne
+ * peut reproposer une version plus récente.
+ */
 internal fun UpdateState.installFlow(): Boolean = when (this) {
-    is UpdateState.Downloading, is UpdateState.Installing, is UpdateState.NeedsPermission, is UpdateState.Resuming, is UpdateState.Aborted -> true
+    is UpdateState.Downloading, is UpdateState.Installing, is UpdateState.NeedsPermission, is UpdateState.Resuming -> true
     else -> false
 }
 
@@ -380,14 +425,19 @@ internal fun UpdateState.installFlow(): Boolean = when (this) {
 class InstallReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val updater = (context.applicationContext as HeyStreamApp).updater
+        val session = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
         when (val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirm = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
-                val shown = confirm != null && runCatching { context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
-                if (!shown) updater.onInstallResult(PackageInstaller.STATUS_FAILURE)
+                if (confirm == null) {
+                    updater.onInstallResult(PackageInstaller.STATUS_FAILURE, session)
+                } else if (updater.rememberConfirmation(session, confirm)) {
+                    val shown = runCatching { context.startActivity(Intent(confirm).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+                    if (!shown) updater.onInstallResult(PackageInstaller.STATUS_FAILURE, session)
+                }
             }
             PackageInstaller.STATUS_SUCCESS -> {}
-            else -> updater.onInstallResult(status)
+            else -> updater.onInstallResult(status, session)
         }
     }
 }
