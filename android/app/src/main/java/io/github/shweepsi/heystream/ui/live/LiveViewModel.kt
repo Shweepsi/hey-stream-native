@@ -259,12 +259,7 @@ class LiveViewModel(
                 .onSuccess { favorite ->
                     _state.update { current ->
                         val ids = if (favorite) current.favoriteIds + channel.id else current.favoriteIds - channel.id
-                        val ready = current.categories as? CategoriesUi.Ready
-                        current.copy(
-                            favoriteIds = ids,
-                            // La ligne Favoris, masquée à 0, apparaît tout de suite (et disparaît au dernier retrait).
-                            categories = if (ready == null) current.categories else CategoriesUi.Ready(withFavoriteToggled(ready.categories, favorite)),
-                        )
+                        current.copy(favoriteIds = ids)
                     }
                     // Retenue avant la notification : ses collecteurs peuvent s'exécuter aussitôt.
                     ownUserDataVersion = session.userDataVersion.value + 1
