@@ -154,8 +154,8 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   confirmation d'Android la première fois seulement (Android 12+).
 - Parcours d'installation : le bouton dit l'étape (« Télécharger et
   installer », « Téléchargement… 42 % », « Confirmez dans la fenêtre
-  d'Android ») et n'agit pas pendant les deux dernières ; une confirmation
-  annulée se reprend avec l'APK déjà téléchargé. L'autorisation « applis
+  d'Android ») ; pendant la confirmation, un appui rouvre la même fenêtre ; une
+  confirmation annulée se reprend avec l'APK déjà téléchargé. L'autorisation « applis
   inconnues » ferme souvent l'app : la version voulue est retenue et
   l'installation reprend à la réouverture, sans appui (« Reprise de la mise à
   jour… ») ; si l'autorisation reste sans effet (box à profil professionnel),

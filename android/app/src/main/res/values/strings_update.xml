@@ -6,8 +6,10 @@
     <string name="update_install">Download and install</string>
     <string name="update_downloading">Downloading…</string>
     <string name="update_downloading_percent">Downloading… %1$d%%</string>
-    <string name="update_installing">Android will ask you to confirm: choose Install (right arrow). Hey Stream then closes: open it again.</string>
-    <string name="update_needs_permission">In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it, the update resumes on its own.</string>
+    <string name="update_installing">Android may ask you to confirm the installation. Hey Stream then closes: open it again.</string>
+    <string name="update_installing_tv">Android will ask you to confirm: choose Install (right arrow). Hey Stream then closes: open it again.</string>
+    <string name="update_needs_permission">Allow Hey Stream to install apps in the Android screen that opened. Android may then close the app: reopen it within 10 minutes and the update resumes on its own.</string>
+    <string name="update_needs_permission_tv">In the Android screen that opened, scroll down to Hey Stream before pressing OK, then allow it. Android then closes the app: reopen it within 10 minutes, the update resumes on its own.</string>
     <string name="update_failed_check">Couldn’t check for updates. Check your connection and try again.</string>
     <string name="update_failed_download">The download failed or the file is damaged. Try again.</string>
     <string name="update_failed_install">Android couldn’t install the update.</string>
