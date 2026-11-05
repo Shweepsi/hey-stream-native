@@ -156,6 +156,8 @@ class SettingsFocusTest {
         press(Key.DirectionRight)
         clickable("Send anonymous crash reports").assertIsFocused()
         press(Key.DirectionDown)
+        clickable("Check for updates automatically").assertIsFocused()
+        press(Key.DirectionDown)
         clickable("Check for updates").assertIsFocused()
         press(Key.DirectionDown)
         clickable("Inter (typeface)").assertIsFocused()
