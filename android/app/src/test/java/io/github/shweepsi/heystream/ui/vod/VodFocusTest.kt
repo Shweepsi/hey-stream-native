@@ -65,10 +65,11 @@ class VodFocusTest {
         }
     }
 
-    /** Affiche activable de description [title]. */
+    /** Affiche activable de description [title] (suivie de son avancement si elle est commencée : « Titre, 42 % regardé »). */
     private fun posterTitled(title: String): SemanticsNodeInteraction = compose.onNode(
         SemanticsMatcher("affiche $title") {
-            it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull() == title &&
+            val description = it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
+            (description == title || description?.startsWith("$title, ") == true) &&
                 it.config.getOrNull(SemanticsActions.OnClick) != null
         },
     )
