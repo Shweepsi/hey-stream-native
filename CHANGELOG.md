@@ -56,7 +56,10 @@ Petits défauts relevés sur la Mi Box (essais des 2 et 3 novembre).
   s'en écarter.
 - L'heure suit le réglage 12/24 h de l'appareil, plus la langue de l'appli :
   l'appli en anglais sur une box réglée en 24 h n'affiche plus « 11:48 PM »
-  (accueil, Direct, programmes, dernière mise à jour du catalogue).
+  (accueil, Direct, programmes, dernière mise à jour du catalogue). Sans
+  réglage posé, c'est l'usage de la langue du système qui décide, pas celui de
+  l'appli (vérifié sur la Mi Box : `DateFormat.is24HourFormat` passait en 12 h
+  dès que l'appli était en anglais).
 - Sous-titre des tuiles de l'accueil : deux lignes au lieu d'une seule coupée
   net (« Chaînes et » en police agrandie).
 - Lecteur : le sous-titre d'un épisode ne répète plus le code quand le
@@ -77,7 +80,9 @@ Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais de
 - Le premier favori ajouté fait apparaître tout de suite la ligne Favoris
   (et le dernier retiré la fait disparaître) : le nombre de la catégorie suit à
   ±1 au lieu d'attendre la réouverture du Direct. La liste ouverte garde son
-  ordre et son focus.
+  ordre et son focus ; la liste des catégories remonte en haut pour montrer la
+  ligne ajoutée (vérifié sur la Mi Box : elle se glissait sinon au-dessus de
+  la zone visible).
 - Flèche droite depuis une catégorie : le focus entre sur la chaîne en aperçu
   si elle est affichée, sinon sur la première chaîne affichée, au lieu de la
   chaîne située « en face » de la catégorie.
