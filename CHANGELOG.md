@@ -35,12 +35,13 @@ Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais de
 - Après une fermeture de l'appli par Android (mémoire), la télécommande
   retrouve le focus à la réouverture : l'indicateur « focus de départ donné »
   n'est plus restauré avec l'état sauvegardé alors que le focus, lui, est perdu.
-- Le premier favori ajouté fait apparaître tout de suite la ligne Favoris
-  (et le dernier retiré la fait disparaître) : le nombre de la catégorie suit à
-  ±1 au lieu d'attendre la réouverture du Direct. La liste ouverte garde son
-  ordre et son focus ; la liste des catégories remonte en haut pour montrer la
-  ligne ajoutée (vérifié sur la Mi Box : elle se glissait sinon au-dessus de
-  la zone visible).
+- Le premier favori ajouté montre tout de suite la ligne Favoris. La ligne était
+  bien créée (les catégories se rechargent à chaque changement de favoris),
+  mais une liste paresseuse garde la ligne qu'elle montrait : la nouvelle,
+  insérée en tête, se glissait au-dessus de la zone visible et n'apparaissait
+  qu'en remontant la liste (vérifié sur la Mi Box). La liste des catégories
+  remonte maintenant en haut pour la montrer ; le dernier favori retiré la
+  fait disparaître, comme avant.
 - Flèche droite depuis une catégorie : le focus entre sur la chaîne en aperçu
   si elle est affichée, sinon sur la première chaîne affichée, au lieu de la
   chaîne située « en face » de la catégorie.

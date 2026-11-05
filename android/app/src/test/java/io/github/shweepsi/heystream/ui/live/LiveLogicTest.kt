@@ -215,29 +215,6 @@ class LiveLogicTest {
     }
 
     @Test
-    fun firstFavoriteMakesTheFavoritesRowAppearAndTheLastOneHidesIt() {
-        val categories = liveCategories(entries, favorites = 0, recents = 0)
-        val providers = listOf<CategoryKey>(CategoryKey.Provider("1"), CategoryKey.Provider("9"), CategoryKey.Provider("2"))
-        assertEquals(providers, shownCategories(categories, CategoryKey.Provider("1")).map { it.key })
-
-        val added = withFavoriteToggled(categories, added = true)
-        assertEquals(1L, added.first { it.key == CategoryKey.Favorites }.count)
-        assertEquals(listOf<CategoryKey>(CategoryKey.Favorites) + providers, shownCategories(added, CategoryKey.Provider("1")).map { it.key })
-        // Les autres lignes ne changent pas.
-        assertEquals(categories.filter { it.key != CategoryKey.Favorites }, added.filter { it.key != CategoryKey.Favorites })
-
-        val removed = withFavoriteToggled(added, added = false)
-        assertEquals(0L, removed.first { it.key == CategoryKey.Favorites }.count)
-        assertEquals(providers, shownCategories(removed, CategoryKey.Provider("1")).map { it.key })
-    }
-
-    @Test
-    fun favoritesCountNeverGoesBelowZero() {
-        val categories = liveCategories(entries, favorites = 0, recents = 0)
-        assertEquals(0L, withFavoriteToggled(categories, added = false).first { it.key == CategoryKey.Favorites }.count)
-    }
-
-    @Test
     fun rightArrowEntersOnThePreviewedChannelThenOnTheFirstShownRow() {
         val ids = mapOf(0 to 10L, 1 to 11L, 2 to 12L, 3 to 13L, 4 to null)
         // La chaîne en aperçu est affichée : le focus y entre, pas sur la rangée « en face ».
