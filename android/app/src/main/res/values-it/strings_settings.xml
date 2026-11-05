@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_section_hidden">Categorie nascoste</string>
+    <string name="settings_section_parental">Controllo parentale</string>
+    <string name="settings_section_language">Lingua</string>
+    <string name="settings_section_catalog">Catalogo</string>
+    <string name="settings_section_subscription">Abbonamento</string>
+    <string name="settings_section_about">Informazioni</string>
+
+    <string name="settings_tab_live">Live</string>
+    <string name="settings_tab_movies">Film</string>
+    <string name="settings_tab_series">Serie</string>
+
+    <string name="settings_hidden_intro">Disattiva una categoria per nasconderla da navigazione e ricerca. I suoi preferiti e recenti restano visibili.</string>
+    <string name="settings_category_shown">Visibile</string>
+    <string name="settings_category_hidden">Nascosta</string>
+    <string name="settings_categories_empty">Nessuna categoria in questa sezione</string>
+
+    <string name="settings_parental_intro">Le categorie per adulti vengono rilevate automaticamente (indicazione del fornitore o nome che contiene “XXX”, “Adult”, “+18”…) e bloccate per impostazione predefinita. Quando sono bloccate restano elencate, ma il loro contenuto non appare da nessuna parte: elenchi, ricerca, preferiti, recenti, Continua.</string>
+    <string name="settings_parental_no_pin">Nessun codice parentale</string>
+    <string name="settings_parental_locked">Le categorie per adulti sono bloccate</string>
+    <string name="settings_parental_unlocked">Le categorie per adulti sono sbloccate finché l’app resta sullo schermo</string>
+    <string name="settings_parental_create">Crea un codice</string>
+    <string name="settings_parental_change">Cambia il codice</string>
+    <string name="settings_parental_lock_now">Blocca ora</string>
+    <string name="settings_parental_note">Lo sblocco con il codice termina appena l’app va in secondo piano o lo schermo si spegne. Dopo 5 codici errati, l’inserimento è bloccato per 30 secondi.</string>
+
+    <string name="settings_language_intro">Lingua dei testi dell’app.</string>
+    <string name="settings_language_system">Lingua di sistema</string>
+
+    <string name="settings_catalog_intro">Il catalogo è salvato su questo dispositivo e aggiornato automaticamente una volta al giorno. Puoi anche aggiornarlo ora.</string>
+    <string name="settings_catalog_updated_today">Aggiornato: oggi alle %1$s</string>
+    <string name="settings_catalog_updated_yesterday">Aggiornato: ieri alle %1$s</string>
+    <string name="settings_catalog_updated_on">Aggiornato: %1$s alle %2$s</string>
+    <string name="settings_catalog_never">Catalogo non ancora scaricato</string>
+    <string name="settings_catalog_update">Aggiorna ora</string>
+    <string name="settings_catalog_updating">Aggiornamento…</string>
+    <string name="settings_catalog_running">Download del catalogo in corso. Puoi continuare a usare l’app.</string>
+    <string name="settings_catalog_kept">Il fornitore ha inviato un elenco vuoto: catalogo precedente mantenuto</string>
+    <string name="settings_catalog_failed">Download non riuscito: catalogo precedente mantenuto</string>
+    <string name="settings_catalog_up_to_date">Già provato meno di un minuto fa, non ripetuto</string>
+    <plurals name="settings_catalog_updated_live">
+        <item quantity="one">Aggiornato: %1$s canale</item>
+        <item quantity="many">Aggiornato: %1$s canali</item>
+        <item quantity="other">Aggiornato: %1$s canali</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_movies">
+        <item quantity="one">Aggiornato: %1$s film</item>
+        <item quantity="many">Aggiornato: %1$s film</item>
+        <item quantity="other">Aggiornato: %1$s film</item>
+    </plurals>
+    <plurals name="settings_catalog_updated_series">
+        <item quantity="one">Aggiornato: %1$s serie</item>
+        <item quantity="many">Aggiornato: %1$s serie</item>
+        <item quantity="other">Aggiornato: %1$s serie</item>
+    </plurals>
+
+    <string name="settings_subscription_unknown">Non ancora verificato su questo dispositivo</string>
+    <string name="settings_subscription_connections">Connessioni simultanee consentite: %1$d</string>
+    <string name="settings_sign_out">Esci</string>
+    <string name="settings_signing_out">Disconnessione…</string>
+    <string name="settings_sign_out_warning">Uscendo vengono eliminati da questo dispositivo il catalogo, i preferiti, i recenti, le posizioni di riproduzione, le spunte di visione, le categorie nascoste e il codice parentale.</string>
+    <string name="settings_sign_out_title">Uscire?</string>
+    <string name="settings_sign_out_message">Il catalogo, i preferiti, i recenti, le posizioni di riproduzione, le spunte di visione, le categorie nascoste e il codice parentale verranno eliminati da questo dispositivo. Ti serviranno le credenziali per accedere di nuovo.</string>
+
+    <string name="settings_about_version">Versione %1$s</string>
+    <string name="settings_about_versions">Versione %1$s · core %2$s</string>
+    <string name="settings_about_license">Software libero con licenza GNU GPL 3.0 o successiva, con un’eccezione per gli app store.</string>
+    <string name="settings_about_no_content">Hey Stream non fornisce contenuti: riproduce solo l’abbonamento IPTV che aggiungi.</string>
+    <string name="settings_crash_reports">Invia report anonimi sui crash</string>
+    <string name="settings_crash_reports_detail">Crash, blocchi e riproduzioni non riuscite, per correggerli. Nessuna credenziale, indirizzo del server o link dello stream.</string>
+    <string name="settings_switch_on">Sì</string>
+    <string name="settings_switch_off">No</string>
+    <string name="settings_about_credits">Riconoscimenti</string>
+    <string name="settings_about_show_license">Mostra la licenza</string>
+    <string name="settings_credit_inter">Inter (carattere)</string>
+    <string name="settings_credit_lucide">Lucide (icone)</string>
+    <string name="settings_credit_lucide_license">Licenza ISC</string>
+    <string name="settings_credit_ffmpeg">Decoder FFmpeg (Jellyfin)</string>
+    <string name="settings_credit_android">Librerie Android</string>
+    <string name="settings_credit_rust">Librerie del core Rust</string>
+    <string name="settings_credit_rust_license">MIT, Apache 2.0 e altre</string>
+    <string name="settings_credit_ffmpeg_source">GNU GPL · sorgente: github.com/jellyfin/jellyfin-androidx-media</string>
+    <string name="settings_license_unavailable">Impossibile leggere il testo della licenza.</string>
+    <string name="settings_change_server">Cambia indirizzo del server</string>
+</resources>

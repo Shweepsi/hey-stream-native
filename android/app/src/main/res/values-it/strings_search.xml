@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_title">Cerca</string>
+    <string name="search_hint">Canali, film, serie</string>
+    <string name="search_field_label">Cerca per nome</string>
+    <string name="search_idle_title">Cerca per nome</string>
+    <string name="search_idle_message">Digita almeno 2 caratteri per cercare canali live, film e serie.</string>
+    <string name="search_no_results">Nessun risultato</string>
+    <string name="search_no_results_message">Nessun risultato per “%1$s”. Controlla l’ortografia o prova un’altra parola.</string>
+    <string name="search_section_live">Canali</string>
+    <string name="search_section_movies">Film</string>
+    <string name="search_section_series">Serie</string>
+    <string name="search_results_first">Primi %1$d risultati</string>
+    <plurals name="search_results_count">
+        <item quantity="one">%1$d risultato</item>
+        <item quantity="many">%1$d risultati</item>
+        <item quantity="other">%1$d risultati</item>
+    </plurals>
+</resources>
