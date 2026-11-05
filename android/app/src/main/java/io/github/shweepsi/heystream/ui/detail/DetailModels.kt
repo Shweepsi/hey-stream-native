@@ -171,11 +171,22 @@ data class EpisodeRow(
     val watched: Boolean,
 )
 
+/**
+ * Noms de la série qui peuvent préfixer le titre d'un épisode (celui du catalogue et celui de la
+ * fiche), chacun en entier (« Ma série (2017)_fr ») et nu (« Ma série »), du plus long au plus
+ * court : la fiche et le lecteur retirent le même nom, sans laisser « (2017) » derrière.
+ */
+internal fun episodeNames(vararg names: String?): List<String> =
+    names.filterNotNull()
+        .flatMap { listOf(it, it.substringBefore(" (").substringBefore('_')) }
+        .distinct()
+        .sortedByDescending { it.length }
+
 /** Code d'épisode (« S01E01 », « S1 E1 », « 1x01 »), à retirer d'un titre. */
 private val EPISODE_CODE = Regex("""(?i)\bS\d{1,3}\s*[-.·]?\s*E\d{1,4}\b|\b\d{1,2}x\d{1,3}\b""")
 
 /** Séparateurs laissés en début ou fin de titre une fois le code retiré. */
-private const val TITLE_SEPARATORS = " -–—|:._·"
+private const val TITLE_SEPARATORS = " -–—|:._·,"
 
 /**
  * Titre d'un épisode sans le nom de la série ni le code : « Ma série -
@@ -188,7 +199,10 @@ internal fun episodeTitle(raw: String?, seriesNames: List<String>): String? {
         .firstOrNull { text.startsWith(it, ignoreCase = true) }
         ?.let { text = text.substring(it.length) }
     text = EPISODE_CODE.replace(text, " ").trim { it in TITLE_SEPARATORS }
-    return text.replace(Regex("\\s{2,}"), " ").takeIf { t -> t.any { it.isLetter() } }
+    return text.replace(Regex("\\s{2,}"), " ")
+        // Code retiré au milieu (nom de série non reconnu) : « Série - - Titre » devient « Série - Titre ».
+        .replace(Regex("(\\s[-–—|:])+(?=\\s[-–—|:]\\s)"), "")
+        .takeIf { t -> t.any { it.isLetter() } }
 }
 
 /**
@@ -255,11 +269,7 @@ internal fun episodeRows(
     resume: Resume?,
     seriesName: String? = null,
 ): List<EpisodeRow> = info.seasons.flatMap { season ->
-    // Nom complet (« Ma série (2017)_fr ») et nom nu (« Ma série »), qui préfixe souvent les titres.
-    val names = listOfNotNull(seriesName, info.name)
-        .flatMap { listOf(it, it.substringBefore(" (").substringBefore('_')) }
-        .distinct()
-        .sortedByDescending { it.length }
+    val names = episodeNames(seriesName, info.name)
     season.episodes.mapIndexed { index, episode ->
         // Durée mesurée par le lecteur (dernier épisode commencé) d'abord :
         // celle du fournisseur est parfois fausse.

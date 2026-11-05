@@ -928,10 +928,10 @@ private fun UpdateSection(state: UpdateState, autoUpdate: Boolean, actions: Sett
     // Le libellé dit l'étape (téléchargement, confirmation d'Android) ; le bouton n'agit pas
     // pendant ces étapes mais reste actif : un bouton désactivé perdrait le focus de la télécommande.
     HsButton(
-        text = if (target != null) {
-            updateButtonLabel(state, target.version)
-        } else {
-            stringResource(R.string.settings_update_check)
+        text = when {
+            state is UpdateState.Resuming -> stringResource(R.string.update_resuming)
+            target != null -> updateButtonLabel(state, target.version)
+            else -> stringResource(R.string.settings_update_check)
         },
         onClick = {
             when {

@@ -530,7 +530,13 @@ private fun ChannelList(
     // rangée affichée (et non la rangée « en face » de la catégorie).
     val entryFocus = remember { FocusRequester() }
     val entryIndex by remember(listState, channels, previewId) {
-        derivedStateOf { entryRow(listState.layoutInfo.visibleItemsInfo.map { it.index }, previewId) { channels.peek(it)?.id } }
+        // `layoutInfo` garde les anciens index visibles jusqu'à la mesure suivante : une liste plus courte
+        // (catégorie rechargée) ferait lire hors bornes ; le même garde que `visibleWindow`.
+        derivedStateOf {
+            entryRow(listState.layoutInfo.visibleItemsInfo.map { it.index }, previewId) { index ->
+                if (index < channels.itemCount) channels.peek(index)?.id else null
+            }
+        }
     }
     LazyColumn(
         state = listState,

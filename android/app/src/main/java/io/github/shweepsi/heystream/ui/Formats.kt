@@ -27,7 +27,10 @@ object Formats {
         val moment = Instant.ofEpochMilli(epochMs).atZone(zone)
         if (is24Hour == null) return DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment)
         val pattern = DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm")
-        return DateTimeFormatter.ofPattern(pattern, locale).format(moment)
+        // Un motif que le java.time d'Android ne connaît pas (lettre « B » de certaines langues, Java 16+)
+        // retombe sur le formatage de la langue plutôt que de planter l'écran.
+        return runCatching { DateTimeFormatter.ofPattern(pattern, locale).format(moment) }
+            .getOrElse { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment) }
     }
 
     /** Heure d'un programme, à partir de secondes Unix. */
