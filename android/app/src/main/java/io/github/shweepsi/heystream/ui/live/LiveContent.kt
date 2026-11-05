@@ -393,6 +393,13 @@ private fun CategoriesPanel(
         val visible = listState.layoutInfo.visibleItemsInfo
         if (visible.isNotEmpty() && visible.none { it.index == selectedIndex }) listState.scrollToItem(selectedIndex)
     }
+    // Ligne ajoutée en tête (Favoris, au premier favori) : une liste paresseuse garde la ligne qu'elle
+    // montrait (Récents, devenue la deuxième), et la nouvelle resterait au-dessus de la zone visible.
+    val firstKey = categories.firstOrNull()?.key
+    LaunchedEffect(firstKey) {
+        withFrameNanos { }
+        if (listState.firstVisibleItemIndex == 1 && listState.firstVisibleItemScrollOffset == 0) listState.scrollToItem(0)
+    }
     Column(
         if (isTv) {
             modifier
