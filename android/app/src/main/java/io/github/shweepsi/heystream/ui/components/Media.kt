@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -39,6 +40,7 @@ import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
+import kotlin.math.roundToInt
 
 /**
  * Image du fournisseur (affiche, logo). Rien n'est affiché tant qu'elle n'est
@@ -173,6 +175,11 @@ fun LiveBadge(modifier: Modifier = Modifier) {
 /**
  * Affiche 2:3 avec le titre dessous (films, séries). Barre de progression si
  * commencée, pastille si vue (pas de barre sur un titre vu, sauf revisionnage).
+ *
+ * Lecteur d'écran : la zone qui prend le focus porte le titre (`contentDescription`, avec
+ * l'avancement s'il y en a ; la pastille « vu » s'y ajoute), et le texte dessous sort de l'arbre
+ * d'accessibilité : il serait lu deux fois. Pas de libellé d'action : « appuyez deux fois pour
+ * *titre* » nommait l'action au lieu de lire le titre.
  */
 @Composable
 fun PosterCard(
@@ -186,16 +193,21 @@ fun PosterCard(
     fallbackIcon: ImageVector = Lucide.Film,
 ) {
     val dimens = Hs.dimens
+    val description = if (progress != null) {
+        stringResource(R.string.poster_in_progress, title, (progress * 100).roundToInt().coerceIn(0, 100))
+    } else {
+        title
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (dimens.isTv) 8.dp else 10.dp)) {
         HsSurface(
             onClick = onClick,
             onLongClick = onLongClick,
             focusScale = FocusScale.DEFAULT,
             color = Hs.colors.surface2,
-            onClickLabel = title,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f),
+                .aspectRatio(2f / 3f)
+                .semantics { contentDescription = description },
         ) {
             RemoteImage(imageUrl, Modifier.fillMaxSize(), fallback = fallbackIcon)
             if (watched) {
@@ -222,6 +234,8 @@ fun PosterCard(
             maxLines = POSTER_TITLE_LINES,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
+            // Déjà dit par l'affiche (contentDescription) : pas lu une deuxième fois.
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }

@@ -6,6 +6,7 @@
     <string name="retry">Réessayer</string>
     <string name="close">Fermer</string>
     <string name="watched">Vu</string>
+    <string name="poster_in_progress">%1$s, %2$d&#160;%% regardé</string>
     <string name="live_badge">EN DIRECT</string>
     <string name="category_locked">Verrouillée par le contrôle parental</string>
     <string name="favorites">Favoris</string>

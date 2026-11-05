@@ -7,6 +7,7 @@ import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -68,9 +69,14 @@ class SearchFocusTest {
         compose.waitForIdle()
     }
 
+    /** Élément activable nommé [text] : texte, libellé d'action (chaîne) ou description (affiche). */
     private fun clickable(text: String): SemanticsNodeInteraction = compose.onNode(
         (hasText(text) and hasClickAction()) or
-            SemanticsMatcher("clic « $text »") { it.config.getOrNull(SemanticsActions.OnClick)?.label == text },
+            SemanticsMatcher("clic « $text »") { it.config.getOrNull(SemanticsActions.OnClick)?.label == text } or
+            SemanticsMatcher("affiche « $text »") {
+                it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull() == text &&
+                    it.config.getOrNull(SemanticsActions.OnClick) != null
+            },
     )
 
     private fun field(): SemanticsNodeInteraction = compose.onNode(hasSetTextAction())
