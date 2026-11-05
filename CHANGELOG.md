@@ -43,12 +43,15 @@ Petits défauts relevés sur la Mi Box (essais des 2 et 3 novembre).
   (accueil, Direct, programmes, dernière mise à jour du catalogue). Sans
   réglage posé, c'est l'usage de la langue du système qui décide, pas celui de
   l'appli (vérifié sur la Mi Box : `DateFormat.is24HourFormat` passait en 12 h
-  dès que l'appli était en anglais).
+  dès que l'appli était en anglais). Un motif d'heure que le java.time
+  d'Android ne connaît pas retombe sur le formatage de la langue.
 - Sous-titre des tuiles de l'accueil : deux lignes au lieu d'une seule coupée
   net (« Chaînes et » en police agrandie).
 - Lecteur : le sous-titre d'un épisode ne répète plus le code quand le
   fournisseur ne donne que « S01E01 » (« S1 · E1 · S01E01 » devient
-  « S1 · E1 »), pour l'épisode en cours comme pour le suivant.
+  « S1 · E1 »), pour l'épisode en cours comme pour le suivant. Le nom de la
+  série est retiré comme sur la fiche (nom du catalogue et de la fiche, avec
+  ou sans l'année) et un code au milieu du titre ne laisse plus « - - ».
 - Listes de catégories du Direct, des Films et des Séries à la TV : texte à
   13 sp au lieu de 14, pour que davantage de noms tiennent (les plus longs
   défilent toujours au focus).
@@ -61,12 +64,13 @@ Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais de
 - Après une fermeture de l'appli par Android (mémoire), la télécommande
   retrouve le focus à la réouverture : l'indicateur « focus de départ donné »
   n'est plus restauré avec l'état sauvegardé alors que le focus, lui, est perdu.
-- Le premier favori ajouté fait apparaître tout de suite la ligne Favoris
-  (et le dernier retiré la fait disparaître) : le nombre de la catégorie suit à
-  ±1 au lieu d'attendre la réouverture du Direct. La liste ouverte garde son
-  ordre et son focus ; la liste des catégories remonte en haut pour montrer la
-  ligne ajoutée (vérifié sur la Mi Box : elle se glissait sinon au-dessus de
-  la zone visible).
+- Le premier favori ajouté montre tout de suite la ligne Favoris. La ligne était
+  bien créée (les catégories se rechargent à chaque changement de favoris),
+  mais une liste paresseuse garde la ligne qu'elle montrait : la nouvelle,
+  insérée en tête, se glissait au-dessus de la zone visible et n'apparaissait
+  qu'en remontant la liste (vérifié sur la Mi Box). La liste des catégories
+  remonte maintenant en haut pour la montrer ; le dernier favori retiré la
+  fait disparaître, comme avant.
 - Flèche droite depuis une catégorie : le focus entre sur la chaîne en aperçu
   si elle est affichée, sinon sur la première chaîne affichée, au lieu de la
   chaîne située « en face » de la catégorie.

@@ -22,6 +22,7 @@ import io.github.shweepsi.heystream.player.PlaybackStatus
 import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.ui.UiText
 import io.github.shweepsi.heystream.ui.detail.SeriesInfoMemory
+import io.github.shweepsi.heystream.ui.detail.episodeNames
 import io.github.shweepsi.heystream.ui.detail.episodeTitle
 import io.github.shweepsi.heystream.ui.detail.visibleItem
 import io.github.shweepsi.heystream.ui.toUiText
@@ -553,7 +554,7 @@ class PlayerViewModel(
             id = episodeId,
             title = seriesName ?: info.name.orEmpty(),
             // Titre sans le code « S01E01 » ni le nom de la série : `null` s'il ne reste rien (pas de répétition de « S1 · E1 »).
-            episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episodeTitle(episode.title, listOfNotNull(seriesName, info.name))),
+            episode = EpisodeLabel(season, episode.number ?: (index + 1).toLong(), episodeTitle(episode.title, episodeNames(seriesName, info.name))),
             image = info.cover ?: episode.image,
             extension = episode.extension,
             durationMs = (episode.durationSecs ?: 0L) * 1000,
@@ -603,7 +604,8 @@ class PlayerViewModel(
         val label = EpisodeLabel(
             next.season,
             next.number ?: (index + 1).coerceAtLeast(1).toLong(),
-            episodeTitle(next.title, listOfNotNull(info?.name)),
+            // Le titre de l'écran est le nom de la série : mêmes noms que pour l'épisode en cours.
+            episodeTitle(next.title, episodeNames(_state.value.title.takeIf { it.isNotBlank() }, info?.name)),
         )
         pendingNext = next
         _state.update { it.copy(next = NextEpisodeUi(label, NEXT_EPISODE_SECONDS)) }
