@@ -74,7 +74,8 @@ class SearchFocusTest {
         (hasText(text) and hasClickAction()) or
             SemanticsMatcher("clic « $text »") { it.config.getOrNull(SemanticsActions.OnClick)?.label == text } or
             SemanticsMatcher("affiche « $text »") {
-                it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull() == text &&
+                val description = it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()
+                (description == text || description?.startsWith("$text, ") == true) &&
                     it.config.getOrNull(SemanticsActions.OnClick) != null
             },
     )
