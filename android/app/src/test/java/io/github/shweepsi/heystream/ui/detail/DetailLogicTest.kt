@@ -122,6 +122,26 @@ class DetailLogicTest {
     }
 
     @Test
+    fun playerAndDetailRemoveTheSameSeriesNames() {
+        // Nom du catalogue sans l'année, nom de la fiche avec : du plus long au plus court, nus compris.
+        assertEquals(
+            listOf("Lucifer (2016)", "Lucifer"),
+            episodeNames("Lucifer", "Lucifer (2016)"),
+        )
+        assertEquals(listOf("13 Reasons Why (2017)_fr", "13 Reasons Why (2017)", "13 Reasons Why"), episodeNames("13 Reasons Why (2017)", "13 Reasons Why (2017)_fr"))
+        assertEquals(listOf("Lucifer"), episodeNames(null, "Lucifer"))
+        // Le titre « Lucifer (2016) - S01E01 - Pilot » ne laisse plus « (2016) - - Pilot ».
+        assertEquals("Pilot", episodeTitle("Lucifer (2016) - S01E01 - Pilot", episodeNames("Lucifer", "Lucifer (2016)")))
+    }
+
+    @Test
+    fun codeRemovedInTheMiddleLeavesNoDoubleSeparator() {
+        assertEquals("Autre série - Tape 1", episodeTitle("Autre série - S01E01 - Tape 1", emptyList()))
+        // La virgule en tête ou en queue n'est pas un séparateur à garder.
+        assertEquals("Stay, Good Devil", episodeTitle("Lucifer, Stay, Good Devil", listOf("Lucifer")))
+    }
+
+    @Test
     fun movieHeaderStartsFromTheCacheThenTheProviderFillsIn() {
         val cached = movieHeader(item(rating = "6"), null)!!
         assertEquals("Nord Express", cached.title)
