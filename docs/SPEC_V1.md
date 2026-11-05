@@ -35,7 +35,7 @@ immédiate (authentification), message clair en cas d'échec. Rien d'autre
   mis en cache, jamais plus d'une fois toutes les 15 min par chaîne).
 - Chaque ligne de chaîne : logo, nom, et le programme en cours **seulement
   s'il est déjà en cache** (jamais de requête pour remplir la liste). Le
-  numéro du fournisseur n'est plus affiché dans les listes (0.7.x : le logo et
+  numéro du fournisseur n'est plus affiché dans les listes (depuis la 0.2.0 : le logo et
   le nom suffisent) ; il reste dans le bandeau du plein écran.
 - Sélectionner une chaîne lance l'aperçu ; **OK** passe en plein écran ;
   **Retour** quitte le plein écran et revient à l'aperçu.

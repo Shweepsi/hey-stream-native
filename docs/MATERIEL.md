@@ -76,7 +76,7 @@ elle l'est partout.** Toute fonctionnalité doit y être testée avant publicati
 
 | Mesure | Objectif | Mesuré sur la Mi Box (2 au 4 novembre 2026) |
 |---|---|---|
-| Démarrage à froid → accueil | < 2 s | 0,43 à 0,45 s (profil installé) ; 0,67 s juste après une installation |
+| Démarrage à froid → accueil | < 2 s | ≈ 0,40 à 0,45 s une fois l'appli compilée avec son profil ; ≈ 0,53 à 0,67 s juste après une installation, avant toute compilation (séances et versions différentes : `CHANGELOG.md` 0.9.6) |
 | Ouverture d'une liste de 50 000 chaînes (cache chaud) | < 500 ms | pas mesuré tel quel |
 | Changement de chaîne (zapping) | < 1,5 s | ≈ 0,8 s (médiane, 20 sur 20) ; dont ≈ 0,45 s de réseau chez le fournisseur |
 | Mémoire en lecture | < 300 Mo | 92 à 102 Mo (PSS, Direct en plein écran, 10 min) |
