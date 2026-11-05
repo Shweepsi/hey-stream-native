@@ -134,6 +134,42 @@ class PlayerKeysTest {
     }
 
     @Test
+    fun longOkWithTheControlsShownOpensTheInfoWithoutClickingTheButton() {
+        val chrome = PlayerChrome(visible = true)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.onRoot().performKeyPress(
+            KeyEvent(AndroidKeyEvent(0L, 600L, AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 1)),
+        )
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        // Les infos s'ouvrent ; le relâchement est avalé : le bouton qui a le focus n'est pas cliqué.
+        assertTrue(chrome.info)
+        assertEquals(0, actions.toggles)
+    }
+
+    @Test
+    fun aReleaseCancelledBySystemIsNotAPress() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.onRoot().performKeyPress(
+            KeyEvent(
+                AndroidKeyEvent(0L, 50L, AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 0, 0, 0, 0, AndroidKeyEvent.FLAG_CANCELED),
+            ),
+        )
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+        assertFalse(chrome.visible)
+        // Le vrai relâchement qui suit n'agit pas non plus (l'appui a été annulé).
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+    }
+
+    @Test
     fun okActsOnReleaseNotOnPress() {
         val chrome = PlayerChrome(visible = false)
         val actions = Recorder()

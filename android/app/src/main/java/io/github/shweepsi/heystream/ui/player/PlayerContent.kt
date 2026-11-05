@@ -613,7 +613,11 @@ private fun handleKey(
         return true
     }
     if (down) chrome.poke()
-    if (blocking) return false
+    if (blocking) {
+        // Carte « épisode suivant », échec, liste de pistes : un OK commencé avant n'agira pas à son relâchement.
+        okHeld[0] = null
+        return false
+    }
     when (event.key) {
         Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> {
             if (down) {
@@ -666,13 +670,21 @@ private fun handleOk(
     okHeld: Array<Key?>,
 ): Boolean {
     val repeat = event.nativeKeyEvent.repeatCount
+    // Relâchement annulé par le système (une fenêtre a pris le focus pendant l'appui) : pas une pression.
+    if (!down && event.nativeKeyEvent.isCanceled) {
+        okHeld[0] = null
+        return true
+    }
     if (down && repeat == 1) {
         okHeld[0] = null
         chrome.toggleInfo()
         swallowUp[0] = event.key
         return true
     }
-    if (chrome.visible) return false
+    if (chrome.visible) {
+        okHeld[0] = null
+        return false
+    }
     if (down) {
         if (repeat == 0) okHeld[0] = event.key
         return true
