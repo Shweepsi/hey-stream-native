@@ -9,6 +9,7 @@ import io.github.shweepsi.heystream.ui.home.subscriptionOf
 import java.time.ZoneId
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,6 +68,22 @@ class FormatsTest {
         // Sans réglage fourni : l'usage de la langue, comme avant.
         assertEquals("13:00", Formats.timeOfSeconds(afternoon, Locale.FRANCE, paris))
         assertEquals("13:00", Formats.time(afternoon * 1000, Locale.FRANCE, paris, is24Hour = true))
+    }
+
+    @Test
+    fun languageDecidesTheClockOnlyWhenTheDeviceHasNoSetting() {
+        assertTrue(uses24Hour(Locale.FRANCE))
+        assertTrue(uses24Hour(Locale.GERMANY))
+        assertFalse(uses24Hour(Locale.US))
+    }
+
+    @Test
+    fun deviceClockSettingWins() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        android.provider.Settings.System.putString(context.contentResolver, android.provider.Settings.System.TIME_12_24, "24")
+        assertTrue(is24HourClock(context))
+        android.provider.Settings.System.putString(context.contentResolver, android.provider.Settings.System.TIME_12_24, "12")
+        assertFalse(is24HourClock(context))
     }
 
     @Test

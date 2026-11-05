@@ -14,7 +14,10 @@ Petits défauts relevés sur la Mi Box (essais des 2 et 3 novembre).
   s'en écarter.
 - L'heure suit le réglage 12/24 h de l'appareil, plus la langue de l'appli :
   l'appli en anglais sur une box réglée en 24 h n'affiche plus « 11:48 PM »
-  (accueil, Direct, programmes, dernière mise à jour du catalogue).
+  (accueil, Direct, programmes, dernière mise à jour du catalogue). Sans
+  réglage posé, c'est l'usage de la langue du système qui décide, pas celui de
+  l'appli (vérifié sur la Mi Box : `DateFormat.is24HourFormat` passait en 12 h
+  dès que l'appli était en anglais).
 - Sous-titre des tuiles de l'accueil : deux lignes au lieu d'une seule coupée
   net (« Chaînes et » en police agrandie).
 - Lecteur : le sous-titre d'un épisode ne répète plus le code quand le
