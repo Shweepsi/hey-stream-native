@@ -4,6 +4,27 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.11 — 2026-11-05
+
+Outils de mesure et écran « infos du flux » (lot 9 du plan de révision).
+
+- **Infos du flux** : un appui long sur OK dans le lecteur (films et
+  épisodes) ouvre un panneau en haut à gauche : codec, résolution, images par
+  seconde et plage dynamique (SDR, HDR10, HLG, Dolby Vision) de la vidéo,
+  débit vidéo, décodeur vidéo, audio (codec, voies, fréquence) et son décodeur,
+  débit réseau mesuré, images perdues. Retour ou un nouvel appui long le
+  ferme. Aucune adresse ni aucun identifiant n'y figure. Un appui court sur OK
+  agit maintenant au relâchement (pause et commandes), pour qu'un appui long
+  ne mette pas d'abord en pause.
+- **Mesure** : l'APK testeur est profilable par adb (`<profileable>`, pour
+  simpleperf, Perfetto et `am profile`) ; l'APK public reste fermé. Une
+  variante de mesure (`-Pheystream.mesure=true`, jamais publiée) ajoute les
+  traces Compose (`runtime-tracing`) pour voir dans Perfetto quelles
+  fonctions composables coûtent dans la grille.
+- Le commentaire du lecteur dit ce que fait vraiment l'extension FFmpeg
+  (audio, et vidéo logicielle de secours) ; décision du 3 novembre : décodeur
+  gardé.
+
 ## 0.9.10 — 2026-11-05
 
 Accessibilité (lecteur d'écran), d'après l'analyse des arbres d'écran de la nuit

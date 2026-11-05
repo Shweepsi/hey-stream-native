@@ -142,6 +142,7 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
     BackHandler {
         when {
             state.next != null -> viewModel.cancelNext()
+            chrome.info -> chrome.closeInfo()
             chrome.menu != null -> chrome.closeMenu()
             chrome.visible && state.error == null && !status.failed -> chrome.hide()
             else -> exit()
@@ -180,6 +181,7 @@ fun PlayerScreen(kind: PlaybackKind, id: Long, seriesId: Long?, fromStart: Boole
         chrome = chrome,
         actions = actions,
         levels = rememberDeviceLevels(),
+        streamInfo = controller.info,
         video = {
             Box(Modifier.fillMaxSize()) {
                 VideoSurface(player, Modifier.fillMaxSize(), keepScreenOn = keepsScreenOn(state, status))

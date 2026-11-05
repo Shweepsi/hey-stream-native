@@ -29,6 +29,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HeyStream">
 
+        <!-- Mesure (simpleperf, Perfetto, `am profile` par adb) : seulement pour l'APK testeur et la
+             variante de mesure (`-Pheystream.mesure=true`) ; l'APK public reste fermé. -->
+        <profileable android:shell="${profileableShell}" />
+
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"

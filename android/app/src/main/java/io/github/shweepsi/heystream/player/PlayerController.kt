@@ -131,6 +131,25 @@ class PlayerController(
     private val _status = MutableStateFlow(PlaybackStatus())
     val status: StateFlow<PlaybackStatus> = _status.asStateFlow()
 
+    /** Ce que le lecteur lit (pour l'écran « infos du flux »), remis à zéro à chaque flux. */
+    private val _info = MutableStateFlow(StreamInfo())
+    val info: StateFlow<StreamInfo> = _info.asStateFlow()
+
+    /**
+     * Décodeurs ouverts : ils survivent à l'arrêt d'un flux (voir [decodersHeld]) et ne sont pas
+     * annoncés de nouveau au flux suivant, tant que son format les réutilise.
+     */
+    private var videoDecoder: String? = null
+    private var audioDecoder: String? = null
+
+    /** Infos d'un flux qui s'ouvre : rien, sauf les décodeurs déjà ouverts. */
+    private fun resetInfo() {
+        _info.value = StreamInfo(
+            video = videoDecoder?.let { VideoInfo(decoder = it) },
+            audio = audioDecoder?.let { AudioInfo(decoder = it) },
+        )
+    }
+
     /**
      * Reprise retenue ([hold]) : numéro de la retenue en cours, 0 sans
      * retenue. L'écran du flux vérifie d'abord qu'il peut encore le montrer
@@ -169,6 +188,7 @@ class PlayerController(
             clearMediaItems()
         }
         _status.value = PlaybackStatus()
+        resetInfo()
         // Un zapping rouvre un flux aussitôt ; sinon les décodeurs sont rendus au bout d'un moment.
         handler.removeCallbacks(releaseIdleDecoders)
         if (exoPlayer != null) handler.postDelayed(releaseIdleDecoders, DECODERS_IDLE_MS)
@@ -312,6 +332,7 @@ class PlayerController(
         current = item
         resumeMs = startMs.coerceAtLeast(0)
         _status.value = PlaybackStatus(active = true, live = live, buffering = true)
+        resetInfo()
         if (inBackground || isHeld) {
             // Chaîne ou titre choisi juste avant la mise en arrière-plan : le
             // flux s'ouvrira au retour, pas en cachette ; retenu, après la
@@ -358,7 +379,9 @@ class PlayerController(
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
             .setConstantBitrateSeekingEnabled(true)
         val renderers = DefaultRenderersFactory(context)
-            // FFmpeg seulement pour l'audio que l'appareil ne décode pas (MP2, AC-3).
+            // FFmpeg (extension Jellyfin) en renfort, après les décodeurs matériels : l'audio que l'appareil
+            // ne décode pas (MP2, AC-3) et la vidéo logicielle de secours (vieux Xvid / MPEG-4 en SD, que le
+            // processeur décode sans peine). Décision du 3 novembre : le décodeur est gardé (docs/MATERIEL.md).
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
             // Un décodeur qui a planté n'est plus proposé (le premier de la liste revient s'il ne reste rien).
@@ -462,6 +485,7 @@ class PlayerController(
             decoderReuseEvaluation: DecoderReuseEvaluation?,
         ) {
             stats?.format("video", format)
+            _info.update { it.copy(video = videoInfoOf(format, decoder = it.video?.decoder)) }
         }
 
         override fun onAudioInputFormatChanged(
@@ -470,6 +494,7 @@ class PlayerController(
             decoderReuseEvaluation: DecoderReuseEvaluation?,
         ) {
             stats?.format("audio", format)
+            _info.update { it.copy(audio = audioInfoOf(format, decoder = it.audio?.decoder)) }
         }
 
         override fun onVideoDecoderInitialized(
@@ -479,6 +504,8 @@ class PlayerController(
             initializationDurationMs: Long,
         ) {
             stats?.decoder("video", decoderName, initializationDurationMs)
+            videoDecoder = decoderName
+            _info.update { it.copy(video = (it.video ?: VideoInfo()).copy(decoder = decoderName)) }
         }
 
         override fun onAudioDecoderInitialized(
@@ -488,10 +515,23 @@ class PlayerController(
             initializationDurationMs: Long,
         ) {
             stats?.decoder("audio", decoderName, initializationDurationMs)
+            audioDecoder = decoderName
+            _info.update { it.copy(audio = (it.audio ?: AudioInfo()).copy(decoder = decoderName)) }
+        }
+
+        override fun onVideoDecoderReleased(eventTime: AnalyticsListener.EventTime, decoderName: String) {
+            videoDecoder = null
+            _info.update { it.copy(video = it.video?.copy(decoder = null)) }
+        }
+
+        override fun onAudioDecoderReleased(eventTime: AnalyticsListener.EventTime, decoderName: String) {
+            audioDecoder = null
+            _info.update { it.copy(audio = it.audio?.copy(decoder = null)) }
         }
 
         override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
             stats?.let { it.dropped += droppedFrames }
+            _info.update { it.copy(droppedFrames = it.droppedFrames + droppedFrames) }
         }
 
         override fun onBandwidthEstimate(
@@ -501,6 +541,7 @@ class PlayerController(
             bitrateEstimate: Long,
         ) {
             stats?.let { it.bandwidth = bitrateEstimate }
+            _info.update { it.copy(bandwidthBps = bitrateEstimate) }
         }
     }
 

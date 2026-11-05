@@ -91,8 +91,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.shweepsi.heystream.R
 import io.github.shweepsi.heystream.player.PlaybackStatus
+import io.github.shweepsi.heystream.player.StreamInfo
 import io.github.shweepsi.heystream.ui.Formats
 import io.github.shweepsi.heystream.ui.components.ButtonStyle
 import io.github.shweepsi.heystream.ui.components.FocusScale
@@ -109,6 +111,8 @@ import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
 import io.github.shweepsi.heystream.ui.theme.tabular
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /** Position de lecture, lue sur le lecteur ; [durationMs] vaut 0 si inconnue. */
 data class PlaybackPosition(val positionMs: Long = 0, val durationMs: Long = 0)
@@ -121,8 +125,17 @@ enum class ControlFocus { PlayPause, Seek, Audio, Subtitles }
 
 /** Commandes affichées ou masquées, liste de pistes ouverte : état de l'interface seule. */
 @Stable
-class PlayerChrome(visible: Boolean = true, menu: TrackMenu? = null, focus: ControlFocus = ControlFocus.PlayPause) {
+class PlayerChrome(
+    visible: Boolean = true,
+    menu: TrackMenu? = null,
+    focus: ControlFocus = ControlFocus.PlayPause,
+    info: Boolean = false,
+) {
     var visible by mutableStateOf(visible)
+        private set
+
+    /** Écran « infos du flux » ouvert (appui long sur OK). */
+    var info by mutableStateOf(info)
         private set
     var menu by mutableStateOf(menu)
         private set
@@ -152,6 +165,16 @@ class PlayerChrome(visible: Boolean = true, menu: TrackMenu? = null, focus: Cont
 
     fun closeMenu() {
         menu = null
+        poke()
+    }
+
+    fun toggleInfo() {
+        info = !info
+        poke()
+    }
+
+    fun closeInfo() {
+        info = false
         poke()
     }
 
@@ -196,10 +219,11 @@ interface PlayerActions {
  * pistes, épisode suivant, reconnexion et échec. Toujours en thème sombre
  * (sur la vidéo, les couleurs ne suivent pas le thème).
  *
- * Télécommande : OK met en pause et montre les commandes ; gauche / droite
- * avancent (30 s) ou reculent (10 s), appuis cumulés, même commandes
- * masquées ; haut / bas montrent les commandes. Au doigt : double tap sur un
- * côté de la vidéo.
+ * Télécommande : OK met en pause et montre les commandes (au relâchement : un
+ * appui long ouvre plutôt les infos du flux, sans toucher à la lecture) ;
+ * gauche / droite avancent (30 s) ou reculent (10 s), appuis cumulés, même
+ * commandes masquées ; haut / bas montrent les commandes. Au doigt : double
+ * tap sur un côté de la vidéo.
  */
 @Composable
 fun PlayerContent(
@@ -211,6 +235,8 @@ fun PlayerContent(
     modifier: Modifier = Modifier,
     /** Absent sur TV et dans les tests : pas de glissement vertical. */
     levels: PlayerLevels? = null,
+    /** Ce que le lecteur lit, lu seulement quand l'écran « infos du flux » est ouvert. */
+    streamInfo: StateFlow<StreamInfo> = NoStreamInfo,
     video: @Composable () -> Unit = {},
 ) {
     HeyStreamTheme(isTv = Hs.isTv) {
@@ -220,6 +246,8 @@ fun PlayerContent(
         val focus = remember { ControlFocusRequesters() }
         // Touche dont le relâchement ne doit pas atteindre la commande qui vient de prendre le focus.
         val swallowUp = remember { arrayOfNulls<Key>(1) }
+        // OK enfoncé commandes masquées : la pause attend son relâchement (un appui long ouvre les infos).
+        val okHeld = remember { arrayOfNulls<Key>(1) }
         val controlsShown = chrome.visible && !failed && state.next == null
         val seeking = rememberUpdatedState(state.pendingSeekMs != null)
         val haptic = LocalHapticFeedback.current
@@ -252,7 +280,7 @@ fun PlayerContent(
                 .fillMaxSize()
                 .background(HsColors.Video)
                 .onPreviewKeyEvent { event ->
-                    handleKey(event, chrome, actions, blocking, swallowUp)
+                    handleKey(event, chrome, actions, blocking, swallowUp, okHeld)
                 }
                 .focusRequester(root)
                 .focusable()
@@ -358,6 +386,16 @@ fun PlayerContent(
             ) {
                 Controls(state, status, position, chrome, actions, focus)
             }
+            if (chrome.info) {
+                val info by streamInfo.collectAsStateWithLifecycle()
+                StreamInfoPanel(
+                    info,
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .windowInsetsPadding(WindowInsets.displayCutout)
+                        .padding(horizontal = Hs.dimens.screenHorizontal, vertical = Hs.dimens.screenVertical),
+                )
+            }
             val menu = chrome.menu
             if (menu != null && controlsShown) {
                 TrackMenuPanel(
@@ -400,6 +438,9 @@ fun PlayerContent(
 }
 
 private const val FADE_MS = 150
+
+/** Pas d'infos (aperçus et tests) : l'écran « infos du flux » s'ouvre vide. */
+private val NoStreamInfo: StateFlow<StreamInfo> = MutableStateFlow(StreamInfo())
 
 /** Tiers gauche : recul ; tiers droit : avance ; milieu : rien. */
 private fun sideOf(x: Float, width: Int): Boolean? = when {
@@ -563,6 +604,7 @@ private fun handleKey(
     actions: PlayerActions,
     blocking: Boolean,
     swallowUp: Array<Key?>,
+    okHeld: Array<Key?>,
 ): Boolean {
     val down = event.type == KeyEventType.KeyDown
     if (!down && event.type != KeyEventType.KeyUp) return false
@@ -571,7 +613,11 @@ private fun handleKey(
         return true
     }
     if (down) chrome.poke()
-    if (blocking) return false
+    if (blocking) {
+        // Carte « épisode suivant », échec, liste de pistes : un OK commencé avant n'agira pas à son relâchement.
+        okHeld[0] = null
+        return false
+    }
     when (event.key) {
         Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> {
             if (down) {
@@ -589,14 +635,11 @@ private fun handleKey(
             return true
         }
     }
+    if (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter) {
+        return handleOk(event, down, chrome, actions, swallowUp, okHeld)
+    }
     if (chrome.visible || !down) return false
     return when (event.key) {
-        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-            actions.togglePause()
-            chrome.show(ControlFocus.PlayPause)
-            swallowUp[0] = event.key
-            true
-        }
         Key.DirectionLeft, Key.DirectionRight -> {
             actions.nudge(forward = event.key == Key.DirectionRight)
             chrome.show(ControlFocus.Seek)
@@ -610,6 +653,47 @@ private fun handleKey(
         }
         else -> false
     }
+}
+
+/**
+ * OK. Appui long (premier appui répété) : écran « infos du flux », le relâchement qui suit
+ * n'active rien. Commandes visibles : OK agit sur la commande qui a le focus. Commandes
+ * masquées : appui court = pause et commandes, **au relâchement** (agir à l'enfoncement
+ * mettrait un appui long d'abord en pause).
+ */
+private fun handleOk(
+    event: KeyEvent,
+    down: Boolean,
+    chrome: PlayerChrome,
+    actions: PlayerActions,
+    swallowUp: Array<Key?>,
+    okHeld: Array<Key?>,
+): Boolean {
+    val repeat = event.nativeKeyEvent.repeatCount
+    // Relâchement annulé par le système (une fenêtre a pris le focus pendant l'appui) : pas une pression.
+    if (!down && event.nativeKeyEvent.isCanceled) {
+        okHeld[0] = null
+        return true
+    }
+    if (down && repeat == 1) {
+        okHeld[0] = null
+        chrome.toggleInfo()
+        swallowUp[0] = event.key
+        return true
+    }
+    if (chrome.visible) {
+        okHeld[0] = null
+        return false
+    }
+    if (down) {
+        if (repeat == 0) okHeld[0] = event.key
+        return true
+    }
+    if (okHeld[0] != event.key) return true
+    okHeld[0] = null
+    actions.togglePause()
+    chrome.show(ControlFocus.PlayPause)
+    return true
 }
 
 /** Fond des commandes : transparent en haut, noir à 80 % en bas. */

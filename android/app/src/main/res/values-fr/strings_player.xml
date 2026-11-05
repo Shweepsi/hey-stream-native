@@ -3,6 +3,17 @@
     <string name="player_pause">Pause</string>
     <string name="player_rewind">Reculer de %1$d&#160;s</string>
     <string name="player_forward">Avancer de %1$d&#160;s</string>
+    <!-- Infos du flux (appui long sur OK). -->
+    <string name="stream_info_title">Infos du flux</string>
+    <string name="stream_info_video">Vidéo</string>
+    <string name="stream_info_video_bitrate">Débit vidéo</string>
+    <string name="stream_info_video_decoder">Décodeur vidéo</string>
+    <string name="stream_info_audio">Audio</string>
+    <string name="stream_info_audio_decoder">Décodeur audio</string>
+    <string name="stream_info_network">Réseau</string>
+    <string name="stream_info_dropped">Images perdues</string>
+    <string name="stream_info_fps">%1$s i/s</string>
+    <string name="stream_info_unknown">—</string>
     <string name="player_position">Position de lecture</string>
     <string name="player_audio">Audio</string>
     <string name="player_subtitles">Sous-titres</string>

@@ -1,5 +1,6 @@
 package io.github.shweepsi.heystream.ui.player
 
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -7,13 +8,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performKeyPress
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.shweepsi.heystream.player.PlaybackStatus
@@ -101,6 +106,81 @@ class PlayerKeysTest {
         compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
         compose.waitForIdle()
         assertEquals(2, actions.toggles)
+    }
+
+    @Test
+    fun longOkOpensTheStreamInfoWithoutPausing() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        // Touche enfoncée, puis la répétition de l'appui long (le premier appui répété a repeatCount = 1),
+        // puis relâchée : l'outil de test refuse un deuxième keyDown, la répétition est envoyée telle quelle.
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.onRoot().performKeyPress(
+            KeyEvent(AndroidKeyEvent(0L, 600L, AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 1)),
+        )
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        // Appui long : les infos s'ouvrent, la lecture n'est pas touchée, les commandes restent cachées.
+        assertEquals(0, actions.toggles)
+        assertTrue(chrome.info)
+        assertFalse(chrome.visible)
+        compose.onNodeWithText("Stream info").assertIsDisplayed()
+        // Un appui court agit toujours (au relâchement) : pause et commandes.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+        assertTrue(chrome.visible)
+    }
+
+    @Test
+    fun longOkWithTheControlsShownOpensTheInfoWithoutClickingTheButton() {
+        val chrome = PlayerChrome(visible = true)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.onRoot().performKeyPress(
+            KeyEvent(AndroidKeyEvent(0L, 600L, AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 1)),
+        )
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        // Les infos s'ouvrent ; le relâchement est avalé : le bouton qui a le focus n'est pas cliqué.
+        assertTrue(chrome.info)
+        assertEquals(0, actions.toggles)
+    }
+
+    @Test
+    fun aReleaseCancelledBySystemIsNotAPress() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.onRoot().performKeyPress(
+            KeyEvent(
+                AndroidKeyEvent(0L, 50L, AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER, 0, 0, 0, 0, AndroidKeyEvent.FLAG_CANCELED),
+            ),
+        )
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+        assertFalse(chrome.visible)
+        // Le vrai relâchement qui suit n'agit pas non plus (l'appui a été annulé).
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+    }
+
+    @Test
+    fun okActsOnReleaseNotOnPress() {
+        val chrome = PlayerChrome(visible = false)
+        val actions = Recorder()
+        show(chrome, actions)
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(0, actions.toggles)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionCenter) }
+        compose.waitForIdle()
+        assertEquals(1, actions.toggles)
+        assertFalse(chrome.info)
     }
 
     @Test
