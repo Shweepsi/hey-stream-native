@@ -213,4 +213,17 @@ class LiveLogicTest {
             shownCategories(categories, CategoryKey.Favorites).map { it.key },
         )
     }
+
+    @Test
+    fun rightArrowEntersOnThePreviewedChannelThenOnTheFirstShownRow() {
+        val ids = mapOf(0 to 10L, 1 to 11L, 2 to 12L, 3 to 13L, 4 to null)
+        // La chaîne en aperçu est affichée : le focus y entre, pas sur la rangée « en face ».
+        assertEquals(2, entryRow(listOf(0, 1, 2, 3), previewId = 12L) { ids[it] })
+        // Aperçu hors de l'écran (ou dans une autre catégorie) : première rangée affichée.
+        assertEquals(1, entryRow(listOf(1, 2, 3), previewId = 99L) { ids[it] })
+        assertEquals(1, entryRow(listOf(1, 2, 3), previewId = null) { ids[it] })
+        // Page pas chargée : l'aperçu n'est pas trouvé, on retombe sur la première rangée.
+        assertEquals(4, entryRow(listOf(4), previewId = 12L) { ids[it] })
+        assertNull(entryRow(emptyList(), previewId = 12L) { ids[it] })
+    }
 }

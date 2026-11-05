@@ -4,6 +4,25 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.7 — 2026-11-05
+
+Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais des
+2 et 3 novembre).
+
+- Après une fermeture de l'appli par Android (mémoire), la télécommande
+  retrouve le focus à la réouverture : l'indicateur « focus de départ donné »
+  n'est plus restauré avec l'état sauvegardé alors que le focus, lui, est perdu.
+- Le premier favori ajouté montre tout de suite la ligne Favoris. La ligne était
+  bien créée (les catégories se rechargent à chaque changement de favoris),
+  mais une liste paresseuse garde la ligne qu'elle montrait : la nouvelle,
+  insérée en tête, se glissait au-dessus de la zone visible et n'apparaissait
+  qu'en remontant la liste (vérifié sur la Mi Box). La liste des catégories
+  remonte maintenant en haut pour la montrer ; le dernier favori retiré la
+  fait disparaître, comme avant.
+- Flèche droite depuis une catégorie : le focus entre sur la chaîne en aperçu
+  si elle est affichée, sinon sur la première chaîne affichée, au lieu de la
+  chaîne située « en face » de la catégorie.
+
 ## 0.9.6 — 2026-11-04
 
 - Démarrage plus rapide après une installation ou une mise à jour : l'APK
