@@ -47,6 +47,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
     val currentOnChangeServer by rememberUpdatedState(onChangeServer)
     val updater = heyStreamApp().updater
     val update by updater.state.collectAsStateWithLifecycle()
+    val autoUpdate by updater.autoCheck.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var versionTaps by remember { mutableIntStateOf(0) }
     var devUnlocked by remember { mutableStateOf(DevTools.isUnlocked(context)) }
@@ -130,6 +131,8 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
 
             override fun checkUpdate() = updater.check()
 
+            override fun autoUpdate(enabled: Boolean) = updater.setAutoCheck(enabled)
+
             override fun installUpdate(update: AppUpdate) = updater.install(update)
 
             override fun versionTapped() {
@@ -161,6 +164,7 @@ fun SettingsScreen(onSignedOut: () -> Unit, onChangeServer: () -> Unit, onBack: 
         actions = actions,
         crashReports = crashReports,
         update = update,
+        autoUpdate = autoUpdate,
         devTools = devTools.takeIf { devUnlocked && DevTools.recordingOffered },
     )
 

@@ -4,6 +4,37 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.9 — 2026-11-05
+
+Parcours de mise à jour de l'appli (essais sur la Mi Box, 3 novembre).
+
+- Le bouton d'installation dit l'étape : « Télécharger et installer »,
+  « Téléchargement… 42 % », puis « Confirmez dans la fenêtre d'Android ». Il
+  n'agit pas pendant le téléchargement. Pendant la confirmation, un appui
+  rouvre la fenêtre de la **même** session d'installation (un deuxième appui
+  en ouvrait une nouvelle) ; l'installateur ne répond que pour la session en
+  cours, une session abandonnée ne peut plus afficher « annulée ».
+- À la TV, le panneau annonce ce qu'Android va demander (« choisissez
+  Installer, flèche droite » : la fenêtre met le focus sur « Annuler ») ; sur
+  téléphone et tablette, le texte reste neutre. Une confirmation annulée affiche
+  « Installation annulée. Rappuyez sur Installer pour reprendre », avec l'APK
+  déjà téléchargé. Au retour à l'appli, si Android n'a plus la session,
+  « Installer » redevient possible ; une installation annulée ne bloque plus la
+  recherche quotidienne.
+- L'autorisation « applis inconnues » ferme l'appli : la version voulue est
+  retenue, et à la réouverture l'installation reprend sans appui (« Reprise de
+  la mise à jour… » : la boîte s'ouvre, « Plus tard » annule la reprise). Le
+  texte explique l'écran d'Android (à la TV : descendre jusqu'à Hey Stream
+  avant d'appuyer sur OK) et ne promet plus une reprise qui n'avait pas lieu.
+  Sur une box à profil professionnel, où l'interrupteur reste sans effet,
+  l'aide renvoie vers le fichier APK de la page GitHub du projet.
+- Nouvel interrupteur « Rechercher les mises à jour automatiquement »
+  (Réglages › À propos, activé par défaut) : coupé, seule la recherche à la main
+  interroge GitHub. Spec et politique de confidentialité à jour (30 octobre →
+  5 novembre).
+- Notes de version : les lignes de suite d'un même point sont rejointes (plus
+  de décalage ni de mot seul en bout de ligne).
+
 ## 0.9.8 — 2026-11-05
 
 Petits défauts relevés sur la Mi Box (essais des 2 et 3 novembre).

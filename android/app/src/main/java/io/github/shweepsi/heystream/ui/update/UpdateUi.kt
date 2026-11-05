@@ -59,8 +59,7 @@ fun UpdatePrompt(updater: AppUpdater) {
 fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, onLater: () -> Unit, modifier: Modifier = Modifier) {
     val dimens = Hs.dimens
     val install = remember { FocusRequester() }
-    // Pendant l'installation, les boutons restent actifs : si la confirmation
-    // d'Android n'a pas pu s'afficher, « Installer » la redemande.
+    // « Plus tard » reste possible pendant la confirmation d'Android, pas pendant le téléchargement.
     val busy = state is UpdateState.Downloading
     LaunchedEffect(Unit) { runCatching { install.requestFocus() } }
     Column(
@@ -97,10 +96,12 @@ fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, on
                 text = stringResource(R.string.update_later),
                 onClick = { if (!busy) onLater() },
             )
-            // Toujours activé : un bouton désactivé perdrait le focus de la télécommande.
+            // Le libellé dit où l'on en est (téléchargement, confirmation d'Android). Le bouton n'agit pas
+            // pendant le téléchargement et la reprise, mais reste actif : un bouton désactivé perdrait le
+            // focus de la télécommande. Pendant la confirmation, il rouvre sa fenêtre.
             HsButton(
-                text = stringResource(R.string.update_install),
-                onClick = { if (!busy) onInstall() },
+                text = updateButtonLabel(state),
+                onClick = { if (!state.buttonInert()) onInstall() },
                 icon = Lucide.RotateCw,
                 style = ButtonStyle.Primary,
                 modifier = Modifier.focusRequester(install),
@@ -110,16 +111,46 @@ fun UpdatePanel(update: AppUpdate, state: UpdateState, onInstall: () -> Unit, on
 }
 
 /**
- * Où en est la mise à jour : texte à montrer sous le bouton, ou `null`. La
- * version disponible et « à jour » sont dites par l'écran qui l'affiche.
+ * Étapes où le bouton n'agit pas : téléchargement et reprise. Pendant la confirmation d'Android il
+ * rouvre la même fenêtre (jamais une deuxième session d'installation).
+ */
+fun UpdateState.buttonInert(): Boolean = this is UpdateState.Downloading || this is UpdateState.Resuming
+
+/**
+ * Libellé du bouton selon l'étape : « Télécharger et installer » → « Téléchargement… 42 % » →
+ * « Confirmez dans la fenêtre d'Android ». [version] : réglages (« … la version x.y.z »), sinon boîte.
+ * Après une annulation ou un échec d'installation, l'APK est déjà là : « Installer » suffit.
+ */
+@Composable
+fun updateButtonLabel(state: UpdateState, version: String? = null): String = when {
+    state is UpdateState.Downloading -> state.progress?.let {
+        stringResource(R.string.update_downloading_percent, (it * 100).roundToInt().coerceIn(0, 100))
+    } ?: stringResource(R.string.update_downloading)
+    state is UpdateState.Installing -> stringResource(R.string.update_confirm_in_android)
+    state is UpdateState.Resuming -> stringResource(R.string.update_resuming)
+    state is UpdateState.Aborted || (state is UpdateState.Failed && state.step == UpdateStep.Install) ->
+        if (version != null) stringResource(R.string.settings_update_install, version) else stringResource(R.string.update_install_again)
+    else ->
+        if (version != null) stringResource(R.string.settings_update_download_install, version) else stringResource(R.string.update_install)
+}
+
+/**
+ * Où en est la mise à jour : texte à montrer sous le bouton, ou `null` (le bouton lui-même dit
+ * le téléchargement et la reprise). La version disponible et « à jour » sont dites par l'écran
+ * qui l'affiche.
  */
 @Composable
 fun updateStatus(state: UpdateState): String? = when (state) {
-    is UpdateState.Downloading -> state.progress?.let {
-        stringResource(R.string.update_downloading_percent, (it * 100).roundToInt().coerceIn(0, 100))
-    } ?: stringResource(R.string.update_downloading)
-    is UpdateState.Installing -> stringResource(R.string.update_installing)
-    is UpdateState.NeedsPermission -> stringResource(R.string.update_needs_permission)
+    // À la TV, la fenêtre d'Android met le focus sur « Annuler » : on le dit. Ailleurs, texte neutre.
+    is UpdateState.Installing -> stringResource(if (Hs.isTv) R.string.update_installing_tv else R.string.update_installing)
+    is UpdateState.NeedsPermission -> stringResource(
+        when {
+            state.denied -> R.string.update_permission_denied
+            Hs.isTv -> R.string.update_needs_permission_tv
+            else -> R.string.update_needs_permission
+        },
+    )
+    is UpdateState.Aborted -> stringResource(R.string.update_aborted)
     is UpdateState.Failed -> stringResource(
         when (state.step) {
             UpdateStep.Check -> R.string.update_failed_check
@@ -132,10 +163,31 @@ fun updateStatus(state: UpdateState): String? = when (state) {
 
 /**
  * Notes de la release (entrée du CHANGELOG) sans la mention ajoutée par la
- * publication (après `---`), en texte simple.
+ * publication (après `---`), en texte simple. Le CHANGELOG coupe ses lignes vers 78 colonnes :
+ * les lignes de suite d'un même point (ou d'un même paragraphe) sont rejointes, sinon la liste
+ * s'affiche décalée avec un mot orphelin en bout de ligne. Un point commence par « - », un
+ * paragraphe par une ligne après une ligne vide.
  */
-fun releaseNotes(markdown: String): String = markdown
-    .substringBefore("\n---")
-    .lines()
-    .joinToString("\n") { line -> line.trimEnd().replace(Regex("^- "), "• ").replace("`", "").replace("**", "") }
-    .trim()
+fun releaseNotes(markdown: String): String {
+    val blocks = mutableListOf<String>()
+    var open = false
+    for (raw in markdown.substringBefore("\n---").lines()) {
+        val line = raw.trim()
+        when {
+            line.isEmpty() -> {
+                if (blocks.isNotEmpty() && blocks.last().isNotEmpty()) blocks.add("")
+                open = false
+            }
+            line.startsWith("- ") -> {
+                blocks.add("• " + line.removePrefix("- ").trimStart())
+                open = true
+            }
+            open -> blocks[blocks.lastIndex] = blocks.last() + " " + line
+            else -> {
+                blocks.add(line)
+                open = true
+            }
+        }
+    }
+    return blocks.joinToString("\n") { it.replace("`", "").replace("**", "") }.trim()
+}

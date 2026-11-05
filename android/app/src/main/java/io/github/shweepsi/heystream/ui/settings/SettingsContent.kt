@@ -93,6 +93,8 @@ import io.github.shweepsi.heystream.ui.home.text
 import io.github.shweepsi.heystream.ui.theme.Hs
 import io.github.shweepsi.heystream.ui.theme.HsColors
 import io.github.shweepsi.heystream.ui.theme.Lucide
+import io.github.shweepsi.heystream.ui.update.buttonInert
+import io.github.shweepsi.heystream.ui.update.updateButtonLabel
 import io.github.shweepsi.heystream.ui.update.updateStatus
 import java.text.NumberFormat
 
@@ -139,6 +141,8 @@ interface SettingsActions {
     fun crashReports(enabled: Boolean) {}
 
     fun checkUpdate() {}
+
+    fun autoUpdate(enabled: Boolean) {}
 
     fun installUpdate(update: AppUpdate) {}
 
@@ -205,6 +209,8 @@ fun SettingsContent(
     actions: SettingsActions,
     crashReports: Boolean = true,
     update: UpdateState = UpdateState.Idle,
+    /** Recherche automatique des mises à jour (activée par défaut). */
+    autoUpdate: Boolean = true,
     /** Outils de test, `null` tant qu'ils sont cachés. */
     devTools: DevToolsUi? = null,
 ) {
@@ -248,7 +254,7 @@ fun SettingsContent(
                     SettingsSection.Language -> LanguagePane(language, state.trackPreference, actions)
                     SettingsSection.Catalog -> CatalogPane(state.catalog, actions)
                     SettingsSection.Subscription -> SubscriptionPane(state.account, state.signingOut, actions)
-                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, update, devTools, actions)
+                    SettingsSection.About -> AboutPane(appVersion, state.coreVersion, crashReports, update, autoUpdate, devTools, actions)
                 }
             }
         }
@@ -836,6 +842,7 @@ private fun AboutPane(
     coreVersion: String?,
     crashReports: Boolean,
     update: UpdateState,
+    autoUpdate: Boolean,
     devTools: DevToolsUi?,
     actions: SettingsActions,
 ) {
@@ -862,7 +869,7 @@ private fun AboutPane(
             onToggle = { actions.crashReports(!crashReports) },
         )
         Paragraph(stringResource(R.string.settings_crash_reports_detail))
-        UpdateSection(update, actions)
+        UpdateSection(update, autoUpdate, actions)
         devTools?.let { DevToolsSection(it, actions) }
         Text(
             text = stringResource(R.string.settings_about_credits),
@@ -900,8 +907,14 @@ private fun SubHeading(text: String) {
 
 /** Version installée à jour, ou version publiée sur GitHub à installer. */
 @Composable
-private fun UpdateSection(state: UpdateState, actions: SettingsActions) {
+private fun UpdateSection(state: UpdateState, autoUpdate: Boolean, actions: SettingsActions) {
     SubHeading(stringResource(R.string.settings_updates))
+    SwitchRow(
+        label = stringResource(R.string.settings_update_auto),
+        checked = autoUpdate,
+        onToggle = { actions.autoUpdate(!autoUpdate) },
+    )
+    Paragraph(stringResource(R.string.settings_update_auto_detail))
     val target = state.pendingUpdate()
     Paragraph(
         when (state) {
@@ -912,14 +925,21 @@ private fun UpdateSection(state: UpdateState, actions: SettingsActions) {
         },
         secondary = false,
     )
-    // Toujours activé : un bouton désactivé perdrait le focus de la télécommande.
+    // Le libellé dit l'étape (téléchargement, confirmation d'Android) ; le bouton n'agit pas
+    // pendant ces étapes mais reste actif : un bouton désactivé perdrait le focus de la télécommande.
     HsButton(
-        text = if (target != null) {
-            stringResource(R.string.settings_update_install, target.version)
-        } else {
-            stringResource(R.string.settings_update_check)
+        text = when {
+            state is UpdateState.Resuming -> stringResource(R.string.update_resuming)
+            target != null -> updateButtonLabel(state, target.version)
+            else -> stringResource(R.string.settings_update_check)
         },
-        onClick = { if (target != null) actions.installUpdate(target) else actions.checkUpdate() },
+        onClick = {
+            when {
+                state.buttonInert() -> Unit
+                target != null -> actions.installUpdate(target)
+                else -> actions.checkUpdate()
+            }
+        },
         icon = Lucide.RotateCw,
     )
 }
