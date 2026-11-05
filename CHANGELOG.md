@@ -15,7 +15,9 @@ Trois défauts du Direct, relevés à la télécommande sur la Mi Box (essais de
 - Le premier favori ajouté fait apparaître tout de suite la ligne Favoris
   (et le dernier retiré la fait disparaître) : le nombre de la catégorie suit à
   ±1 au lieu d'attendre la réouverture du Direct. La liste ouverte garde son
-  ordre et son focus.
+  ordre et son focus ; la liste des catégories remonte en haut pour montrer la
+  ligne ajoutée (vérifié sur la Mi Box : elle se glissait sinon au-dessus de
+  la zone visible).
 - Flèche droite depuis une catégorie : le focus entre sur la chaîne en aperçu
   si elle est affichée, sinon sur la première chaîne affichée, au lieu de la
   chaîne située « en face » de la catégorie.
