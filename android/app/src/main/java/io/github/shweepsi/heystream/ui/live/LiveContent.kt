@@ -580,8 +580,8 @@ private fun ChannelList(
 }
 
 /**
- * Ligne de chaîne : numéro (absent s'il n'est pas fourni), logo, nom, et le
- * programme en cours s'il est déjà en cache ; cœur si favorite. Appui long,
+ * Ligne de chaîne : logo, nom, et le programme en cours s'il est déjà en
+ * cache ; cœur si favorite (pas de numéro de chaîne, voir `docs/DESIGN.md`). Appui long,
  * ou touche Menu, pour l'ajouter ou la retirer des favoris.
  */
 @Composable

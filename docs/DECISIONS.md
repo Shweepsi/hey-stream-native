@@ -205,6 +205,12 @@ Constats :
   correction. Les liaisons Kotlin et Swift ne tournent sur une PR que si
   `ffi/` change, et à chaque push sur main.
 
+## Téléchargement du catalogue (2026-11-03)
+
+- **Séquentiel** : le direct, les films puis les séries, l'un après l'autre. Le
+  téléchargement en parallèle est **abandonné** (décision du propriétaire, 3
+  novembre 2026) et retiré de `TODO.md`.
+
 ## Langue des films et dernière catégorie (2026-11-03)
 
 - **Réglage de langue** à trois valeurs, propre à l'abonnement : Automatique

@@ -173,10 +173,11 @@ Niveau moyen :
 ### Direct — 3 panneaux
 
 1. Catégories, sans compteur ; **Favoris** et **Récents** en tête.
-2. Chaînes : **numéro** du fournisseur (absent s'il n'en donne pas), logo,
-   nom, et le programme en cours **seulement s'il est déjà en cache** ; sinon
-   la ligne n'a pas de deuxième ligne de texte. Jamais de requête pour remplir
-   la liste.
+2. Chaînes : logo, nom, et le programme en cours **seulement s'il est déjà en
+   cache** ; sinon la ligne n'a pas de deuxième ligne de texte. Jamais de
+   requête pour remplir la liste. Pas de numéro de chaîne dans les listes
+   (retiré depuis la 0.2.0) ; le bandeau du plein écran garde celui du fournisseur,
+   s'il en donne un.
 3. Aperçu 16:9 avec badge « EN DIRECT », puis le programme **en cours** (avec
    sa progression), le **suivant** et les deux d'après, chacun avec « début –
    fin », demandés à la sélection de la chaîne. Faute de place (téléphone),
