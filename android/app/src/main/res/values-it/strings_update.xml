@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mises à jour de l'app (releases GitHub). -->
+    <string name="update_prompt_title">Hey Stream %1$s è disponibile</string>
+    <string name="update_later">Più tardi</string>
+    <string name="update_install">Installa</string>
+    <string name="update_downloading">Download…</string>
+    <string name="update_downloading_percent">Download… %1$d%%</string>
+    <string name="update_installing">Installazione… Hey Stream si chiuderà: riaprila al termine.</string>
+    <string name="update_needs_permission">Consenti a Hey Stream di installare app nella schermata che si è aperta. L’aggiornamento proseguirà da solo.</string>
+    <string name="update_failed_check">Impossibile verificare gli aggiornamenti. Controlla la connessione e riprova.</string>
+    <string name="update_failed_download">Download non riuscito o file danneggiato. Riprova.</string>
+    <string name="update_failed_install">Android non è riuscito a installare l’aggiornamento.</string>
+
+    <string name="settings_updates">Aggiornamenti</string>
+    <string name="settings_update_source">Gli aggiornamenti provengono dalle versioni pubblicate sulla pagina GitHub del progetto.</string>
+    <string name="settings_update_check">Cerca aggiornamenti</string>
+    <string name="settings_update_checking">Verifica…</string>
+    <string name="settings_update_up_to_date">Hey Stream è aggiornata.</string>
+    <string name="settings_update_available">La versione %1$s è disponibile.</string>
+    <string name="settings_update_install">Installa la versione %1$s</string>
+
+    <!-- Outils de test (cachés : sept appuis sur la version). -->
+    <string name="settings_dev_title">Strumenti di test</string>
+    <string name="settings_dev_recording">Registra le risposte del fornitore</string>
+    <string name="settings_dev_recording_detail">Mentre usi l’app, le sue risposte vengono salvate su questo dispositivo per i test automatici, senza nome utente, password, indirizzo del server né indirizzi IP. Nessuna richiesta in più; nulla lascia il dispositivo finché non lo condividi.</string>
+    <plurals name="settings_dev_recorded">
+        <item quantity="one">%1$d risposta registrata (%2$s)</item>
+        <item quantity="many">%1$d risposte registrate (%2$s)</item>
+        <item quantity="other">%1$d risposte registrate (%2$s)</item>
+    </plurals>
+    <string name="settings_dev_share">Condividi la registrazione</string>
+    <string name="settings_dev_clear">Elimina</string>
+    <string name="settings_dev_failed">Operazione non riuscita.</string>
+</resources>

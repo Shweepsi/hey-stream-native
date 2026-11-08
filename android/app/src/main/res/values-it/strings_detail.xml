@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Movie and series detail pages. -->
+    <string name="detail_movies">Film</string>
+    <string name="detail_series">Serie</string>
+    <string name="detail_unavailable">Questo titolo non è disponibile</string>
+    <string name="detail_rating">Voto %1$s</string>
+    <string name="detail_resume_episode">Riprendi S%1$d · E%2$d</string>
+    <string name="detail_play_episode">Riproduci S%1$d · E%2$d</string>
+    <string name="detail_season">Stagione %1$d</string>
+    <string name="detail_specials">Speciali</string>
+    <string name="detail_episodes">Episodi</string>
+    <string name="detail_episode_untitled">Episodio %1$d</string>
+    <string name="detail_episodes_loading">Caricamento episodi…</string>
+    <string name="detail_episodes_empty">Nessun episodio per ora</string>
+    <string name="detail_episode_hint_tv">Tieni premuto OK o premi MENU per segnare un episodio come visto o non visto.</string>
+    <string name="detail_episode_hint_touch">Tieni premuto un episodio per segnarlo come visto o non visto.</string>
+</resources>
