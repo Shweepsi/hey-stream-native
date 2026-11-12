@@ -52,13 +52,13 @@ header.top {
 }
 
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand img { width: 36px; height: 34px; }
+.brand img { width: 40px; height: 35px; }
 .brand span { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 
 nav.lang a { color: var(--text-secondary); font-size: 15px; }
 
 .hero { padding: 56px 0 40px; }
-.hero img { width: 112px; height: 107px; }
+.hero img { width: 128px; height: 111px; }
 .hero h1 { margin: 20px 0 8px; font-size: 44px; line-height: 1.15; letter-spacing: -0.02em; }
 .hero p { margin: 0; max-width: 620px; color: var(--text-secondary); font-size: 19px; }
 

@@ -4,6 +4,18 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.12 — 2026-11-12
+
+Nouveau logo : clap de cinéma doré.
+
+- **Logo** : le clap doré (triangle lecture au centre, paillettes) remplace le
+  triangle et ses deux ondes partout : icône de l'app, icône thématique
+  (Android 13+, parties dorées seules), bannière Android TV, logo de
+  l'accueil, de la connexion et des réglages, en-tête et favicon du site.
+- Image source dans `docs/brand/` ; `scripts/brand_assets.mjs` (sharp)
+  remplace `scripts/brand_assets.py` pour générer les images.
+- Les accents bleu et rouge de l'interface ne changent pas.
+
 ## 0.9.11 — 2026-11-05
 
 Outils de mesure et écran « infos du flux » (lot 9 du plan de révision).

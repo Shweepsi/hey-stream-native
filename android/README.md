@@ -56,8 +56,8 @@ app/src/main/java/io/github/shweepsi/heystream/
 - Toute la logique reste dans le cœur Rust : les écrans ne font qu'afficher.
 - Le design suit `docs/DESIGN.md` : à lire avant de toucher à l'interface.
 - Textes : `res/values/` (anglais, langue par défaut) et `res/values-fr/`.
-- Les icônes et le logo sont générés par `tools/lucide_icons.py` et
-  `tools/brand_assets.py`.
+- Les icônes sont générées par `tools/lucide_icons.py`, les polices par
+  `tools/brand_assets.py`, le logo par `scripts/brand_assets.mjs`.
 
 ## Tests
 

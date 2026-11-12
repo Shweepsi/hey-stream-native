@@ -3,8 +3,8 @@
 
 - Inter (licence OFL) réduite au latin, fonctionnalités OpenType gardées
   (chiffres tabulaires) : res/font/inter_*.ttf.
-- Logo A (triangle lecture + deux ondes) : symbole, icône adaptative,
-  bannière Android TV (mot « hey stream » vectorisé depuis Inter Bold).
+- (Obsolète : le logo vient désormais de scripts/brand_assets.mjs ; ne pas
+  relancer la partie logo, elle recréerait les anciens dessins.)
 
 Usage : tools/brand_assets.py dossier/Inter-4.1 (archive officielle de rsms/inter)
 Dépendance : pip install fonttools

@@ -21,14 +21,17 @@ décide du contenu des écrans, ce document de leur apparence.
 
 ## Logo
 
-**Piste C** (2026-10-29, affinage de la piste A) : **triangle lecture + deux
-ondes**. Dessins de l'app générés par `scripts/brand_assets.py`.
+**Clap doré** (2026-11-12, remplace la piste C « triangle + deux ondes ») :
+clap de cinéma or et brun sombre, triangle lecture doré au centre, paillettes.
+Image source : `docs/brand/logo.png` (fond transparent). Images de l'app
+générées par `scripts/brand_assets.mjs`.
 
-- Triangle blanc `#F4F4F5`, coins arrondis, sans dégradé.
-- Onde intérieure bleu électrique, onde extérieure rouge vif, traits épais
-  et arrondis.
-- Mot « Hey Stream » en Inter Bold, approche −0,02 em, à droite du symbole.
-- Le symbole seul sert d'icône d'app (fond `#121214`).
+- Le logo seul sert d'icône d'app (fond `#121214`) ; l'icône thématique
+  (Android 13+) n'en garde que les parties dorées.
+- Mot « Hey Stream » en Inter Bold, approche −0,02 em, à droite du logo
+  (`docs/brand/wordmark.svg`).
+- Bleu et rouge (ci-dessous) venaient de l'ancien logo : gardés comme accents
+  tant qu'on ne décide pas d'une palette dorée.
 
 ## Couleurs
 

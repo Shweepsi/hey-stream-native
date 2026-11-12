@@ -9,8 +9,8 @@ ligne quand sa PR est fusionnée.
    tenus (démarrage, zapping, mémoire ; novembre 2026) ; reste « 0 plantage sur
    4 h de lecture continue » (≈ 3 h d'usage actif et ≈ 5 h en arrière-plan sans
    plantage jusqu'ici) et l'ouverture d'une liste de 50 000 chaînes.
-2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo C
-   appliqué (site et app, 0.5.0) ; reste la fiche Play Store.
+2. **Identité** : nom « Hey Stream » et palette gardés (2026-10-29) ; logo clap doré
+   appliqué (site et app, 0.9.12) ; reste la fiche Play Store.
 3. **Réponses réelles** : le propriétaire active l'enregistrement (outils de
    test cachés, sept appuis sur la version, **au doigt seulement** : impossible
    à la télécommande, à faire depuis une tablette ou un téléphone), utilise
