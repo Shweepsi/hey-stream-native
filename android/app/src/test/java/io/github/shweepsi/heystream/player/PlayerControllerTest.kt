@@ -181,6 +181,43 @@ class PlayerControllerTest {
         assertFalse(controller.player.playWhenReady)
     }
 
+    /** Suivi de lecture (collecte) : un contrôleur dont le suivi est actif, libéré après le test. */
+    private fun tracked(block: (PlayerController) -> Unit) {
+        val tracked = testController(RuntimeEnvironment.getApplication(), tracking = true)
+        try {
+            block(tracked)
+        } finally {
+            tracked.release()
+        }
+    }
+
+    @Test
+    fun trackingEndsWhenTheAppLeavesAndRestartsOnReturnEvenForAPausedFilm() = tracked { c ->
+        c.playVod("file:///absent/film.mkv", startMs = 0)
+        assertTrue(c.tracking)
+        c.player.pause()
+        c.onBackground()
+        // Le bilan est parti à la sortie de l'app (TV éteinte), sans attendre le titre suivant.
+        assertFalse(c.tracking)
+        c.onForeground()
+        // Rouvert en pause : le reste de la séance est suivi.
+        assertTrue(c.tracking)
+    }
+
+    @Test
+    fun heldStreamNeverOpenedHasNoTracking() = tracked { c ->
+        c.onBackground()
+        c.hold()
+        c.onForeground()
+        c.playVod("file:///absent/film.mkv", startMs = 0)
+        assertFalse(c.tracking)
+        c.onBackground()
+        assertFalse(c.tracking)
+        c.onForeground()
+        c.releaseHold()
+        assertTrue(c.tracking)
+    }
+
     @Test
     fun streamRequestedWhileHeldOpensOnlyOnRelease() {
         controller.onBackground()

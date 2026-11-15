@@ -17,7 +17,12 @@ import io.github.shweepsi.heystream.data.Telemetry
  * numéro, jamais par son URL. Fil principal seulement.
  */
 @OptIn(UnstableApi::class)
-internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs: Long) {
+internal class PlaybackStats(
+    item: MediaItem,
+    private val live: Boolean,
+    startMs: Long,
+    resumed: Boolean = false,
+) {
     /** Ouverture réelle du flux (pas le choix, s'il a attendu en arrière-plan). */
     private var opened = SystemClock.elapsedRealtime()
     private var openedOnce = false
@@ -50,6 +55,7 @@ internal class PlaybackStats(item: MediaItem, private val live: Boolean, startMs
             "stream_id" to streamId,
             "container" to container,
             "start_ms" to startMs,
+            "resumed" to resumed.takeIf { it },
         )
     }
 

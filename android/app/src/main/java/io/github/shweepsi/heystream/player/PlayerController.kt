@@ -74,6 +74,8 @@ class PlayerController(
     private val retryPolicy: (status: Int?, attempt: Int) -> RetryAction = ::corePolicy,
     /** Plus aucun réseau ? Lu à chaque échec ; remplacé dans les tests. */
     private val offline: () -> Boolean = { isSystemOffline(context) },
+    /** Suivi de lecture actif ? (APK testeur, collecte non coupée) ; remplacé dans les tests. */
+    private val telemetryActive: () -> Boolean = { Telemetry.active },
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var exoPlayer: ExoPlayer? = null
@@ -206,6 +208,12 @@ class PlayerController(
             resumeOnForeground = current != null && player.playWhenReady
             if (!live && current != null) resumeMs = player.currentPosition
         }
+        // Sortie de l'app (TV éteinte, Accueil) : le bilan de ce passage part maintenant. Arrêtée en
+        // arrière-plan, la lecture n'envoyait jamais son `play_end` (l'app peut être tuée avant le
+        // retour). La reprise ouvre un nouveau suivi ([resume]).
+        if (stats != null) statsResumed = true
+        stats?.finish(player)
+        stats = null
         player.stop()
     }
 
@@ -313,7 +321,9 @@ class PlayerController(
 
     private fun start(item: MediaItem, live: Boolean, startMs: Long) {
         stats?.finish(exoPlayer)
-        stats = if (Telemetry.active) PlaybackStats(item, live, startMs) else null
+        // Le suivi naît à l'ouverture du flux ([open]) : un flux retenu, jamais ouvert, n'en a pas.
+        stats = null
+        statsResumed = false
         cancelRetry()
         watchNetwork()
         handler.removeCallbacks(releaseIdleDecoders)
@@ -345,6 +355,10 @@ class PlayerController(
     }
 
     private fun open(item: MediaItem, startMs: Long, playWhenReady: Boolean = true) {
+        if (stats == null && telemetryActive()) {
+            stats = PlaybackStats(item, live, startMs, resumed = statsResumed)
+            statsResumed = false
+        }
         stats?.opening()
         val player = player
         // L'ancien flux est fermé avant que le nouveau ne soit ouvert.
@@ -386,9 +400,10 @@ class PlayerController(
             .setEnableDecoderFallback(true)
             // Un décodeur qui a planté n'est plus proposé (le premier de la liste revient s'il ne reste rien).
             .setMediaCodecSelector(codecSelector)
+        val durations = BufferSize.durationsFor(context)
         val loadControl = DefaultLoadControl.Builder()
-            // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
-            .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
+            // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi) ; plus patient sur un petit appareil.
+            .setBufferDurationsMs(durations.minMs, durations.maxMs, durations.startMs, durations.rebufferMs)
             // Plafond selon le tas de l'appareil (voir `BufferSize`).
             .setTargetBufferBytes(BufferSize.bytesFor(context))
             .build()
@@ -477,6 +492,12 @@ class PlayerController(
 
     /** Mesures de la lecture en cours (APK testeur seulement, voir [Telemetry]). */
     private var stats: PlaybackStats? = null
+
+    /** Le prochain suivi reprend un flux interrompu par un passage en arrière-plan. */
+    private var statsResumed = false
+
+    /** Un suivi de lecture est en cours (pour les tests). */
+    internal val tracking: Boolean get() = stats != null
 
     private val analytics = object : AnalyticsListener {
         override fun onVideoInputFormatChanged(

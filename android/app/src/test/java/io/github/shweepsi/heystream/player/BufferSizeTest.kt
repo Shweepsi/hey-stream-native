@@ -1,6 +1,7 @@
 package io.github.shweepsi.heystream.player
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BufferSizeTest {
@@ -28,5 +29,24 @@ class BufferSizeTest {
     fun theCapStaysBetween32And128Megabytes() {
         assertEquals(32 * mib, BufferSize.bytesFor(16, 2 * gib, lowRam = false))
         assertEquals(128 * mib, BufferSize.bytesFor(512, 8 * gib, lowRam = false))
+    }
+
+    /** Seuls les petits appareils (TV modestes) attendent plus longtemps après une coupure. */
+    @Test
+    fun onlySmallDevicesWaitLongerAfterAStall() {
+        assertEquals(BufferSize.SMALL_DEVICE, BufferSize.durationsFor(2 * gib, lowRam = false))
+        assertEquals(BufferSize.SMALL_DEVICE, BufferSize.durationsFor(8 * gib, lowRam = true))
+        assertEquals(BufferSize.STANDARD, BufferSize.durationsFor(3 * gib, lowRam = false))
+    }
+
+    /** Media3 refuse des durées incohérentes ; le zapping garde un démarrage court. */
+    @Test
+    fun durationsAreCoherent() {
+        for (d in listOf(BufferSize.STANDARD, BufferSize.SMALL_DEVICE)) {
+            assertTrue(d.startMs <= d.rebufferMs)
+            assertTrue(d.rebufferMs <= d.minMs)
+            assertTrue(d.minMs <= d.maxMs)
+            assertEquals(1_000, d.startMs)
+        }
     }
 }
