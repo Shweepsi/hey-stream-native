@@ -31,12 +31,22 @@ class BufferSizeTest {
         assertEquals(128 * mib, BufferSize.bytesFor(512, 8 * gib, lowRam = false))
     }
 
+    /** Seuls les petits appareils (TV modestes) attendent plus longtemps après une coupure. */
+    @Test
+    fun onlySmallDevicesWaitLongerAfterAStall() {
+        assertEquals(BufferSize.SMALL_DEVICE, BufferSize.durationsFor(2 * gib, lowRam = false))
+        assertEquals(BufferSize.SMALL_DEVICE, BufferSize.durationsFor(8 * gib, lowRam = true))
+        assertEquals(BufferSize.STANDARD, BufferSize.durationsFor(3 * gib, lowRam = false))
+    }
+
     /** Media3 refuse des durées incohérentes ; le zapping garde un démarrage court. */
     @Test
     fun durationsAreCoherent() {
-        assertTrue(BufferSize.START_BUFFER_MS <= BufferSize.REBUFFER_MS)
-        assertTrue(BufferSize.REBUFFER_MS <= BufferSize.MIN_BUFFER_MS)
-        assertTrue(BufferSize.MIN_BUFFER_MS <= BufferSize.MAX_BUFFER_MS)
-        assertEquals(1_000, BufferSize.START_BUFFER_MS)
+        for (d in listOf(BufferSize.STANDARD, BufferSize.SMALL_DEVICE)) {
+            assertTrue(d.startMs <= d.rebufferMs)
+            assertTrue(d.rebufferMs <= d.minMs)
+            assertTrue(d.minMs <= d.maxMs)
+            assertEquals(1_000, d.startMs)
+        }
     }
 }

@@ -61,5 +61,8 @@ internal fun testRetryPolicy(status: Int?, attempt: Int): RetryAction =
     if (attempt >= 6) RetryAction.Stop(StopReason.FAILED) else RetryAction.Retry(minOf(1 shl attempt, 8).toUInt())
 
 /** Lecteur de test : règle ci-dessus, et réseau présent sauf si [offline] dit le contraire. */
-internal fun testController(context: Context, offline: () -> Boolean = { false }) =
-    PlayerController(context, retryPolicy = ::testRetryPolicy, offline = offline)
+internal fun testController(
+    context: Context,
+    tracking: Boolean = false,
+    offline: () -> Boolean = { false },
+) = PlayerController(context, retryPolicy = ::testRetryPolicy, offline = offline, telemetryActive = { tracking })

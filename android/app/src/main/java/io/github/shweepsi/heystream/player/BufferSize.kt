@@ -13,21 +13,18 @@ import android.content.Context
  * secondes plutôt que de risquer un plantage.
  */
 object BufferSize {
-    /** Tampon sous lequel le chargement reprend, en ms. */
-    const val MIN_BUFFER_MS = 30_000
+    /** Durées de tampon, en ms (voir `DefaultLoadControl.Builder.setBufferDurationsMs`). */
+    data class Durations(val minMs: Int, val maxMs: Int, val startMs: Int, val rebufferMs: Int)
 
-    /** Tampon au-delà duquel le chargement s'arrête, en ms. */
-    const val MAX_BUFFER_MS = 60_000
-
-    /** Tampon qui lance la lecture au démarrage (zapping rapide), en ms. */
-    const val START_BUFFER_MS = 1_000
+    /** Réglage de Media3 d'origine : zapping rapide, tampon généreux (Wi-Fi). */
+    val STANDARD = Durations(minMs = 15_000, maxMs = 50_000, startMs = 1_000, rebufferMs = 2_500)
 
     /**
-     * Tampon exigé pour reprendre après une coupure, en ms. 2,5 s ne tenaient pas : sur une
-     * connexion juste, la lecture repartait puis recalait aussitôt (une coupure de 3 s toutes
-     * les 40 s sur une TV Philips). Attendre plus longtemps donne moins de coupures, plus calmes.
+     * Petits appareils (TV modestes) : après une coupure, la lecture attendait 2,5 s de tampon puis
+     * recalait aussitôt (une coupure de 3 s toutes les 40 s sur une TV Philips). Reprise à 8 s,
+     * chargement relancé plus tôt (30 s) ; le démarrage reste à 1 s (zapping inchangé).
      */
-    const val REBUFFER_MS = 8_000
+    val SMALL_DEVICE = Durations(minMs = 30_000, maxMs = 60_000, startMs = 1_000, rebufferMs = 8_000)
 
     private const val MIB = 1024 * 1024
 
@@ -47,9 +44,15 @@ object BufferSize {
      * bornée entre 32 et 128 Mo. Exemples : Shield (tas 192 Mo, 3 Go) → 96 Mo,
      * soit ~13 s d'une 4K à 60 Mbit/s ; box de 2 Go → 64 Mo au plus.
      */
+    /** Petit appareil : peu de mémoire vive, ou déclaré « low RAM » par Android. */
+    fun isSmall(totalRamBytes: Long, lowRam: Boolean): Boolean = lowRam || totalRamBytes <= SMALL_DEVICE_RAM
+
+    fun durationsFor(totalRamBytes: Long, lowRam: Boolean): Durations =
+        if (isSmall(totalRamBytes, lowRam)) SMALL_DEVICE else STANDARD
+
     fun bytesFor(memoryClassMb: Int, totalRamBytes: Long, lowRam: Boolean): Int {
         val half = memoryClassMb.toLong() * MIB / 2
-        val small = lowRam || totalRamBytes <= SMALL_DEVICE_RAM
+        val small = isSmall(totalRamBytes, lowRam)
         val capped = if (small) minOf(half, SMALL_DEVICE_BYTES.toLong()) else half
         return capped.coerceIn(MIN_BYTES.toLong(), MAX_BYTES.toLong()).toInt()
     }
@@ -58,5 +61,11 @@ object BufferSize {
         val am = context.getSystemService(ActivityManager::class.java)
         val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
         return bytesFor(am.memoryClass, info.totalMem, am.isLowRamDevice)
+    }
+
+    fun durationsFor(context: Context): Durations {
+        val am = context.getSystemService(ActivityManager::class.java)
+        val info = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        return durationsFor(info.totalMem, am.isLowRamDevice)
     }
 }
