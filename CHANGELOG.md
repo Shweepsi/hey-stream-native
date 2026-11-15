@@ -4,6 +4,22 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.9.12 — 2026-11-15
+
+Tampon des TV modestes et bilan de lecture perdu (collecte des testeurs).
+
+- **Moins de coupures sur une connexion juste** : après une coupure, la
+  lecture attend 8 s de tampon (2,5 s avant) avant de repartir, et le
+  chargement reprend dès 30 s de réserve (15 s avant) jusqu'à 60 s (50 s
+  avant). Constaté sur une TV Philips : une coupure de 3 s toutes les 40 s
+  pendant deux films. Le démarrage et le zapping ne changent pas (1 s). Si la
+  connexion est sous le débit du film, les coupures restent, plus rares et
+  plus longues.
+- **`play_end` n'était pas envoyé en quittant l'app** : le lecteur arrêté en
+  arrière-plan (TV éteinte, Accueil) ne clôturait pas son suivi. Le bilan
+  (durée vue, coupures, images perdues) part maintenant à ce moment ; la
+  reprise au retour ouvre un nouveau suivi.
+
 ## 0.9.11 — 2026-11-05
 
 Outils de mesure et écran « infos du flux » (lot 9 du plan de révision).

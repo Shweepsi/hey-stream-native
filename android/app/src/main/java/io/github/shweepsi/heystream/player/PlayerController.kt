@@ -206,6 +206,11 @@ class PlayerController(
             resumeOnForeground = current != null && player.playWhenReady
             if (!live && current != null) resumeMs = player.currentPosition
         }
+        // Sortie de l'app (TV éteinte, Accueil) : le bilan de ce passage part maintenant. Arrêtée en
+        // arrière-plan, la lecture n'envoyait jamais son `play_end` (l'app peut être tuée avant le
+        // retour). La reprise ouvre un nouveau suivi ([resume]).
+        stats?.finish(player)
+        stats = null
         player.stop()
     }
 
@@ -242,6 +247,7 @@ class PlayerController(
         when {
             resumeOnForeground -> {
                 resumeOnForeground = false
+                if (stats == null && Telemetry.active) stats = PlaybackStats(item, live, resumeMs)
                 open(item, resumeMs)
             }
             !live && !_status.value.failed && exoPlayer?.playbackState == Player.STATE_IDLE ->
@@ -387,8 +393,13 @@ class PlayerController(
             // Un décodeur qui a planté n'est plus proposé (le premier de la liste revient s'il ne reste rien).
             .setMediaCodecSelector(codecSelector)
         val loadControl = DefaultLoadControl.Builder()
-            // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi).
-            .setBufferDurationsMs(15_000, 50_000, 1_000, 2_500)
+            // Démarrage rapide (zapping), tampon généreux ensuite (Wi-Fi), reprise patiente après une coupure.
+            .setBufferDurationsMs(
+                BufferSize.MIN_BUFFER_MS,
+                BufferSize.MAX_BUFFER_MS,
+                BufferSize.START_BUFFER_MS,
+                BufferSize.REBUFFER_MS,
+            )
             // Plafond selon le tas de l'appareil (voir `BufferSize`).
             .setTargetBufferBytes(BufferSize.bytesFor(context))
             .build()

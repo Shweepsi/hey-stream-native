@@ -13,6 +13,22 @@ import android.content.Context
  * secondes plutôt que de risquer un plantage.
  */
 object BufferSize {
+    /** Tampon sous lequel le chargement reprend, en ms. */
+    const val MIN_BUFFER_MS = 30_000
+
+    /** Tampon au-delà duquel le chargement s'arrête, en ms. */
+    const val MAX_BUFFER_MS = 60_000
+
+    /** Tampon qui lance la lecture au démarrage (zapping rapide), en ms. */
+    const val START_BUFFER_MS = 1_000
+
+    /**
+     * Tampon exigé pour reprendre après une coupure, en ms. 2,5 s ne tenaient pas : sur une
+     * connexion juste, la lecture repartait puis recalait aussitôt (une coupure de 3 s toutes
+     * les 40 s sur une TV Philips). Attendre plus longtemps donne moins de coupures, plus calmes.
+     */
+    const val REBUFFER_MS = 8_000
+
     private const val MIB = 1024 * 1024
 
     /** Jamais moins : ~25 s d'un flux HD à 10 Mbit/s. */
