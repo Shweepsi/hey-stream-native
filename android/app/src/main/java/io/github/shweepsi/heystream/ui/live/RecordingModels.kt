@@ -75,12 +75,53 @@ fun RecordingMargins.adjusted(before: Boolean, delta: Long): RecordingMargins =
     }
 
 /** Programmation d'un programme du guide (ou annulation s'il est déjà programmé). */
+/** Pas du début d'un enregistrement manuel. */
+const val MANUAL_START_STEP_SECS = 300L
+
+/** Début au plus tard : dans 24 h. */
+const val MANUAL_START_MAX_STEPS = 24 * 12
+
+const val MANUAL_DURATION_STEP_SECS = 900L
+
+const val MANUAL_DURATION_MIN_SECS = 900L
+
+const val MANUAL_DURATION_MAX_SECS = 12 * 3600L
+
+const val MANUAL_DURATION_DEFAULT_SECS = 3600L
+
+/**
+ * Fenêtre d'un enregistrement manuel : début (0 = maintenant, puis par pas de
+ * 5 min alignés sur l'horloge) et durée.
+ */
+@Immutable
+data class ManualWindow(
+    val startStep: Int = 0,
+    val durationSecs: Long = MANUAL_DURATION_DEFAULT_SECS,
+) {
+    fun start(nowSecs: Long): Long =
+        if (startStep <= 0) nowSecs else (nowSecs / MANUAL_START_STEP_SECS + startStep) * MANUAL_START_STEP_SECS
+
+    fun programme(title: String, nowSecs: Long): LiveProgramme {
+        val start = start(nowSecs)
+        return LiveProgramme(title, start, start + durationSecs)
+    }
+
+    fun adjusted(start: Boolean, delta: Int): ManualWindow =
+        if (start) {
+            copy(startStep = (startStep + delta).coerceIn(0, MANUAL_START_MAX_STEPS))
+        } else {
+            copy(durationSecs = (durationSecs + delta * MANUAL_DURATION_STEP_SECS).coerceIn(MANUAL_DURATION_MIN_SECS, MANUAL_DURATION_MAX_SECS))
+        }
+}
+
 @Immutable
 data class RecordDialogUi(
     val channelId: Long,
     val channel: String,
     val programme: LiveProgramme,
     val margins: RecordingMargins,
+    /** Enregistrement manuel : début et durée choisis, sans marges. */
+    val manual: ManualWindow? = null,
     /** Enregistrement qui couvre déjà ce programme : le dialogue propose de l'annuler. */
     val scheduledId: Long? = null,
     /** Fusion, marges raccourcies, taille, place manquante ; `null` pendant le calcul. */

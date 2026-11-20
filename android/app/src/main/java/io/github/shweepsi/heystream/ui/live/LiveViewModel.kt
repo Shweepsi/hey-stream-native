@@ -21,6 +21,7 @@ import io.github.shweepsi.heystream.player.PlayerController
 import io.github.shweepsi.heystream.player.TimeshiftHolder
 import io.github.shweepsi.heystream.core.GuideProgramme
 import io.github.shweepsi.heystream.core.Recording
+import io.github.shweepsi.heystream.core.RecordingMargins
 import io.github.shweepsi.heystream.core.ScheduleRequest
 import io.github.shweepsi.heystream.recording.RecordingRepository
 import io.github.shweepsi.heystream.ui.UiText
@@ -680,12 +681,22 @@ class LiveViewModel(
     }
 
     override fun onProgrammeClick(programme: LiveProgramme) {
-        val repo = recordings ?: return
-        val preview = _state.value.preview ?: return
         val nowSecs = System.currentTimeMillis() / 1000
         if (programme.stop <= nowSecs) return
+        openRecordDialog(programme, manual = null)
+    }
+
+    /** Enregistrement manuel de la chaîne de l'aperçu : maintenant, pendant 1 h (réglables). */
+    override fun onManualRecordClick(title: String) {
+        val window = ManualWindow()
+        openRecordDialog(window.programme(title, System.currentTimeMillis() / 1000), manual = window)
+    }
+
+    private fun openRecordDialog(programme: LiveProgramme, manual: ManualWindow?) {
+        val repo = recordings ?: return
+        val preview = _state.value.preview ?: return
         viewModelScope.launch {
-            val existing = recordingFor(planned, preview.id, programme)
+            val existing = if (manual == null) recordingFor(planned, preview.id, programme) else null
             if (existing == null) {
                 // Format TS refusé par le fournisseur : rien à copier tel quel.
                 if (attempt { session.withCore { it.canRecord() } }.getOrDefault(true).not()) {
@@ -693,8 +704,13 @@ class LiveViewModel(
                     return@launch
                 }
             }
-            val margins = attempt { repo.withStore { it.lastMargins() } }.getOrNull()
-                ?: io.github.shweepsi.heystream.core.defaultRecordingMargins()
+            // Manuel : la fenêtre choisie, sans marges.
+            val margins = if (manual != null) {
+                RecordingMargins(beforeSecs = 0, afterSecs = 0)
+            } else {
+                attempt { repo.withStore { it.lastMargins() } }.getOrNull()
+                    ?: io.github.shweepsi.heystream.core.defaultRecordingMargins()
+            }
             // Différé de cette chaîne : son débit est mesuré en continu.
             val bufferRate = if (existing == null) bufferFor(preview.id)?.rate() else null
             if (bufferRate != null) {
@@ -707,6 +723,7 @@ class LiveViewModel(
                         preview.name,
                         programme,
                         margins,
+                        manual = manual,
                         scheduledId = existing?.id,
                         measuring = existing == null && bufferRate == null,
                     ),
@@ -769,7 +786,7 @@ class LiveViewModel(
             val result = attempt { repo.withStore { it.preview(request(dialog, adult), bufferBytes.toULong()) } }
             _state.update { current ->
                 val shown = current.recordDialog ?: return@update current
-                if (shown.margins != dialog.margins) return@update current
+                if (shown.margins != dialog.margins || shown.programme != dialog.programme) return@update current
                 current.copy(
                     recordDialog = shown.copy(
                         preview = result.getOrNull(),
@@ -788,22 +805,38 @@ class LiveViewModel(
         refreshRecordPreview()
     }
 
+    /** Enregistrement manuel : début (pas de 5 min) ou durée (pas de 15 min). */
+    fun onAdjustManual(start: Boolean, delta: Int) {
+        _state.update { current ->
+            val dialog = current.recordDialog ?: return@update current
+            val manual = dialog.manual ?: return@update current
+            val next = manual.adjusted(start, delta)
+            if (next == manual) return@update current
+            val programme = next.programme(dialog.programme.title, System.currentTimeMillis() / 1000)
+            current.copy(recordDialog = dialog.copy(manual = next, programme = programme, preview = null, error = null))
+        }
+        refreshRecordPreview()
+    }
+
     /** « Enregistrer » ou « Programmer quand même ». */
     fun onConfirmRecord() {
         val repo = recordings ?: return
-        val dialog = _state.value.recordDialog ?: return
+        val shown = _state.value.recordDialog ?: return
+        // Manuel « maintenant » : la fenêtre part de l'heure de la confirmation.
+        val dialog = shown.manual?.let { shown.copy(programme = it.programme(shown.programme.title, System.currentTimeMillis() / 1000)) } ?: shown
         if (dialog.busy) return
-        _state.update { it.copy(recordDialog = dialog.copy(busy = true)) }
+        _state.update { it.copy(recordDialog = shown.copy(busy = true)) }
         viewModelScope.launch {
             val adult = isAdult(dialog.channelId)
             val result = attempt {
                 repo.ensureDirectory()
-                repo.withStore { it.schedule(request(dialog, adult)) }
+                val req = request(dialog, adult)
+                repo.withStore { if (dialog.manual != null) it.scheduleManual(req) else it.schedule(req) }
             }
             result.onSuccess {
                 _state.update { it.copy(recordDialog = null, alarmPrompt = !canScheduleExact()) }
                 repo.changed()
-                showMessage(UiText(R.string.record_scheduled, listOf(dialog.programme.title)))
+                showMessage(UiText(R.string.record_scheduled, listOf(if (dialog.manual != null) dialog.channel else dialog.programme.title)))
             }.onFailure { error ->
                 _state.update { current ->
                     current.copy(recordDialog = current.recordDialog?.copy(busy = false, error = error.toUiText()))

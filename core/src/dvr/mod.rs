@@ -371,8 +371,29 @@ impl Recordings {
     /// marge raccourcie) : l'app relit [`Self::due`] et passe sa fin à
     /// [`CaptureControl::set_until`]. De même après [`Self::cancel`].
     pub fn schedule(&mut self, request: &ScheduleRequest, now: i64) -> Result<i64> {
+        self.schedule_with(request, now, true)
+    }
+
+    /// Enregistrement manuel d'une chaîne, de `programme.start` à
+    /// `programme.stop`, choisis à la main : comme [`Self::schedule`], mais
+    /// les marges de la demande (en général nulles) ne deviennent pas celles
+    /// proposées pour les programmes du guide.
+    pub fn schedule_manual(&mut self, request: &ScheduleRequest, now: i64) -> Result<i64> {
+        self.schedule_with(request, now, false)
+    }
+
+    fn schedule_with(
+        &mut self,
+        request: &ScheduleRequest,
+        now: i64,
+        remember_margins: bool,
+    ) -> Result<i64> {
         let tx = self.conn.transaction()?;
         let (id, _) = insert(&tx, request, now)?;
+        if !remember_margins {
+            tx.commit()?;
+            return Ok(id);
+        }
         set_setting(
             &tx,
             MARGIN_BEFORE_KEY,

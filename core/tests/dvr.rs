@@ -91,6 +91,30 @@ fn a_programme_is_scheduled_with_its_margins() {
 }
 
 #[test]
+fn manual_recording_keeps_guide_margins() {
+    let dir = temp_dir("manual");
+    let mut rec = store(&dir);
+    let mut manual = request(1, "Enregistrement manuel", 10_000, 13_600);
+    manual.margins = Margins {
+        before_secs: 0,
+        after_secs: 0,
+    };
+    let id = rec.schedule_manual(&manual, 0).unwrap();
+    let r = rec.recording(id).unwrap().unwrap();
+    assert_eq!(r.state, RecordingState::Scheduled);
+    assert_eq!((r.start, r.stop), (10_000, 13_600));
+    assert_eq!(rec.last_margins().unwrap(), xtream_core::DEFAULT_MARGINS);
+    // Une autre chaîne au même moment : refusé, comme pour le guide.
+    let other = rec.schedule_manual(&request(2, "Autre", 12_000, 14_000), 0);
+    assert!(matches!(other, Err(Error::RecordingConflict { .. })));
+    // Fenêtre déjà commencée : la copie part tout de suite.
+    let started = rec
+        .schedule_manual(&request(3, "Maintenant", 20_000, 30_000), 25_000)
+        .unwrap();
+    assert_eq!(rec.recording(started).unwrap().unwrap().start, 25_000);
+}
+
+#[test]
 fn default_margins_are_two_and_five_minutes() {
     let rec = Recordings::open_in_memory().unwrap();
     assert_eq!(rec.last_margins().unwrap(), xtream_core::DEFAULT_MARGINS);

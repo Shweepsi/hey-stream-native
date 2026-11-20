@@ -4,6 +4,15 @@ Une entrée par version, la plus récente en haut. La version vient de
 `[workspace.package] version` dans `Cargo.toml` (voir `docs/DECISIONS.md`,
 « Versions »).
 
+## 0.8.1 — 2026-11-20
+
+- **Enregistrement manuel** (Android) : sous le guide de la chaîne en aperçu,
+  « Enregistrer à la main » ouvre le dialogue d'enregistrement avec un début
+  (maintenant, puis par pas de 5 min, jusqu'à 24 h) et une durée (15 min à
+  12 h, par pas de 15 min), sans marges ; mêmes règles que pour le guide
+  (une seule chaîne à la fois, place estimée). Les marges retenues pour les
+  programmes du guide ne changent pas (`Recordings::schedule_manual`).
+
 ## 0.8.0 — 2026-11-01
 
 - **Enregistrement programmé** (Android, `docs/DECISIONS.md`) :

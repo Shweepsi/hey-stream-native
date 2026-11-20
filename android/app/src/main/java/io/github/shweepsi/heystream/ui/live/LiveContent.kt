@@ -367,6 +367,7 @@ private fun LivePanels(
             nowSecs = nowSecs,
             scheduledStarts = state.scheduledStarts,
             onProgramme = if (state.recordingEnabled) actions::onProgrammeClick else null,
+            onManual = if (state.recordingEnabled) actions::onManualRecordClick else null,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
@@ -668,6 +669,8 @@ private fun PreviewPanel(
     scheduledStarts: Set<Long> = emptySet(),
     /** Programmes activables (enregistrement) ; `null` : simple affichage. */
     onProgramme: ((LiveProgramme) -> Unit)? = null,
+    /** « Enregistrer à la main » (nom de l'enregistrement en paramètre) ; `null` : absent. */
+    onManual: ((String) -> Unit)? = null,
 ) {
     val isTv = Hs.isTv
     Column(modifier.padding(layout.previewPadding)) {
@@ -694,6 +697,10 @@ private fun PreviewPanel(
                 }
                 preview.later.forEach { ProgrammeLine(it, it.start in scheduledStarts, onProgramme) }
             }
+        }
+        // Hors de FitColumn : jamais coupé faute de place.
+        if (preview != null && onManual != null) {
+            ManualRecordButton(onManual, Modifier.padding(top = if (isTv) 6.dp else 8.dp))
         }
         if (!layout.compact && message != null) {
             LiveToast(message, Modifier.padding(top = 8.dp))
@@ -762,6 +769,24 @@ private fun ProgrammeButton(programme: LiveProgramme, scheduled: Boolean, onClic
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.weight(1f)) { content() }
             RecordMark(scheduled)
+        }
+    }
+}
+
+/** Enregistrement manuel de la chaîne de l'aperçu : début et durée choisis dans le dialogue. */
+@Composable
+private fun ManualRecordButton(onClick: (String) -> Unit, modifier: Modifier = Modifier) {
+    val isTv = Hs.isTv
+    val title = stringResource(R.string.record_manual_title)
+    HsSurface(
+        onClick = { onClick(title) },
+        focusScale = FocusScale.NONE,
+        contentPadding = PaddingValues(horizontal = if (isTv) 6.dp else 8.dp, vertical = if (isTv) 4.dp else 6.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Lucide.Clock, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(Hs.dimens.icon * 0.9f))
+            Text(stringResource(R.string.record_manual_action), style = Hs.type.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

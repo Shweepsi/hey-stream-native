@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -274,8 +273,37 @@ internal fun RecordDialog(ui: RecordDialogUi, viewModel: LiveViewModel) {
 
 @Composable
 private fun ScheduleContent(ui: RecordDialogUi, viewModel: LiveViewModel, first: FocusRequester) {
-    MarginRow(stringResource(R.string.record_margin_before), ui.margins.beforeSecs, { viewModel.onAdjustMargin(true, it) }, Modifier.focusRequester(first))
-    MarginRow(stringResource(R.string.record_margin_after), ui.margins.afterSecs, { viewModel.onAdjustMargin(false, it) })
+    val manual = ui.manual
+    if (manual != null) {
+        val locale = currentLocale()
+        val nowSecs = System.currentTimeMillis() / 1000
+        val start = ui.programme.start
+        val startText = when {
+            manual.startStep == 0 -> stringResource(R.string.record_manual_now)
+            Formats.shortDate(start * 1000, locale) == Formats.shortDate(nowSecs * 1000, locale) -> Formats.timeOfSeconds(start, locale)
+            else -> whenText(start)
+        }
+        StepRow(
+            label = stringResource(R.string.record_manual_start),
+            value = startText,
+            lessLabel = stringResource(R.string.record_manual_earlier),
+            moreLabel = stringResource(R.string.record_manual_later),
+            onLess = { viewModel.onAdjustManual(true, -1) },
+            onMore = { viewModel.onAdjustManual(true, 1) },
+            modifier = Modifier.focusRequester(first),
+        )
+        StepRow(
+            label = stringResource(R.string.record_manual_duration),
+            value = duration(manual.durationSecs),
+            lessLabel = stringResource(R.string.record_margin_less),
+            moreLabel = stringResource(R.string.record_margin_more),
+            onLess = { viewModel.onAdjustManual(false, -1) },
+            onMore = { viewModel.onAdjustManual(false, 1) },
+        )
+    } else {
+        MarginRow(stringResource(R.string.record_margin_before), ui.margins.beforeSecs, { viewModel.onAdjustMargin(true, it) }, Modifier.focusRequester(first))
+        MarginRow(stringResource(R.string.record_margin_after), ui.margins.afterSecs, { viewModel.onAdjustMargin(false, it) })
+    }
     val preview = ui.preview
     if (preview != null) {
         val known = preview.measured && !ui.measuring
@@ -322,17 +350,39 @@ private fun ScheduleContent(ui: RecordDialogUi, viewModel: LiveViewModel, first:
 /** Marge réglable à la minute : moins, valeur, plus. */
 @Composable
 private fun MarginRow(label: String, secs: Long, onChange: (Long) -> Unit, modifier: Modifier = Modifier) {
+    StepRow(
+        label = label,
+        value = stringResource(R.string.duration_m, secs / 60),
+        lessLabel = stringResource(R.string.record_margin_less),
+        moreLabel = stringResource(R.string.record_margin_more),
+        onLess = { onChange(-MARGIN_STEP_SECS) },
+        onMore = { onChange(MARGIN_STEP_SECS) },
+        modifier = modifier,
+    )
+}
+
+/** Réglage par pas : libellé, −, valeur, +. [modifier] va au bouton −. */
+@Composable
+private fun StepRow(
+    label: String,
+    value: String,
+    lessLabel: String,
+    moreLabel: String,
+    onLess: () -> Unit,
+    onMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Hs.dimens.gapSmall)) {
         Text(label, style = Hs.type.body, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        HsIconButton(Lucide.Minus, stringResource(R.string.record_margin_less), { onChange(-MARGIN_STEP_SECS) }, modifier = modifier)
+        HsIconButton(Lucide.Minus, lessLabel, onLess, modifier = modifier)
         Text(
-            stringResource(R.string.duration_m, secs / 60),
+            value,
             style = Hs.type.body.tabular(),
-            modifier = Modifier.width(if (Hs.isTv) 64.dp else 72.dp),
+            modifier = Modifier.widthIn(min = if (Hs.isTv) 64.dp else 72.dp),
             maxLines = 1,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        HsIconButton(Lucide.Plus, stringResource(R.string.record_margin_more), { onChange(MARGIN_STEP_SECS) })
+        HsIconButton(Lucide.Plus, moreLabel, onMore)
     }
 }
 

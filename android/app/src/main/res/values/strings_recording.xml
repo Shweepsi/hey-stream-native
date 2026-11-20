@@ -93,4 +93,13 @@
     <string name="settings_recordings_alarm_missing">Alarms not allowed: recordings cannot start while the app is closed.</string>
     <string name="settings_recordings_battery">On some devices (Xiaomi HyperOS…), also allow Hey Stream to run in the background in the battery settings.</string>
     <string name="settings_recordings_battery_open">Battery settings</string>
+
+    <!-- Enregistrement manuel (chaîne, début et durée choisis) -->
+    <string name="record_manual_action">Manual recording</string>
+    <string name="record_manual_title">Manual recording</string>
+    <string name="record_manual_start">Start</string>
+    <string name="record_manual_now">Now</string>
+    <string name="record_manual_duration">Duration</string>
+    <string name="record_manual_earlier">Earlier</string>
+    <string name="record_manual_later">Later</string>
 </resources>

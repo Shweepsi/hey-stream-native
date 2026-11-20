@@ -194,6 +194,9 @@ interface LiveActions {
     /** OK ou toucher sur un programme du guide : programmer ou annuler son enregistrement. */
     fun onProgrammeClick(programme: LiveProgramme) {}
 
+    /** Enregistrement manuel de la chaîne de l'aperçu (début et durée choisis). [title] : son nom. */
+    fun onManualRecordClick(title: String) {}
+
     /** Un enregistrement de la liste : le regarder (fait ou en cours) ou ouvrir ses options. */
     fun onRecordingClick(row: RecordingRow) {}
 

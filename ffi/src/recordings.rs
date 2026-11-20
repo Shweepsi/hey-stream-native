@@ -219,6 +219,12 @@ impl RecordingStore {
         Ok(self.lock().schedule(&request.into(), now())?)
     }
 
+    /// Enregistrement manuel (début et fin choisis à la main) : les marges
+    /// retenues pour le guide ne changent pas.
+    pub fn schedule_manual(&self, request: ScheduleRequest) -> Result<i64> {
+        Ok(self.lock().schedule_manual(&request.into(), now())?)
+    }
+
     pub fn cancel(&self, id: i64) -> Result<()> {
         Ok(self.lock().cancel(id)?)
     }
