@@ -340,6 +340,50 @@ fn state(app: &Arc<App>) -> Res {
     })))
 }
 
+/// Requête brute (HTTP simple) au panneau avec l'identifiant `agent`, pour
+/// comprendre un refus : ligne de statut et début de la réponse, mot de passe
+/// masqué. Seulement après un échec de connexion.
+fn probe(server_url: &str, user: &str, pass: &str, agent: &str) -> String {
+    use std::io::{Read, Write};
+    use std::net::{TcpStream, ToSocketAddrs};
+
+    let url = server_url.trim();
+    if url.starts_with("https://") {
+        return "https : non testé".to_owned();
+    }
+    let rest = url.trim_start_matches("http://").trim_end_matches('/');
+    let host_port = if rest.contains(':') {
+        rest.to_owned()
+    } else {
+        format!("{rest}:80")
+    };
+    let request = format!(
+        "GET /player_api.php?username={user}&password={pass} HTTP/1.1\r\nHost: {rest}\r\nUser-Agent: {agent}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+    );
+    let answer = (|| -> std::io::Result<String> {
+        let addr = host_port
+            .to_socket_addrs()?
+            .next()
+            .ok_or_else(|| std::io::Error::other("adresse introuvable"))?;
+        let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(10))?;
+        stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+        stream.write_all(request.as_bytes())?;
+        let mut buf = Vec::new();
+        let _ = (&mut stream).take(4096).read_to_end(&mut buf);
+        Ok(String::from_utf8_lossy(&buf).into_owned())
+    })();
+    match answer {
+        Ok(text) => {
+            let text = text.replace(pass, "***");
+            let status = text.lines().next().unwrap_or("(réponse vide)").to_owned();
+            let body = text.split("\r\n\r\n").nth(1).unwrap_or("");
+            let snippet: String = body.chars().take(160).collect();
+            format!("{status} · {}", snippet.replace(['\r', '\n'], " "))
+        }
+        Err(e) => format!("échec réseau : {e}"),
+    }
+}
+
 fn login(app: &Arc<App>, body: LoginBody) -> Res {
     let config = Config {
         server_url: body.server_url.trim().to_owned(),
@@ -348,7 +392,16 @@ fn login(app: &Arc<App>, body: LoginBody) -> Res {
         dir: body.dir.trim().to_owned(),
     };
     let client = make_client(&config).ok_or((400, "Serveur ou identifiants invalides.".to_owned()))?;
-    app.rt.block_on(client.authenticate()).map_err(|e| (400, e.to_string()))?;
+    if let Err(e) = app.rt.block_on(client.authenticate()) {
+        let own = format!("HeyStream/{}", env!("CARGO_PKG_VERSION"));
+        let browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+        let message = format!(
+            "{e}\nDiagnostic · {own} : {}\nDiagnostic · navigateur : {}",
+            probe(&config.server_url, &config.username, &config.password, &own),
+            probe(&config.server_url, &config.username, &config.password, browser),
+        );
+        return Err((400, message));
+    }
     save_config(&app.data_dir, &config).map_err(bad)?;
     *lock(&app.config) = config;
     *lock(&app.client) = Some(client);
