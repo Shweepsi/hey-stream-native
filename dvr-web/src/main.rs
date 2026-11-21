@@ -3,10 +3,11 @@
 //! `http://localhost:8780` ; les enregistrements sont des fichiers `.ts` dans
 //! un dossier du PC.
 //!
-//! Une seule connexion au fournisseur : le moteur refuse deux chaînes en même
-//! temps, et la copie en cours est la seule à ouvrir un flux (le guide ne
-//! demande que des listes). Accessible depuis cette machine seulement, sauf
-//! avec `--lan`.
+//! Plusieurs comptes : chacun a son planning et ne copie qu'une chaîne à la
+//! fois (une connexion par compte chez le fournisseur). Pour enregistrer
+//! plusieurs chaînes en même temps, on ajoute des comptes ; une programmation
+//! va sur le premier compte libre à ce moment-là. Accessible depuis cette
+//! machine seulement, sauf avec `--lan`.
 
 use std::fmt::Display;
 use std::fs::File;
@@ -19,7 +20,7 @@ use serde_json::{Value, json};
 use tiny_http::{Header, Method, Request, Response, Server};
 use xtream_core::{
     CaptureControl, CaptureOptions, Credentials, GuideProgramme, Margins, Recording, Recordings,
-    ScheduleRequest, XtreamClient, capture, volume_space,
+    ScheduleRequest, SchedulePreview, XtreamClient, capture, volume_space,
 };
 
 const PAGE: &str = include_str!("index.html");
@@ -31,18 +32,60 @@ const CHANNEL_LIMIT: usize = 300;
 /// Pause après un échec du fournisseur avant de le rappeler.
 const RETRY_AFTER: Duration = Duration::from_secs(60);
 
-#[derive(Default, Clone, Serialize, Deserialize)]
-struct Config {
+#[derive(Clone, Serialize, Deserialize)]
+struct AccountConfig {
+    id: u32,
     server_url: String,
     username: String,
     password: String,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+struct Config {
+    #[serde(default)]
+    accounts: Vec<AccountConfig>,
+    /// Prochain numéro de compte (jamais réutilisé : il nomme le dossier).
+    #[serde(default)]
+    next_id: u32,
     /// Dossier des enregistrements ; vide : `enregistrements/` dans le dossier de données.
+    #[serde(default)]
     dir: String,
+    // Ancien format, un seul compte : repris comme compte 1.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    server_url: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    username: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    password: String,
 }
 
 struct Active {
     id: i64,
     control: CaptureControl,
+}
+
+/// Un compte : son client, son planning et sa copie en cours.
+struct Account {
+    config: AccountConfig,
+    client: Arc<XtreamClient>,
+    rec: Mutex<Recordings>,
+    active: Mutex<Option<Active>>,
+}
+
+impl Account {
+    fn label(&self) -> &str {
+        &self.config.username
+    }
+
+    /// Dossier de ce compte : le compte 1 garde le dossier de base (fichiers
+    /// d'avant les comptes multiples), les autres ont le leur.
+    fn dir(&self, base: &Path) -> PathBuf {
+        if self.config.id == 1 {
+            base.to_path_buf()
+        } else {
+            base.join(format!("compte-{}", self.config.id))
+        }
+    }
 }
 
 struct Channel {
@@ -60,10 +103,10 @@ struct Catalog {
 
 struct App {
     data_dir: PathBuf,
-    config: Mutex<Config>,
-    client: Mutex<Option<Arc<XtreamClient>>>,
-    rec: Mutex<Recordings>,
-    active: Mutex<Option<Active>>,
+    /// Dossier choisi (vide : par défaut).
+    dir: Mutex<String>,
+    next_id: Mutex<u32>,
+    accounts: Mutex<Vec<Arc<Account>>>,
     catalog: Mutex<Option<Catalog>>,
     /// Dernier échec du chargement des chaînes (heure, message).
     failure: Mutex<Option<(Instant, String)>>,
@@ -81,32 +124,54 @@ fn now() -> i64 {
 }
 
 impl App {
-    fn dir(&self) -> PathBuf {
-        let config = lock(&self.config);
-        if config.dir.trim().is_empty() {
+    fn base_dir(&self) -> PathBuf {
+        let dir = lock(&self.dir);
+        if dir.trim().is_empty() {
             self.data_dir.join("enregistrements")
         } else {
-            PathBuf::from(config.dir.trim())
+            PathBuf::from(dir.trim())
         }
     }
 
-    /// Crée le dossier des enregistrements et le donne au planning.
+    fn accounts(&self) -> Vec<Arc<Account>> {
+        lock(&self.accounts).clone()
+    }
+
+    /// Crée les dossiers des enregistrements et les donne aux plannings.
     fn apply_dir(&self) -> Result<(), String> {
-        let dir = self.dir();
-        std::fs::create_dir_all(&dir).map_err(|e| format!("dossier impossible à créer : {e}"))?;
-        lock(&self.rec).set_directory(&dir).map_err(|e| e.to_string())
+        let base = self.base_dir();
+        for account in self.accounts() {
+            let dir = account.dir(&base);
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| format!("dossier impossible à créer : {e}"))?;
+            lock(&account.rec)
+                .set_directory(&dir)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 
-    fn client(&self) -> Result<Arc<XtreamClient>, (u16, String)> {
-        lock(&self.client)
-            .clone()
-            .ok_or((400, "Renseigne d'abord le serveur dans Réglages.".to_owned()))
+    fn persist(&self) -> Result<(), String> {
+        let config = Config {
+            accounts: self.accounts().iter().map(|a| a.config.clone()).collect(),
+            next_id: *lock(&self.next_id),
+            dir: lock(&self.dir).clone(),
+            ..Config::default()
+        };
+        save_config(&self.data_dir, &config)
     }
 
-    /// Chaînes et catégories du direct, rechargées au plus toutes les 10 min.
-    /// Un seul chargement à la fois, et après un échec le fournisseur n'est
-    /// pas rappelé avant une minute (il bloque les requêtes en rafale) : la
-    /// liste périmée, si on l'a, reste servie.
+    fn first_client(&self) -> Result<Arc<XtreamClient>, (u16, String)> {
+        self.accounts()
+            .first()
+            .map(|a| a.client.clone())
+            .ok_or((400, "Ajoute d'abord un compte dans Réglages.".to_owned()))
+    }
+
+    /// Chaînes et catégories du direct (via le premier compte), rechargées au
+    /// plus toutes les 10 min. Un seul chargement à la fois, et après un échec
+    /// le fournisseur n'est pas rappelé avant une minute (il bloque les
+    /// requêtes en rafale) : la liste périmée, si on l'a, reste servie.
     fn with_catalog<T>(&self, f: impl FnOnce(&Catalog) -> T) -> Result<T, (u16, String)> {
         let mut failure = lock(&self.failure);
         let fresh = lock(&self.catalog)
@@ -116,7 +181,7 @@ impl App {
             .as_ref()
             .is_some_and(|(at, _)| at.elapsed() < RETRY_AFTER);
         if !fresh && !blocked {
-            let client = self.client()?;
+            let client = self.first_client()?;
             let fetched = self.rt.block_on(async {
                 let categories = client.live_categories().await?;
                 // Une pause entre les deux requêtes : pas de rafale.
@@ -174,10 +239,22 @@ fn config_path(data_dir: &Path) -> PathBuf {
 }
 
 fn load_config(data_dir: &Path) -> Config {
-    std::fs::read_to_string(config_path(data_dir))
+    let mut config: Config = std::fs::read_to_string(config_path(data_dir))
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Ancien format : le compte unique devient le compte 1.
+    if config.accounts.is_empty() && !config.username.is_empty() {
+        config.accounts.push(AccountConfig {
+            id: 1,
+            server_url: std::mem::take(&mut config.server_url),
+            username: std::mem::take(&mut config.username),
+            password: std::mem::take(&mut config.password),
+        });
+    }
+    let max = config.accounts.iter().map(|a| a.id).max().unwrap_or(0);
+    config.next_id = config.next_id.max(max + 1);
+    config
 }
 
 fn save_config(data_dir: &Path, config: &Config) -> Result<(), String> {
@@ -185,13 +262,30 @@ fn save_config(data_dir: &Path, config: &Config) -> Result<(), String> {
     std::fs::write(config_path(data_dir), text).map_err(|e| e.to_string())
 }
 
-fn make_client(config: &Config) -> Option<Arc<XtreamClient>> {
+fn make_client(config: &AccountConfig) -> Option<Arc<XtreamClient>> {
     let credentials = Credentials {
         server_url: config.server_url.clone(),
         username: config.username.clone(),
         password: config.password.clone(),
     };
     XtreamClient::new(&credentials).ok().map(Arc::new)
+}
+
+/// Ouvre le planning d'un compte (le compte 1 garde `planning.db`).
+fn open_account(data_dir: &Path, config: AccountConfig) -> Result<Arc<Account>, String> {
+    let client = make_client(&config).ok_or("Serveur ou identifiants invalides.".to_owned())?;
+    let file = if config.id == 1 {
+        "planning.db".to_owned()
+    } else {
+        format!("planning-{}.db", config.id)
+    };
+    let rec = Recordings::open(data_dir.join(file)).map_err(|e| format!("Planning illisible : {e}"))?;
+    Ok(Arc::new(Account {
+        config,
+        client,
+        rec: Mutex::new(rec),
+        active: Mutex::new(None),
+    }))
 }
 
 // --- Requêtes ---------------------------------------------------------------
@@ -258,8 +352,14 @@ struct ScheduleBody {
 }
 
 #[derive(Deserialize)]
-struct IdBody {
+struct RecordingRef {
+    account: u32,
     id: i64,
+}
+
+#[derive(Deserialize)]
+struct AccountRef {
+    id: u32,
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(body: &str) -> Result<T, (u16, String)> {
@@ -285,9 +385,12 @@ fn schedule_request(b: ScheduleBody) -> ScheduleRequest {
     }
 }
 
-fn recording_json(r: &Recording, active: Option<&Active>) -> Value {
-    let live = active.filter(|a| a.id == r.id);
+fn recording_json(account: &Account, r: &Recording) -> Value {
+    let active = lock(&account.active);
+    let live = active.as_ref().filter(|a| a.id == r.id);
     json!({
+        "account": account.config.id,
+        "account_label": account.label(),
         "id": r.id,
         "stream_id": r.stream_id,
         "channel": r.channel,
@@ -308,31 +411,55 @@ fn route(app: &Arc<App>, method: &Method, url: &str, body: &str) -> Res {
     match (method, path) {
         (Method::Get, "/") => Ok(Reply::Html),
         (Method::Get, "/api/state") => state(app),
-        (Method::Post, "/api/login") => login(app, parse(body)?),
+        (Method::Post, "/api/login") => add_account(app, parse(body)?),
+        (Method::Post, "/api/account/remove") => remove_account(app, parse::<AccountRef>(body)?.id),
         (Method::Get, "/api/channels") => channels(app, query),
         (Method::Get, "/api/epg") => epg(app, query),
         (Method::Post, "/api/preview") => preview(app, parse(body)?),
         (Method::Post, "/api/schedule") => schedule(app, parse(body)?),
         (Method::Get, "/api/recordings") => recordings(app),
-        (Method::Post, "/api/cancel") => cancel(app, parse::<IdBody>(body)?.id),
-        (Method::Post, "/api/delete") => delete(app, parse::<IdBody>(body)?.id),
+        (Method::Post, "/api/cancel") => cancel(app, parse(body)?),
+        (Method::Post, "/api/delete") => delete(app, parse(body)?),
         (Method::Get, p) if p.starts_with("/files/") => file(app, &p["/files/".len()..], query),
         _ => Err((404, "introuvable".to_owned())),
     }
 }
 
+fn find_account(app: &App, id: u32) -> Result<Arc<Account>, (u16, String)> {
+    app.accounts()
+        .into_iter()
+        .find(|a| a.config.id == id)
+        .ok_or((404, "Ce compte n'existe plus.".to_owned()))
+}
+
 fn state(app: &Arc<App>) -> Res {
-    let dir = app.dir();
-    let configured = lock(&app.client).is_some();
-    let space = volume_space(&dir);
-    let usage = space.and_then(|s| lock(&app.rec).usage(&dir, s).ok());
+    let base = app.base_dir();
+    let accounts = app.accounts();
+    let space = volume_space(&base);
+    // Place prise par tous les comptes ; durée restante au débit du premier.
+    let usage = space.and_then(|s| {
+        let mut used = 0;
+        let mut first = None;
+        for account in &accounts {
+            let u = lock(&account.rec).usage(&account.dir(&base), s).ok()?;
+            used += u.used_bytes;
+            first.get_or_insert(u);
+        }
+        first.map(|u| (used, u))
+    });
     Ok(Reply::Json(json!({
-        "configured": configured,
-        "dir": dir.to_string_lossy(),
+        "configured": !accounts.is_empty(),
+        "dir": base.to_string_lossy(),
         "now": now(),
+        "accounts": accounts.iter().map(|a| json!({
+            "id": a.config.id,
+            "label": a.label(),
+            "server": a.config.server_url,
+            "recording": lock(&a.active).is_some(),
+        })).collect::<Vec<_>>(),
         "disk": space.map(|s| json!({"total": s.total_bytes, "free": s.free_bytes})),
-        "usage": usage.map(|u| json!({
-            "used": u.used_bytes,
+        "usage": usage.map(|(used, u)| json!({
+            "used": used,
             "usable": u.usable_bytes,
             "remaining_secs": u.remaining_secs,
             "low": u.low,
@@ -384,12 +511,13 @@ fn probe(server_url: &str, user: &str, pass: &str, agent: &str) -> String {
     }
 }
 
-fn login(app: &Arc<App>, body: LoginBody) -> Res {
-    let config = Config {
+/// Ajoute un compte (testé auprès du fournisseur avant d'être gardé).
+fn add_account(app: &Arc<App>, body: LoginBody) -> Res {
+    let mut config = AccountConfig {
+        id: 0,
         server_url: body.server_url.trim().to_owned(),
         username: body.username.trim().to_owned(),
         password: body.password.trim().to_owned(),
-        dir: body.dir.trim().to_owned(),
     };
     let client = make_client(&config).ok_or((400, "Serveur ou identifiants invalides.".to_owned()))?;
     if let Err(e) = app.rt.block_on(client.authenticate()) {
@@ -402,12 +530,39 @@ fn login(app: &Arc<App>, body: LoginBody) -> Res {
         );
         return Err((400, message));
     }
-    save_config(&app.data_dir, &config).map_err(bad)?;
-    *lock(&app.config) = config;
-    *lock(&app.client) = Some(client);
+    if lock(&app.accounts)
+        .iter()
+        .any(|a| a.config.username == config.username && a.config.server_url == config.server_url)
+    {
+        return Err((409, "Ce compte est déjà ajouté.".to_owned()));
+    }
+    {
+        let mut next = lock(&app.next_id);
+        config.id = (*next).max(1);
+        *next = config.id + 1;
+    }
+    let account = open_account(&app.data_dir, config).map_err(|e| (500, e))?;
+    if !body.dir.trim().is_empty() {
+        *lock(&app.dir) = body.dir.trim().to_owned();
+    }
+    lock(&app.accounts).push(account);
     *lock(&app.catalog) = None;
     *lock(&app.failure) = None;
     app.apply_dir().map_err(|e| (500, e))?;
+    app.persist().map_err(bad)?;
+    Ok(Reply::Json(json!({"ok": true})))
+}
+
+fn remove_account(app: &Arc<App>, id: u32) -> Res {
+    let account = find_account(app, id)?;
+    if lock(&account.active).is_some() {
+        return Err((409, "Ce compte enregistre en ce moment : arrête d'abord l'enregistrement.".to_owned()));
+    }
+    // Les programmations de ce compte sont annulées, les fichiers restent.
+    let _ = lock(&account.rec).cancel_all_scheduled();
+    lock(&app.accounts).retain(|a| a.config.id != id);
+    *lock(&app.catalog) = None;
+    app.persist().map_err(bad)?;
     Ok(Reply::Json(json!({"ok": true})))
 }
 
@@ -437,7 +592,7 @@ fn epg(app: &Arc<App>, query: &str) -> Res {
     let id: i64 = query_param(query, "stream_id")
         .and_then(|v| v.parse().ok())
         .ok_or((400, "stream_id manquant".to_owned()))?;
-    let client = app.client()?;
+    let client = app.first_client()?;
     let programmes = app.rt.block_on(client.short_epg(id)).map_err(bad)?;
     let list: Vec<Value> = programmes
         .iter()
@@ -446,11 +601,50 @@ fn epg(app: &Arc<App>, query: &str) -> Res {
     Ok(Reply::Json(json!({"programmes": list})))
 }
 
+/// Compte qui prendra l'enregistrement : celui dont l'enregistrement de la
+/// même chaîne se prolonge (programmes qui se suivent), sinon le premier qui
+/// n'est pas déjà pris à ce moment-là.
+fn pick(app: &Arc<App>, request: &ScheduleRequest) -> Result<(Arc<Account>, SchedulePreview), (u16, String)> {
+    let space = volume_space(&app.base_dir())
+        .ok_or((400, "Le dossier des enregistrements est introuvable.".to_owned()))?;
+    let accounts = app.accounts();
+    if accounts.is_empty() {
+        return Err((400, "Ajoute d'abord un compte dans Réglages.".to_owned()));
+    }
+    let mut chosen: Option<(Arc<Account>, SchedulePreview)> = None;
+    let mut first_error: Option<xtream_core::Error> = None;
+    for account in &accounts {
+        match lock(&account.rec).preview(request, space, now()) {
+            Ok(preview) => {
+                let merged = preview.merged_into.is_some();
+                if chosen.is_none() || merged {
+                    chosen = Some((account.clone(), preview));
+                }
+                if merged {
+                    break;
+                }
+            }
+            Err(e) => {
+                first_error.get_or_insert(e);
+            }
+        }
+    }
+    match (chosen, first_error) {
+        (Some(found), _) => Ok(found),
+        (None, Some(e)) if accounts.len() > 1 => Err((
+            409,
+            format!("{e} (sur chacun des {} comptes : ajoute un compte pour enregistrer plus de chaînes à la fois)", accounts.len()),
+        )),
+        (None, Some(e)) => Err(bad(e)),
+        (None, None) => Err((500, "aucun compte".to_owned())),
+    }
+}
+
 fn preview(app: &Arc<App>, body: ScheduleBody) -> Res {
-    let space = volume_space(&app.dir()).ok_or((400, "Le dossier des enregistrements est introuvable.".to_owned()))?;
     let request = schedule_request(body);
-    let p = lock(&app.rec).preview(&request, space, now()).map_err(bad)?;
+    let (account, p) = pick(app, &request)?;
     Ok(Reply::Json(json!({
+        "account": account.label(),
         "merged_into": p.merged_into,
         "start": p.start,
         "stop": p.stop,
@@ -464,46 +658,59 @@ fn preview(app: &Arc<App>, body: ScheduleBody) -> Res {
 fn schedule(app: &Arc<App>, body: ScheduleBody) -> Res {
     app.apply_dir().map_err(|e| (500, e))?;
     let request = schedule_request(body);
+    let (account, _) = pick(app, &request)?;
     // Les marges retenues ne servent qu'au guide de l'appli Android : ici la
     // page les choisit à chaque fois.
-    let id = lock(&app.rec).schedule_manual(&request, now()).map_err(bad)?;
-    Ok(Reply::Json(json!({"id": id})))
+    let id = lock(&account.rec).schedule_manual(&request, now()).map_err(bad)?;
+    Ok(Reply::Json(json!({"id": id, "account": account.label()})))
 }
 
 fn recordings(app: &Arc<App>) -> Res {
-    let guard = lock(&app.active);
-    let active = guard.as_ref();
-    let rec = lock(&app.rec);
-    let scheduled = rec.scheduled(true).map_err(bad)?;
-    let done = rec.recorded(true).map_err(bad)?;
+    let mut scheduled = Vec::new();
+    let mut done = Vec::new();
+    for account in app.accounts() {
+        let rec = lock(&account.rec);
+        scheduled.extend(rec.scheduled(true).map_err(bad)?.iter().map(|r| (r.start, recording_json(&account, r))));
+        done.extend(rec.recorded(true).map_err(bad)?.iter().map(|r| (r.start, recording_json(&account, r))));
+    }
+    scheduled.sort_by_key(|(start, _)| *start);
+    done.sort_by_key(|(start, _)| std::cmp::Reverse(*start));
     Ok(Reply::Json(json!({
-        "scheduled": scheduled.iter().map(|r| recording_json(r, active)).collect::<Vec<_>>(),
-        "recorded": done.iter().map(|r| recording_json(r, active)).collect::<Vec<_>>(),
+        "scheduled": scheduled.into_iter().map(|(_, v)| v).collect::<Vec<_>>(),
+        "recorded": done.into_iter().map(|(_, v)| v).collect::<Vec<_>>(),
     })))
 }
 
-fn cancel(app: &Arc<App>, id: i64) -> Res {
-    if let Some(active) = lock(&app.active).as_ref().filter(|a| a.id == id) {
-        active.control.stop();
-    } else {
-        lock(&app.rec).cancel(id).map_err(bad)?;
+fn cancel(app: &Arc<App>, target: RecordingRef) -> Res {
+    let account = find_account(app, target.account)?;
+    let control = lock(&account.active)
+        .as_ref()
+        .filter(|a| a.id == target.id)
+        .map(|a| a.control.clone());
+    match control {
+        Some(control) => control.stop(),
+        None => lock(&account.rec).cancel(target.id).map_err(bad)?,
     }
     Ok(Reply::Json(json!({"ok": true})))
 }
 
-fn delete(app: &Arc<App>, id: i64) -> Res {
-    lock(&app.rec).delete(id).map_err(bad)?;
+fn delete(app: &Arc<App>, target: RecordingRef) -> Res {
+    let account = find_account(app, target.account)?;
+    lock(&account.rec).delete(target.id).map_err(bad)?;
     Ok(Reply::Json(json!({"ok": true})))
 }
 
-fn file(app: &Arc<App>, id: &str, query: &str) -> Res {
+fn file(app: &Arc<App>, path: &str, query: &str) -> Res {
+    let (account, id) = path.split_once('/').ok_or((404, "introuvable".to_owned()))?;
+    let account: u32 = account.parse().map_err(|_| (404, "introuvable".to_owned()))?;
     let id: i64 = id.parse().map_err(|_| (404, "introuvable".to_owned()))?;
-    let recording = lock(&app.rec)
+    let account = find_account(app, account)?;
+    let recording = lock(&account.rec)
         .recording(id)
         .map_err(bad)?
         .ok_or((404, "Cet enregistrement n'existe plus.".to_owned()))?;
     let name = (query_param(query, "dl").as_deref() == Some("1"))
-        .then(|| format!("enregistrement-{id}.ts"));
+        .then(|| format!("enregistrement-{}-{id}.ts", account.config.id));
     Ok(Reply::File(recording.path, name))
 }
 
@@ -553,13 +760,19 @@ fn handle(app: Arc<App>, mut request: Request) {
 
 // --- Planificateur ----------------------------------------------------------
 
-/// Toutes les 3 s : prolonge ou raccourcit la copie en cours, ou démarre
-/// l'enregistrement dû. Une seule copie à la fois.
+/// Toutes les 3 s, pour chaque compte : prolonge ou raccourcit sa copie en
+/// cours, ou démarre l'enregistrement dû. Une copie à la fois par compte.
 fn tick(app: &Arc<App>) {
+    for account in app.accounts() {
+        tick_account(app, &account);
+    }
+}
+
+fn tick_account(app: &Arc<App>, account: &Arc<Account>) {
     let now = now();
-    let running = lock(&app.active).as_ref().map(|a| (a.id, a.control.clone()));
+    let running = lock(&account.active).as_ref().map(|a| (a.id, a.control.clone()));
     if let Some((id, control)) = running {
-        let mut rec = lock(&app.rec);
+        let mut rec = lock(&account.rec);
         if let Ok(Some(due)) = rec.due(now)
             && due.id == id
         {
@@ -568,40 +781,38 @@ fn tick(app: &Arc<App>) {
         let _ = rec.update_progress(id, control.bytes(), now);
         return;
     }
-    let Some(client) = lock(&app.client).clone() else {
-        return;
-    };
-    let due = match lock(&app.rec).due(now) {
+    let due = match lock(&account.rec).due(now) {
         Ok(Some(due)) => due,
         _ => return,
     };
     if app.apply_dir().is_err() {
         return;
     }
-    let space = volume_space(&app.dir());
-    let job = match lock(&app.rec).begin(due.id, space, now) {
+    let space = volume_space(&app.base_dir());
+    let job = match lock(&account.rec).begin(due.id, space, now) {
         Ok(job) => job,
         Err(e) => {
-            eprintln!("Enregistrement {} impossible : {e}", due.id);
+            eprintln!("Enregistrement {} ({}) impossible : {e}", due.id, account.label());
             return;
         }
     };
     let control = CaptureControl::default();
-    *lock(&app.active) = Some(Active {
+    *lock(&account.active) = Some(Active {
         id: job.recording_id,
         control: control.clone(),
     });
-    println!("Enregistrement {} démarré.", job.recording_id);
+    println!("Enregistrement {} démarré ({}).", job.recording_id, account.label());
     let app = app.clone();
+    let account = account.clone();
     std::thread::spawn(move || {
         let report = app
             .rt
-            .block_on(capture(&client, &job, &control, &CaptureOptions::default()));
-        match lock(&app.rec).finish(job.recording_id, &report, self::now()) {
+            .block_on(capture(&account.client, &job, &control, &CaptureOptions::default()));
+        match lock(&account.rec).finish(job.recording_id, &report, self::now()) {
             Ok(r) => println!("Enregistrement {} terminé ({:?}).", r.id, r.state),
             Err(e) => eprintln!("Bilan de l'enregistrement {} perdu : {e}", job.recording_id),
         }
-        *lock(&app.active) = None;
+        *lock(&account.active) = None;
     });
 }
 
@@ -666,13 +877,6 @@ fn main() {
         return;
     }
     let config = load_config(&options.data_dir);
-    let rec = match Recordings::open(options.data_dir.join("planning.db")) {
-        Ok(rec) => rec,
-        Err(e) => {
-            eprintln!("Planning illisible : {e}");
-            return;
-        }
-    };
     let rt = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -680,12 +884,18 @@ fn main() {
             return;
         }
     };
+    let mut accounts = Vec::new();
+    for account in config.accounts.iter().cloned() {
+        match open_account(&options.data_dir, account) {
+            Ok(account) => accounts.push(account),
+            Err(e) => eprintln!("Compte ignoré : {e}"),
+        }
+    }
     let app = Arc::new(App {
         data_dir: options.data_dir.clone(),
-        client: Mutex::new(make_client(&config)),
-        config: Mutex::new(config),
-        rec: Mutex::new(rec),
-        active: Mutex::new(None),
+        dir: Mutex::new(config.dir),
+        next_id: Mutex::new(config.next_id.max(1)),
+        accounts: Mutex::new(accounts),
         catalog: Mutex::new(None),
         failure: Mutex::new(None),
         rt,
@@ -694,7 +904,9 @@ fn main() {
         eprintln!("{e}");
     }
     // Enregistrements interrompus par un arrêt du programme.
-    let _ = lock(&app.rec).recover(now());
+    for account in app.accounts() {
+        let _ = lock(&account.rec).recover(now());
+    }
 
     let host = if options.lan { "0.0.0.0" } else { "127.0.0.1" };
     let server = match Server::http((host, options.port)) {

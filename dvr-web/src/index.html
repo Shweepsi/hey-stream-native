@@ -73,14 +73,20 @@
     <div id="recordings"></div>
   </section>
   <section id="tab-settings" hidden>
-    <form class="settings" id="settings">
+    <div class="settings" id="accounts-box">
+      <h2 style="margin-top:0">Comptes</h2>
+      <div id="accounts" class="list"></div>
+      <div class="msg">Un compte = une chaîne enregistrée à la fois. Ajoute un compte pour enregistrer plusieurs chaînes en même temps : chaque programmation va sur le premier compte libre.</div>
+    </div>
+    <form class="settings" id="settings" style="margin-top:22px">
+      <h2 style="margin:0">Ajouter un compte</h2>
       <label>Adresse du serveur <input id="s-server" placeholder="http://exemple.tv:8080" required></label>
       <label>Identifiant <input id="s-user" autocomplete="username" required></label>
       <label>Mot de passe <input id="s-pass" type="password" autocomplete="current-password" required></label>
-      <label>Dossier des enregistrements (vide : dossier par défaut) <input id="s-dir"></label>
+      <label>Dossier des enregistrements (vide : garder l'actuel) <input id="s-dir"></label>
       <div class="msg" id="s-msg"></div>
-      <div><button class="btn primary" type="submit">Enregistrer et tester</button></div>
-      <div class="msg">Le mot de passe est gardé en clair dans le dossier de données de ce PC. La page n'est accessible que depuis cet ordinateur.</div>
+      <div><button class="btn primary" type="submit">Ajouter et tester</button></div>
+      <div class="msg">Les mots de passe sont gardés en clair dans le dossier de données de ce PC. La page n'est accessible que depuis cet ordinateur.</div>
     </form>
   </section>
 </main>
@@ -145,16 +151,26 @@ async function loadState() {
   state = await api('/api/state');
   const u = state.usage;
   $('usage').textContent = u ? `${fmtSize(u.used)} utilisés · encore ${fmtDur(u.remaining_secs)} possibles` : (state.disk ? '' : 'Dossier des enregistrements introuvable');
+  renderAccounts();
   if (!state.configured) show('settings');
   return state;
 }
+function renderAccounts() {
+  $('accounts').innerHTML = state.accounts.length ? state.accounts.map((a) => `<div class="item"><div class="main"><div class="title">${esc(a.label)}</div><div class="sub">${esc(a.server)}${a.recording ? ' · enregistre en ce moment' : ''}</div></div><button class="btn small" data-remove="${a.id}">Retirer</button></div>`).join('') : '<div class="msg">Aucun compte pour l\'instant.</div>';
+}
+$('accounts').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-remove]'); if (!b) return;
+  if (!confirm('Retirer ce compte ? Ses programmations sont annulées, ses fichiers restent sur le disque.')) return;
+  try { await api('/api/account/remove', { id: Number(b.dataset.remove) }); await loadState(); } catch (err) { alert(err.message); }
+});
 $('settings').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('s-msg').className = 'msg'; $('s-msg').textContent = 'Test de la connexion…';
   try {
     await api('/api/login', { server_url: $('s-server').value, username: $('s-user').value, password: $('s-pass').value, dir: $('s-dir').value });
-    $('s-msg').textContent = 'Connecté.';
-    await loadState(); await loadChannels(); show('channels');
+    $('s-msg').textContent = 'Compte ajouté.';
+    $('s-user').value = ''; $('s-pass').value = '';
+    await loadState(); await loadChannels();
   } catch (err) { $('s-msg').className = 'msg err'; $('s-msg').textContent = err.message; }
 });
 
@@ -236,6 +252,7 @@ $('rd-estimate').addEventListener('click', async () => {
   try {
     const p = await api('/api/preview', currentRequest());
     const parts = [`${fmtTime(p.start)} → ${fmtHour(p.stop)}`];
+    if (state.accounts.length > 1) parts.push(`compte ${p.account}`);
     parts.push(p.measured ? `taille estimée ${fmtSize(p.estimated_bytes)}` : 'taille inconnue (chaîne jamais enregistrée)');
     if (p.merged_into) parts.push('prolonge un enregistrement déjà programmé');
     if (p.margins_shortened) parts.push('marges raccourcies (autre enregistrement)');
@@ -256,17 +273,18 @@ const stateLabel = { scheduled: 'Programmé', recording: 'En cours', done: 'Term
 const problemLabel = { Gaps: 'des passages manquent', OutOfSpace: 'disque plein', ConnectionLost: 'chaîne injoignable', WriteFailed: 'écriture impossible', VolumeMissing: 'disque absent', Interrupted: 'programme arrêté pendant l\'enregistrement', NotStarted: 'jamais démarré' };
 let recs = {};
 function recItem(r) {
-  recs[r.id] = r;
+  const key = `${r.account}:${r.id}`;
+  recs[key] = r;
   const title = r.more ? `${r.title} (+${r.more})` : r.title;
-  const sub = [r.channel, fmtTime(r.start) + ' – ' + fmtHour(r.stop)];
+  const sub = [r.channel, ...(state.accounts.length > 1 ? [r.account_label] : []), fmtTime(r.start) + ' – ' + fmtHour(r.stop)];
   if (r.bytes) sub.push(fmtSize(r.bytes));
   if (r.problem) sub.push(problemLabel[r.problem] || r.problem);
   const playable = !r.volume_missing && r.bytes > 0 && r.state !== 'scheduled';
   const buttons = [];
-  if (playable) buttons.push(`<button class="btn small" data-act="play" data-id="${r.id}">Lire</button>`);
-  if (r.state === 'scheduled') buttons.push(`<button class="btn small" data-act="cancel" data-id="${r.id}">Annuler</button>`);
-  else if (r.state === 'recording') buttons.push(`<button class="btn small" data-act="cancel" data-id="${r.id}">Arrêter</button>`);
-  else buttons.push(`<button class="btn small" data-act="delete" data-id="${r.id}">Supprimer</button>`);
+  if (playable) buttons.push(`<button class="btn small" data-act="play" data-key="${key}">Lire</button>`);
+  if (r.state === 'scheduled') buttons.push(`<button class="btn small" data-act="cancel" data-key="${key}">Annuler</button>`);
+  else if (r.state === 'recording') buttons.push(`<button class="btn small" data-act="cancel" data-key="${key}">Arrêter</button>`);
+  else buttons.push(`<button class="btn small" data-act="delete" data-key="${key}">Supprimer</button>`);
   return `<div class="item"><div class="main"><div class="title">${esc(title)}</div><div class="sub">${esc(sub.join(' · '))}</div></div><span class="tag ${r.state}">${stateLabel[r.state] || r.state}</span>${buttons.join('')}</div>`;
 }
 async function loadRecordings() {
@@ -281,11 +299,11 @@ async function loadRecordings() {
 }
 $('recordings').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
-  const id = Number(b.dataset.id);
+  const r = recs[b.dataset.key];
   try {
-    if (b.dataset.act === 'play') return play(recs[id]);
+    if (b.dataset.act === 'play') return play(r);
     if (b.dataset.act === 'delete' && !confirm('Supprimer cet enregistrement et son fichier ?')) return;
-    await api('/api/' + b.dataset.act, { id });
+    await api('/api/' + b.dataset.act, { account: r.account, id: r.id });
     await loadState(); await loadRecordings();
   } catch (err) { alert(err.message); }
 });
@@ -299,11 +317,11 @@ function stopPlayer() {
 }
 function play(r) {
   $('pd-title').textContent = r.title;
-  $('pd-dl').href = `/files/${r.id}?dl=1`;
+  $('pd-dl').href = `/files/${r.account}/${r.id}?dl=1`;
   $('pd-msg').textContent = '';
   $('play-dialog').showModal();
   if (window.mpegts && mpegts.isSupported()) {
-    mpPlayer = mpegts.createPlayer({ type: 'mpegts', url: `/files/${r.id}`, isLive: false });
+    mpPlayer = mpegts.createPlayer({ type: 'mpegts', url: `/files/${r.account}/${r.id}`, isLive: false });
     mpPlayer.attachMediaElement($('player')); mpPlayer.load();
     mpPlayer.play().catch(() => {});
     mpPlayer.on(mpegts.Events.ERROR, () => { $('pd-msg').textContent = 'Lecture impossible ici : télécharge le fichier et ouvre-le avec VLC.'; });
