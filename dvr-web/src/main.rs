@@ -28,6 +28,8 @@ const DEFAULT_PORT: u16 = 8780;
 const CATALOG_TTL: Duration = Duration::from_secs(600);
 /// Chaînes renvoyées à la page au plus.
 const CHANNEL_LIMIT: usize = 300;
+/// Pause après un échec du fournisseur avant de le rappeler.
+const RETRY_AFTER: Duration = Duration::from_secs(60);
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct Config {
@@ -63,6 +65,8 @@ struct App {
     rec: Mutex<Recordings>,
     active: Mutex<Option<Active>>,
     catalog: Mutex<Option<Catalog>>,
+    /// Dernier échec du chargement des chaînes (heure, message).
+    failure: Mutex<Option<(Instant, String)>>,
     rt: tokio::runtime::Runtime,
 }
 
@@ -100,40 +104,64 @@ impl App {
     }
 
     /// Chaînes et catégories du direct, rechargées au plus toutes les 10 min.
+    /// Un seul chargement à la fois, et après un échec le fournisseur n'est
+    /// pas rappelé avant une minute (il bloque les requêtes en rafale) : la
+    /// liste périmée, si on l'a, reste servie.
     fn with_catalog<T>(&self, f: impl FnOnce(&Catalog) -> T) -> Result<T, (u16, String)> {
+        let mut failure = lock(&self.failure);
         let fresh = lock(&self.catalog)
             .as_ref()
             .is_some_and(|c| c.at.elapsed() < CATALOG_TTL);
-        if !fresh {
+        let blocked = failure
+            .as_ref()
+            .is_some_and(|(at, _)| at.elapsed() < RETRY_AFTER);
+        if !fresh && !blocked {
             let client = self.client()?;
-            let (categories, streams) = self
-                .rt
-                .block_on(async { Ok::<_, xtream_core::Error>((client.live_categories().await?, client.live_streams(None).await?)) })
-                .map_err(bad)?;
-            let catalog = Catalog {
-                at: Instant::now(),
-                categories: categories
-                    .into_iter()
-                    .map(|c| {
-                        let name = c.category_name.unwrap_or_else(|| c.category_id.clone());
-                        (c.category_id, name)
-                    })
-                    .collect(),
-                channels: streams
-                    .into_iter()
-                    .map(|s| Channel {
-                        id: s.stream_id,
-                        name: s.name.unwrap_or_else(|| format!("Chaîne {}", s.stream_id)),
-                        icon: s.stream_icon,
-                        category: s.category_id,
-                    })
-                    .collect(),
-            };
-            *lock(&self.catalog) = Some(catalog);
+            let fetched = self.rt.block_on(async {
+                let categories = client.live_categories().await?;
+                // Une pause entre les deux requêtes : pas de rafale.
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let streams = client.live_streams(None).await?;
+                Ok::<_, xtream_core::Error>((categories, streams))
+            });
+            match fetched {
+                Ok((categories, streams)) => {
+                    *failure = None;
+                    *lock(&self.catalog) = Some(Catalog {
+                        at: Instant::now(),
+                        categories: categories
+                            .into_iter()
+                            .map(|c| {
+                                let name = c.category_name.unwrap_or_else(|| c.category_id.clone());
+                                (c.category_id, name)
+                            })
+                            .collect(),
+                        channels: streams
+                            .into_iter()
+                            .map(|s| Channel {
+                                id: s.stream_id,
+                                name: s.name.unwrap_or_else(|| format!("Chaîne {}", s.stream_id)),
+                                icon: s.stream_icon,
+                                category: s.category_id,
+                            })
+                            .collect(),
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Chargement des chaînes : {e}");
+                    *failure = Some((Instant::now(), e.to_string()));
+                }
+            }
         }
         let guard = lock(&self.catalog);
-        let catalog = guard.as_ref().ok_or((500, "catalogue indisponible".to_owned()))?;
-        Ok(f(catalog))
+        match (guard.as_ref(), failure.as_ref()) {
+            (Some(catalog), _) => Ok(f(catalog)),
+            (None, Some((_, message))) => Err((
+                502,
+                format!("Chargement des chaînes impossible : {message}. Nouvel essai possible dans une minute."),
+            )),
+            (None, None) => Err((500, "catalogue indisponible".to_owned())),
+        }
     }
 }
 
@@ -325,6 +353,7 @@ fn login(app: &Arc<App>, body: LoginBody) -> Res {
     *lock(&app.config) = config;
     *lock(&app.client) = Some(client);
     *lock(&app.catalog) = None;
+    *lock(&app.failure) = None;
     app.apply_dir().map_err(|e| (500, e))?;
     Ok(Reply::Json(json!({"ok": true})))
 }
@@ -605,6 +634,7 @@ fn main() {
         rec: Mutex::new(rec),
         active: Mutex::new(None),
         catalog: Mutex::new(None),
+        failure: Mutex::new(None),
         rt,
     });
     if let Err(e) = app.apply_dir() {
