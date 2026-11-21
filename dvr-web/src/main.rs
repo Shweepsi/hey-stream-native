@@ -30,6 +30,8 @@ const CATALOG_TTL: Duration = Duration::from_secs(600);
 /// Chaînes renvoyées à la page au plus.
 const CHANNEL_LIMIT: usize = 300;
 /// Pause après un échec du fournisseur avant de le rappeler.
+/// Programmes demandés au panneau pour le guide d'une chaîne (le reste de la journée et le lendemain).
+const GUIDE_LIMIT: u32 = 40;
 const RETRY_AFTER: Duration = Duration::from_secs(60);
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -593,7 +595,7 @@ fn epg(app: &Arc<App>, query: &str) -> Res {
         .and_then(|v| v.parse().ok())
         .ok_or((400, "stream_id manquant".to_owned()))?;
     let client = app.first_client()?;
-    let programmes = app.rt.block_on(client.short_epg(id)).map_err(bad)?;
+    let programmes = app.rt.block_on(client.short_epg_limit(id, GUIDE_LIMIT)).map_err(bad)?;
     let list: Vec<Value> = programmes
         .iter()
         .map(|p| json!({"title": p.title, "description": p.description, "start": p.start, "stop": p.stop}))

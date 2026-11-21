@@ -87,6 +87,8 @@
   .prog .name { font-weight:600; font-size:16px; }
   .prog .desc { grid-column:1; color:var(--dim); font-size:14px; overflow:hidden; }
   .prog .act { grid-column:2; grid-row:1 / span 2; align-self:center; }
+  h2.day { margin:14px 0 2px; text-transform:capitalize; letter-spacing:.02em; font-size:13px; }
+  h2.day:first-child { margin-top:0; }
   .more { background:none; border:0; color:var(--text); padding:0; text-decoration:underline; cursor:pointer; font-size:13px; grid-column:1; justify-self:start; }
 
   /* Dialogues */
@@ -352,9 +354,13 @@ async function loadGuide() {
   try {
     const data = await api('/api/epg?stream_id=' + id);
     programmes = data.programmes.filter((p) => p.stop > now);
+    let lastDay = '';
     $('progs').innerHTML = programmes.length ? programmes.map((p, i) => {
       const live = p.start <= now;
-      return `<div class="prog">
+      const day = new Date(p.start * 1000).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      const head = day !== lastDay ? `<h2 class="day">${esc(day)}</h2>` : '';
+      lastDay = day;
+      return `${head}<div class="prog">
         <div><div class="name">${esc(p.title)} ${live ? '<span class="badge live">En direct</span>' : ''}</div><div class="when">${fmtTime(p.start)} – ${fmtHour(p.stop)}</div></div>
         <button class="btn primary small act" data-i="${i}">${icon('rec')}Enregistrer</button>
         ${p.description ? `<div class="desc" data-pretext data-text="${esc(p.description)}">${esc(p.description)}</div><button class="more" hidden>Lire la suite</button>` : ''}

@@ -18,7 +18,7 @@ use crate::lenient::{opt_i64, opt_string};
 /// Délai minimal entre deux demandes d'EPG pour une même chaîne.
 pub const EPG_MIN_INTERVAL_SECS: i64 = 15 * 60;
 /// Nombre de programmes demandés : le cours, le suivant et une marge.
-const EPG_LIMIT: &str = "4";
+const EPG_LIMIT: u32 = 4;
 
 /// Un programme TV.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,11 +59,18 @@ impl XtreamClient {
     /// descriptions arrivent encodés en base64 ; une entrée illisible est
     /// ignorée.
     pub async fn short_epg(&self, stream_id: i64) -> Result<Vec<Programme>> {
+        self.short_epg_limit(stream_id, EPG_LIMIT).await
+    }
+
+    /// Comme [`Self::short_epg`], avec `limit` programmes demandés au panneau
+    /// (le guide de l'appli web d'enregistrement en veut davantage).
+    pub async fn short_epg_limit(&self, stream_id: i64, limit: u32) -> Result<Vec<Programme>> {
         let id = stream_id.to_string();
+        let limit = limit.to_string();
         let value = self
             .get(
                 Some("get_short_epg"),
-                &[("stream_id", id.as_str()), ("limit", EPG_LIMIT)],
+                &[("stream_id", id.as_str()), ("limit", limit.as_str())],
             )
             .await?;
         let listings = match value {
