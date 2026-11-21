@@ -3,107 +3,201 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hey-stream DVR</title>
+<title>Hey Stream · Enregistrements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; --bg:#101216; --panel:#181b21; --line:#262a33; --text:#e8eaee; --dim:#8b92a0; --accent:#e5484d; --ok:#3fb950; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.4 system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
-  header { display:flex; align-items:center; gap:18px; padding:12px 20px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
-  header h1 { font-size:16px; margin:0; }
-  nav { display:flex; gap:4px; }
-  nav button { background:none; border:0; color:var(--dim); padding:8px 14px; border-radius:8px; cursor:pointer; font:inherit; }
-  nav button.on { background:var(--panel); color:var(--text); }
-  #usage { margin-left:auto; color:var(--dim); font-size:13px; }
-  main { max-width:960px; margin:0 auto; padding:20px; }
-  .row { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
-  input, select, button.btn { background:var(--panel); border:1px solid var(--line); color:var(--text); padding:9px 12px; border-radius:8px; font:inherit; }
-  input[type=search], input.grow { flex:1; min-width:180px; }
-  button.btn { cursor:pointer; }
-  button.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button.btn.small { padding:5px 10px; font-size:13px; }
-  .list { display:flex; flex-direction:column; gap:2px; }
-  .item { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--panel); border-radius:8px; }
-  .item.click { cursor:pointer; }
-  .item.click:hover { outline:1px solid var(--line); }
-  .item img { width:36px; height:36px; object-fit:contain; border-radius:6px; background:#0c0e11; }
-  .item .main { flex:1; min-width:0; }
-  .item .title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .item .sub { color:var(--dim); font-size:13px; }
-  .tag { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--line); color:var(--dim); }
-  .tag.recording { background:var(--accent); color:#fff; }
-  .tag.done { background:#1d3a26; color:var(--ok); }
-  .tag.incomplete, .tag.failed, .tag.missed { background:#4a2a14; color:#f0a35e; }
-  h2 { font-size:14px; color:var(--dim); font-weight:600; margin:22px 0 8px; text-transform:uppercase; letter-spacing:.04em; }
-  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:20px; width:min(520px,92vw); }
-  dialog::backdrop { background:rgba(0,0,0,.6); }
-  dialog h3 { margin:0 0 4px; font-size:17px; }
-  .field { display:flex; align-items:center; gap:10px; margin:10px 0; }
+  :root {
+    --bg:#121214; --surface:#1C1C1F; --surface2:#2A2A2E; --sep:#26262A;
+    --text:#F4F4F5; --dim:#A1A1AA; --blue:#1F6BFF; --red:#FF2E3B;
+    --radius:12px; --rail:100px;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:400 15px/1.45 Inter, system-ui, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--blue); color:#fff; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  button, input, select { font: inherit; color: inherit; }
+  svg.i { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  [hidden] { display:none !important; }
+
+  .app { display:grid; grid-template-columns: var(--rail) 1fr; height:100%; }
+  /* Rail */
+  .rail { display:flex; flex-direction:column; align-items:center; gap:6px; padding:18px 8px; border-right:1px solid var(--sep); }
+  .logo { margin-bottom:14px; }
+  .rail button { width:100%; display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 4px; background:none; border:0; border-radius:var(--radius); color:var(--dim); cursor:pointer; font-size:11px; font-weight:500; }
+  .rail button:hover { color:var(--text); }
+  .rail button[aria-current="page"] { background:var(--surface2); color:var(--text); font-weight:600; }
+  .meter { margin-top:auto; width:100%; padding:8px 4px 0; text-align:center; color:var(--dim); font-size:11px; line-height:1.3; }
+  .meter b { display:block; color:var(--text); font-weight:600; font-size:12px; }
+  .meter .bar { height:4px; border-radius:2px; background:var(--surface2); margin:6px 6px 8px; overflow:hidden; }
+  .meter .bar i { display:block; height:100%; background:var(--text); }
+
+  /* Contenu */
+  .content { min-width:0; min-height:0; display:flex; flex-direction:column; }
+  .topbar { display:flex; align-items:center; gap:12px; padding:16px 24px 0; }
+  h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-0.02em; }
+  h2 { margin:0 0 10px; font-size:13px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
+  .panes { flex:1; min-height:0; display:grid; grid-template-columns: 220px minmax(260px,340px) 1fr; gap:16px; padding:16px 24px 24px; }
+  .pane { min-height:0; min-width:0; display:flex; flex-direction:column; }
+  .scroll { overflow:auto; min-height:0; flex:1; scrollbar-width:thin; scrollbar-color:var(--surface2) transparent; }
+  .page { padding:16px 24px 32px; overflow:auto; flex:1; max-width:880px; width:100%; }
+
+  /* Lignes */
+  .row { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:none; border:0; border-radius:var(--radius); padding:10px 12px; cursor:pointer; min-height:48px; }
+  .row:hover { background:var(--surface); }
+  .row[aria-selected="true"] { background:var(--surface2); font-weight:600; }
+  .row img, .row .ph { width:32px; height:32px; border-radius:8px; object-fit:contain; background:var(--surface); flex:none; }
+  .row .t { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card { background:var(--surface); border-radius:var(--radius); padding:14px 16px; }
+  .stack { display:flex; flex-direction:column; gap:8px; }
+  .sub { color:var(--dim); font-size:13px; }
+  .msg { color:var(--dim); font-size:14px; margin:10px 0; white-space:pre-wrap; word-break:break-word; }
+  .msg.err { color:var(--text); display:flex; gap:8px; align-items:flex-start; }
+  .msg.err svg { color:var(--red); margin-top:2px; }
+  .empty { color:var(--dim); text-align:center; padding:48px 12px; }
+
+  /* Champs et boutons */
+  .search { position:relative; margin-bottom:10px; }
+  .search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--dim); }
+  input { background:var(--surface2); border:2px solid transparent; border-radius:var(--radius); padding:10px 12px; min-height:44px; width:100%; }
+  .search input { padding-left:40px; }
+  input:focus { outline:none; border-color:var(--blue); }
+  input::placeholder { color:var(--dim); }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 18px; border-radius:var(--radius); background:var(--surface2); border:0; cursor:pointer; font-weight:500; text-decoration:none; }
+  .btn:hover { background:#34343a; }
+  .btn.primary { background:var(--text); color:var(--bg); font-weight:600; }
+  .btn.primary:hover { background:#fff; }
+  .btn.small { min-height:36px; padding:0 14px; font-size:14px; }
+  .btn.ghost { background:none; color:var(--dim); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; padding:3px 8px; border-radius:6px; background:var(--surface2); color:var(--dim); flex:none; }
+  .badge.live { background:var(--text); color:var(--bg); }
+  .badge.warn { color:var(--text); background:var(--surface2); display:inline-flex; align-items:center; gap:5px; }
+  .badge.warn svg { width:13px; height:13px; color:var(--red); }
+
+  /* Guide */
+  .guide-head { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .guide-head img, .guide-head .ph { width:48px; height:48px; border-radius:10px; object-fit:contain; background:var(--surface); }
+  .guide-head h3 { margin:0; font-size:20px; font-weight:600; letter-spacing:-0.01em; }
+  .prog { display:grid; grid-template-columns: 1fr auto; gap:6px 16px; align-items:start; padding:14px 16px; background:var(--surface); border-radius:var(--radius); }
+  .prog .when { color:var(--dim); font-size:13px; }
+  .prog .name { font-weight:600; font-size:16px; }
+  .prog .desc { grid-column:1; color:var(--dim); font-size:14px; overflow:hidden; }
+  .prog .act { grid-column:2; grid-row:1 / span 2; align-self:center; }
+  .more { background:none; border:0; color:var(--text); padding:0; text-decoration:underline; cursor:pointer; font-size:13px; grid-column:1; justify-self:start; }
+
+  /* Dialogues */
+  dialog { background:var(--surface); color:var(--text); border:0; border-radius:var(--radius); padding:24px; width:min(520px,92vw); }
+  dialog::backdrop { background:rgba(0,0,0,.72); }
+  dialog h3 { margin:0 0 2px; font-size:20px; font-weight:600; }
+  .field { display:flex; align-items:center; gap:12px; margin:12px 0; }
   .field label { flex:1; color:var(--dim); }
-  .field input { width:130px; }
-  .msg { margin:10px 0; color:var(--dim); font-size:14px; }
-  .msg.err { color:#f0a35e; }
-  #s-msg { white-space:pre-wrap; word-break:break-word; }
-  .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
-  video { width:100%; max-height:70vh; background:#000; border-radius:8px; }
-  form.settings { display:flex; flex-direction:column; gap:12px; max-width:520px; }
-  form.settings label { display:flex; flex-direction:column; gap:4px; color:var(--dim); font-size:13px; }
-  form.settings input { width:100%; }
-  .empty { color:var(--dim); padding:30px 0; text-align:center; }
+  .field input { width:140px; text-align:center; }
+  .field input[type=datetime-local] { width:auto; }
+  .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; flex-wrap:wrap; }
+  video { width:100%; max-height:66vh; background:#000; border-radius:var(--radius); }
+
+  /* Formulaires */
+  form.settings { display:flex; flex-direction:column; gap:14px; }
+  form.settings label { display:flex; flex-direction:column; gap:6px; color:var(--dim); font-size:13px; }
+  .section { margin-bottom:32px; }
+
+  /* Étroit : une colonne, rail en bas */
+  @media (max-width: 960px) {
+    .app { grid-template-columns:1fr; grid-template-rows:1fr auto; }
+    .rail { order:2; flex-direction:row; justify-content:space-around; border-right:0; border-top:1px solid var(--sep); padding:6px 8px; }
+    .rail .logo, .meter { display:none; }
+    .rail button { width:auto; min-width:76px; }
+    .panes { grid-template-columns:1fr; grid-template-rows:auto minmax(200px,1fr) auto; overflow:auto; }
+    #cats { flex-direction:row !important; overflow-x:auto; }
+    #cats .row { width:auto; white-space:nowrap; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior:auto !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>hey-stream DVR</h1>
-  <nav>
-    <button data-tab="channels" class="on">Chaînes</button>
-    <button data-tab="recordings">Enregistrements</button>
-    <button data-tab="settings">Réglages</button>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-tv" viewBox="0 0 24 24"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></symbol>
+    <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="i-set" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <nav class="rail" aria-label="Sections">
+    <svg class="logo" width="44" height="44" viewBox="0 0 44 44" aria-label="Hey Stream" role="img">
+      <path d="M13 9.5 31 22 13 34.5Z" fill="#F4F4F5" stroke="#F4F4F5" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M33 14.5c3 4.8 3 10.2 0 15" fill="none" stroke="#1F6BFF" stroke-width="3" stroke-linecap="round"/>
+      <path d="M37.5 10c4.8 7.2 4.8 16.8 0 24" fill="none" stroke="#FF2E3B" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <button data-tab="channels" aria-current="page"><svg class="i"><use href="#i-tv"/></svg>Chaînes</button>
+    <button data-tab="recordings"><svg class="i"><use href="#i-rec"/></svg>Enregistrements</button>
+    <button data-tab="settings"><svg class="i"><use href="#i-set"/></svg>Réglages</button>
+    <div class="meter" id="usage"></div>
   </nav>
-  <div id="usage"></div>
-</header>
-<main>
-  <section id="tab-channels">
-    <div class="row">
-      <select id="category"></select>
-      <input type="search" id="search" placeholder="Chercher une chaîne…">
-    </div>
-    <div id="channels" class="list"></div>
-  </section>
-  <section id="tab-recordings" hidden>
-    <div id="recordings"></div>
-  </section>
-  <section id="tab-settings" hidden>
-    <div class="settings" id="accounts-box">
-      <h2 style="margin-top:0">Comptes</h2>
-      <div id="accounts" class="list"></div>
-      <div class="msg">Un compte = une chaîne enregistrée à la fois. Ajoute un compte pour enregistrer plusieurs chaînes en même temps : chaque programmation va sur le premier compte libre.</div>
-    </div>
-    <form class="settings" id="settings" style="margin-top:22px">
-      <h2 style="margin:0">Ajouter un compte</h2>
-      <label>Adresse du serveur <input id="s-server" placeholder="http://exemple.tv:8080" required></label>
-      <label>Identifiant <input id="s-user" autocomplete="username" required></label>
-      <label>Mot de passe <input id="s-pass" type="password" autocomplete="current-password" required></label>
-      <label>Dossier des enregistrements (vide : garder l'actuel) <input id="s-dir"></label>
-      <div class="msg" id="s-msg"></div>
-      <div><button class="btn primary" type="submit">Ajouter et tester</button></div>
-      <div class="msg">Les mots de passe sont gardés en clair dans le dossier de données de ce PC. La page n'est accessible que depuis cet ordinateur.</div>
-    </form>
-  </section>
-</main>
+
+  <main class="content">
+    <section id="tab-channels" class="content" style="flex:1;min-height:0">
+      <div class="topbar"><h1>Chaînes</h1></div>
+      <div class="panes">
+        <div class="pane"><h2>Catégories</h2><div class="scroll stack" id="cats" style="gap:2px"></div></div>
+        <div class="pane">
+          <h2>Chaînes</h2>
+          <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Chercher une chaîne" aria-label="Chercher une chaîne"></div>
+          <div class="scroll stack" id="channels" style="gap:2px"></div>
+        </div>
+        <div class="pane"><h2>Guide</h2><div class="scroll" id="guide"><div class="empty">Choisis une chaîne.</div></div></div>
+      </div>
+    </section>
+
+    <section id="tab-recordings" class="content" style="flex:1;min-height:0" hidden>
+      <div class="topbar"><h1>Enregistrements</h1></div>
+      <div class="page" id="recordings"></div>
+    </section>
+
+    <section id="tab-settings" class="content" style="flex:1;min-height:0" hidden>
+      <div class="topbar"><h1>Réglages</h1></div>
+      <div class="page">
+        <div class="section">
+          <h2>Comptes</h2>
+          <div id="accounts" class="stack"></div>
+          <div class="msg">Un compte enregistre une chaîne à la fois. Avec plusieurs comptes, chaque programmation va sur le premier compte libre.</div>
+        </div>
+        <form class="settings section" id="settings">
+          <h2>Ajouter un compte</h2>
+          <label>Adresse du serveur<input id="s-server" placeholder="http://exemple.tv:8080" required></label>
+          <label>Identifiant<input id="s-user" autocomplete="username" required></label>
+          <label>Mot de passe<input id="s-pass" type="password" autocomplete="current-password" required></label>
+          <label>Dossier des enregistrements (vide : garder l'actuel)<input id="s-dir" placeholder="C:\Users\…\Enregistrements"></label>
+          <div class="msg" id="s-msg"></div>
+          <div><button class="btn primary" type="submit">Ajouter et tester</button></div>
+          <div class="msg">Les mots de passe sont gardés en clair dans le dossier de données de ce PC. La page n'est accessible que depuis cet ordinateur.</div>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
 
 <dialog id="rec-dialog">
   <h3 id="rd-title"></h3>
-  <div class="sub msg" id="rd-sub"></div>
-  <div id="rd-programmes"></div>
+  <div class="sub" id="rd-sub"></div>
   <div id="rd-manual">
-    <div class="field"><label>Début</label><input type="datetime-local" id="rd-start" style="width:auto"></div>
-    <div class="field"><label>Durée (minutes)</label><input type="number" id="rd-duration" min="1" max="720" value="60"></div>
+    <div class="field"><label for="rd-start">Début</label><input type="datetime-local" id="rd-start"></div>
+    <div class="field"><label for="rd-duration">Durée (minutes)</label><input type="number" id="rd-duration" min="1" max="720" value="60"></div>
   </div>
-  <div class="field"><label>Commencer avant (min)</label><input type="number" id="rd-before" min="0" max="60" value="2"></div>
-  <div class="field"><label>Finir après (min)</label><input type="number" id="rd-after" min="0" max="60" value="5"></div>
-  <div class="msg" id="rd-preview"></div>
+  <div class="field"><label for="rd-before">Commencer avant (min)</label><input type="number" id="rd-before" min="0" max="60" value="2"></div>
+  <div class="field"><label for="rd-after">Finir après (min)</label><input type="number" id="rd-after" min="0" max="60" value="5"></div>
+  <div class="msg" id="rd-preview" role="status"></div>
   <div class="actions">
-    <button class="btn" id="rd-cancel">Fermer</button>
+    <button class="btn ghost" id="rd-cancel">Fermer</button>
     <button class="btn" id="rd-estimate">Estimer</button>
     <button class="btn primary" id="rd-ok">Programmer</button>
   </div>
@@ -114,15 +208,23 @@
   <video id="player" controls></video>
   <div class="msg" id="pd-msg"></div>
   <div class="actions">
-    <a class="btn" id="pd-dl" style="text-decoration:none">Télécharger</a>
-    <button class="btn" id="pd-close">Fermer</button>
+    <a class="btn" id="pd-dl">Télécharger</a>
+    <button class="btn ghost" id="pd-close">Fermer</button>
   </div>
 </dialog>
 
+<script>
+var x0=["BN","BN","BN","BN","BN","BN","BN","BN","BN","S","B","S","WS","B","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","B","B","B","S","WS","ON","ON","ET","ET","ET","ON","ON","ON","ON","ON","ON","CS","ON","CS","ON","EN","EN","EN","EN","EN","EN","EN","EN","EN","EN","ON","ON","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","ON","ON","ON","BN","BN","BN","BN","BN","BN","B","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","BN","CS","ON","ET","ET","ET","ET","ON","ON","ON","ON","L","ON","ON","ON","ON","ON","ET","ET","EN","EN","ON","L","ON","ON","ON","EN","L","ON","ON","ON","ON","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","L","ON","L","L","L","L","L","L","L","L"],g0=["AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","CS","AL","ON","ON","NSM","NSM","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AN","AN","AN","AN","AN","AN","AN","AN","AN","AN","ET","AN","AN","AL","AL","AL","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","NSM","ON","NSM","NSM","NSM","NSM","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL","AL"];function m0(O){if(O<=255)return x0[O];if(1424<=O&&O<=1524)return"R";if(1536<=O&&O<=1791)return g0[O&255];if(1792<=O&&O<=2220)return"AL";return"L"}function r0(O){let _=O.length;if(_===0)return null;let J=Array(_),Y=0;for(let V=0;V<_;V++){let $=m0(O.charCodeAt(V));if($==="R"||$==="AL"||$==="AN")Y++;J[V]=$}if(Y===0)return null;let X=_/Y<0.3?0:1,R=new Int8Array(_);for(let V=0;V<_;V++)R[V]=X;let Z=X&1?"R":"L",Q=Z,f=Q;for(let V=0;V<_;V++)if(J[V]==="NSM")J[V]=f;else f=J[V];f=Q;for(let V=0;V<_;V++){let $=J[V];if($==="EN")J[V]=f==="AL"?"AN":"EN";else if($==="R"||$==="L"||$==="AL")f=$}for(let V=0;V<_;V++)if(J[V]==="AL")J[V]="R";for(let V=1;V<_-1;V++){if(J[V]==="ES"&&J[V-1]==="EN"&&J[V+1]==="EN")J[V]="EN";if(J[V]==="CS"&&(J[V-1]==="EN"||J[V-1]==="AN")&&J[V+1]===J[V-1])J[V]=J[V-1]}for(let V=0;V<_;V++){if(J[V]!=="EN")continue;let $;for($=V-1;$>=0&&J[$]==="ET";$--)J[$]="EN";for($=V+1;$<_&&J[$]==="ET";$++)J[$]="EN"}for(let V=0;V<_;V++){let $=J[V];if($==="WS"||$==="ES"||$==="ET"||$==="CS")J[V]="ON"}f=Q;for(let V=0;V<_;V++){let $=J[V];if($==="EN")J[V]=f==="L"?"L":"EN";else if($==="R"||$==="L")f=$}for(let V=0;V<_;V++){if(J[V]!=="ON")continue;let $=V+1;while($<_&&J[$]==="ON")$++;let u=V>0?J[V-1]:Q,q=$<_?J[$]:Q,D=u!=="L"?"R":"L";if(D===(q!=="L"?"R":"L"))for(let K=V;K<$;K++)J[K]=D;V=$-1}for(let V=0;V<_;V++)if(J[V]==="ON")J[V]=Z;for(let V=0;V<_;V++){let $=J[V];if((R[V]&1)===0){if($==="R")R[V]++;else if($==="AN"||$==="EN")R[V]+=2}else if($==="L"||$==="AN"||$==="EN")R[V]++}return R}function u0(O,_){let J=r0(O);if(J===null)return null;let Y=new Int8Array(_.length);for(let X=0;X<_.length;X++)Y[X]=J[_[X]];return Y}var a0=/[ \t\n\r\f]+/g,s0=/[\t\n\r\f]| {2,}|^ | $/;function d0(O){let _=O??"normal";return _==="pre-wrap"?{mode:_,preserveOrdinarySpaces:!0,preserveHardBreaks:!0}:{mode:_,preserveOrdinarySpaces:!1,preserveHardBreaks:!1}}function i0(O){if(!s0.test(O))return O;let _=O.replace(a0," ");if(_.charCodeAt(0)===32)_=_.slice(1);if(_.length>0&&_.charCodeAt(_.length-1)===32)_=_.slice(0,-1);return _}function t0(O){if(!/[\r\f]/.test(O))return O.replace(/\r\n/g,`
+`);return O.replace(/\r\n/g,`
+`).replace(/[\r\f]/g,`
+`)}var d=null,V0;function n0(){if(d===null)d=new Intl.Segmenter(V0,{granularity:"word"});return d}function z0(){d=null}function j0(O){let _=O&&O.length>0?O:void 0;if(V0===_)return;V0=_,d=null}var e0=/\p{Script=Arabic}/u,O0=/\p{M}/u,b0=/\p{Nd}/u;function X0(O){return e0.test(O)}function p(O){for(let _ of O){let J=_.codePointAt(0);if(J>=19968&&J<=40959||J>=13312&&J<=19903||J>=131072&&J<=173791||J>=173824&&J<=177983||J>=177984&&J<=178207||J>=178208&&J<=183983||J>=183984&&J<=191471||J>=196608&&J<=201551||J>=63744&&J<=64255||J>=194560&&J<=195103||J>=12288&&J<=12351||J>=12352&&J<=12447||J>=12448&&J<=12543||J>=44032&&J<=55215||J>=65280&&J<=65519)return!0}return!1}var $0=new Set(["，","．","！","：","；","？","、","。","・","）","〕","〉","》","」","』","】","〗","〙","〛","ー","々","〻","ゝ","ゞ","ヽ","ヾ"]),i=new Set(['"',"(","[","{","“","‘","«","‹","（","〔","〈","《","「","『","【","〖","〘","〚"]),Q0=new Set(["'","’"]),r=new Set([".",",","!","?",":",";","،","؛","؟","।","॥","၊","။","၌","၍","၏",")","]","}","%",'"',"”","’","»","›","…"]),OO=new Set([":",".","،","؛"]),_O=new Set(["၏"]),JO=new Set(["”","’","»","›","」","』","】","》","〉","〕","）"]);function RO(O){if(q0(O))return!0;let _=!1;for(let J of O){if(r.has(J)){_=!0;continue}if(_&&O0.test(J))continue;return!1}return _}function VO(O){for(let _ of O)if(!$0.has(_)&&!r.has(_))return!1;return O.length>0}function XO(O){if(q0(O))return!0;for(let _ of O)if(!i.has(_)&&!Q0.has(_)&&!O0.test(_))return!1;return O.length>0}function q0(O){let _=!1;for(let J of O){if(J==="\\"||O0.test(J))continue;if(i.has(J)||r.has(J)||Q0.has(J)){_=!0;continue}return!1}return _}function YO(O){let _=Array.from(O),J=_.length;while(J>0){let Y=_[J-1];if(O0.test(Y)){J--;continue}if(i.has(Y)||Q0.has(Y)){J--;continue}break}if(J<=0||J===_.length)return null;return{head:_.slice(0,J).join(""),tail:_.slice(J).join("")}}function ZO(O,_){if(O.length===0)return!1;for(let J of O)if(J!==_)return!1;return!0}function $O(O){if(!X0(O)||O.length===0)return!1;return OO.has(O[O.length-1])}function QO(O){if(O.length===0)return!1;return _O.has(O[O.length-1])}function qO(O){if(O.length<2||O[0]!==" ")return null;let _=O.slice(1);if(/^\p{M}+$/u.test(_))return{space:" ",marks:_};return null}function D0(O){for(let _=O.length-1;_>=0;_--){let J=O[_];if(JO.has(J))return!0;if(!r.has(J))return!1}return!1}function DO(O,_){if(_.preserveOrdinarySpaces||_.preserveHardBreaks){if(O===" ")return"preserved-space";if(O==="\t")return"tab";if(_.preserveHardBreaks&&O===`
+`)return"hard-break"}if(O===" ")return"space";if(O===" "||O===" "||O==="⁠"||O==="\uFEFF")return"glue";if(O==="​")return"zero-width-break";if(O==="­")return"soft-hyphen";return"text"}function NO(O,_,J,Y){let X=[],R=null,Z="",Q=J,f=!1,V=0;for(let $ of O){let u=DO($,Y),q=u==="text"&&_;if(R!==null&&u===R&&q===f){Z+=$,V+=$.length;continue}if(R!==null)X.push({text:Z,isWordLike:f,kind:R,start:Q});R=u,Z=$,Q=J+V,f=q,V+=$.length}if(R!==null)X.push({text:Z,isWordLike:f,kind:R,start:Q});return X}function Y0(O){return O==="space"||O==="preserved-space"||O==="zero-width-break"||O==="hard-break"}var fO=/^[A-Za-z][A-Za-z0-9+.-]*:$/;function HO(O,_){let J=O.texts[_];if(J.startsWith("www."))return!0;return fO.test(J)&&_+1<O.len&&O.kinds[_+1]==="text"&&O.texts[_+1]==="//"}function UO(O){return O.includes("?")&&(O.includes("://")||O.startsWith("www."))}function MO(O){let _=O.texts.slice(),J=O.isWordLike.slice(),Y=O.kinds.slice(),X=O.starts.slice();for(let Z=0;Z<O.len;Z++){if(Y[Z]!=="text"||!HO(O,Z))continue;let Q=Z+1;while(Q<O.len&&!Y0(Y[Q])){_[Z]+=_[Q],J[Z]=!0;let f=_[Q].includes("?");if(Y[Q]="text",_[Q]="",Q++,f)break}}let R=0;for(let Z=0;Z<_.length;Z++){let Q=_[Z];if(Q.length===0)continue;if(R!==Z)_[R]=Q,J[R]=J[Z],Y[R]=Y[Z],X[R]=X[Z];R++}return _.length=R,J.length=R,Y.length=R,X.length=R,{len:R,texts:_,isWordLike:J,kinds:Y,starts:X}}function CO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R];if(_.push(Z),J.push(O.isWordLike[R]),Y.push(O.kinds[R]),X.push(O.starts[R]),!UO(Z))continue;let Q=R+1;if(Q>=O.len||Y0(O.kinds[Q]))continue;let f="",V=O.starts[Q],$=Q;while($<O.len&&!Y0(O.kinds[$]))f+=O.texts[$],$++;if(f.length>0)_.push(f),J.push(!0),Y.push("text"),X.push(V),R=$-1}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}var FO=new Set([":","-","/","×",",",".","+","–","—"]),K0=/^[A-Za-z0-9_]+[,:;]*$/,vO=/[,:;]+$/;function E0(O){for(let _ of O)if(b0.test(_))return!0;return!1}function Z0(O){if(O.length===0)return!1;for(let _ of O){if(b0.test(_)||FO.has(_))continue;return!1}return!0}function uO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R],Q=O.kinds[R];if(Q==="text"&&Z0(Z)&&E0(Z)){let f=Z,V=R+1;while(V<O.len&&O.kinds[V]==="text"&&Z0(O.texts[V]))f+=O.texts[V],V++;_.push(f),J.push(!0),Y.push("text"),X.push(O.starts[R]),R=V-1;continue}_.push(Z),J.push(O.isWordLike[R]),Y.push(Q),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function KO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R],Q=O.kinds[R],f=O.isWordLike[R];if(Q==="text"&&f&&K0.test(Z)){let V=Z,$=R+1;while(vO.test(V)&&$<O.len&&O.kinds[$]==="text"&&O.isWordLike[$]&&K0.test(O.texts[$]))V+=O.texts[$],$++;_.push(V),J.push(!0),Y.push("text"),X.push(O.starts[R]),R=$-1;continue}_.push(Z),J.push(f),Y.push(Q),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function zO(O){let _=[],J=[],Y=[],X=[];for(let R=0;R<O.len;R++){let Z=O.texts[R];if(O.kinds[R]==="text"&&Z.includes("-")){let Q=Z.split("-"),f=Q.length>1;for(let V=0;V<Q.length;V++){let $=Q[V];if(!f)break;if($.length===0||!E0($)||!Z0($))f=!1}if(f){let V=0;for(let $=0;$<Q.length;$++){let u=Q[$],q=$<Q.length-1?`${u}-`:u;_.push(q),J.push(!0),Y.push("text"),X.push(O.starts[R]+V),V+=q.length}continue}}_.push(Z),J.push(O.isWordLike[R]),Y.push(O.kinds[R]),X.push(O.starts[R])}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function jO(O){let _=[],J=[],Y=[],X=[],R=0;while(R<O.len){let Z=O.texts[R],Q=O.isWordLike[R],f=O.kinds[R],V=O.starts[R];if(f==="glue"){let $=Z,u=V;R++;while(R<O.len&&O.kinds[R]==="glue")$+=O.texts[R],R++;if(R<O.len&&O.kinds[R]==="text")Z=$+O.texts[R],Q=O.isWordLike[R],f="text",V=u,R++;else{_.push($),J.push(!1),Y.push("glue"),X.push(u);continue}}else R++;if(f==="text")while(R<O.len&&O.kinds[R]==="glue"){let $="";while(R<O.len&&O.kinds[R]==="glue")$+=O.texts[R],R++;if(R<O.len&&O.kinds[R]==="text"){Z+=$+O.texts[R],Q=Q||O.isWordLike[R],R++;continue}Z+=$}_.push(Z),J.push(Q),Y.push(f),X.push(V)}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function bO(O){let _=O.texts.slice(),J=O.isWordLike.slice(),Y=O.kinds.slice(),X=O.starts.slice();for(let R=0;R<_.length-1;R++){if(Y[R]!=="text"||Y[R+1]!=="text")continue;if(!p(_[R])||!p(_[R+1]))continue;let Z=YO(_[R]);if(Z===null)continue;_[R]=Z.head,_[R+1]=Z.tail+_[R+1],X[R+1]=X[R]+Z.head.length}return{len:_.length,texts:_,isWordLike:J,kinds:Y,starts:X}}function EO(O,_,J){let Y=n0(),X=0,R=[],Z=[],Q=[],f=[];for(let q of Y.segment(O))for(let D of NO(q.segment,q.isWordLike??!1,q.index,J)){let b=D.kind==="text";if(_.carryCJKAfterClosingQuote&&b&&X>0&&Q[X-1]==="text"&&p(D.text)&&p(R[X-1])&&D0(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&VO(D.text)&&p(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&QO(R[X-1]))R[X-1]+=D.text,Z[X-1]=Z[X-1]||D.isWordLike;else if(b&&X>0&&Q[X-1]==="text"&&D.isWordLike&&X0(D.text)&&$O(R[X-1]))R[X-1]+=D.text,Z[X-1]=!0;else if(b&&!D.isWordLike&&X>0&&Q[X-1]==="text"&&D.text.length===1&&D.text!=="-"&&D.text!=="—"&&ZO(R[X-1],D.text))R[X-1]+=D.text;else if(b&&!D.isWordLike&&X>0&&Q[X-1]==="text"&&(RO(D.text)||D.text==="-"&&Z[X-1]))R[X-1]+=D.text;else R[X]=D.text,Z[X]=D.isWordLike,Q[X]=D.kind,f[X]=D.start,X++}for(let q=1;q<X;q++)if(Q[q]==="text"&&!Z[q]&&q0(R[q])&&Q[q-1]==="text")R[q-1]+=R[q],Z[q-1]=Z[q-1]||Z[q],R[q]="";for(let q=X-2;q>=0;q--)if(Q[q]==="text"&&!Z[q]&&XO(R[q])){let D=q+1;while(D<X&&R[D]==="")D++;if(D<X&&Q[D]==="text")R[D]=R[q]+R[D],f[D]=f[q],R[q]=""}let V=0;for(let q=0;q<X;q++){let D=R[q];if(D.length===0)continue;if(V!==q)R[V]=D,Z[V]=Z[q],Q[V]=Q[q],f[V]=f[q];V++}R.length=V,Z.length=V,Q.length=V,f.length=V;let $=jO({len:V,texts:R,isWordLike:Z,kinds:Q,starts:f}),u=bO(KO(zO(uO(CO(MO($))))));for(let q=0;q<u.len-1;q++){let D=qO(u.texts[q]);if(D===null)continue;if(u.kinds[q]!=="space"&&u.kinds[q]!=="preserved-space"||u.kinds[q+1]!=="text"||!X0(u.texts[q+1]))continue;u.texts[q]=D.space,u.isWordLike[q]=!1,u.kinds[q]=u.kinds[q]==="preserved-space"?"preserved-space":"space",u.texts[q+1]=D.marks+u.texts[q+1],u.starts[q+1]=u.starts[q]+D.space.length}return u}function GO(O,_){if(O.len===0)return[];if(!_.preserveHardBreaks)return[{startSegmentIndex:0,endSegmentIndex:O.len,consumedEndSegmentIndex:O.len}];let J=[],Y=0;for(let X=0;X<O.len;X++){if(O.kinds[X]!=="hard-break")continue;J.push({startSegmentIndex:Y,endSegmentIndex:X,consumedEndSegmentIndex:X+1}),Y=X+1}if(Y<O.len)J.push({startSegmentIndex:Y,endSegmentIndex:O.len,consumedEndSegmentIndex:O.len});return J}function N0(O,_,J="normal"){let Y=d0(J),X=Y.mode==="pre-wrap"?t0(O):i0(O);if(X.length===0)return{normalized:X,chunks:[],len:0,texts:[],isWordLike:[],kinds:[],starts:[]};let R=EO(X,_,Y);return{normalized:X,chunks:GO(R,Y),...R}}var a=null,f0=new Map,s=null,PO=/\p{Emoji_Presentation}/u,AO=/[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u20E3]/u,_0=null,H0=new Map;function U0(){if(a!==null)return a;if(typeof OffscreenCanvas<"u")return a=new OffscreenCanvas(1,1).getContext("2d"),a;if(typeof document<"u")return a=document.createElement("canvas").getContext("2d"),a;throw Error("Text measurement requires OffscreenCanvas or a DOM canvas context.")}function BO(O){let _=f0.get(O);if(!_)_=new Map,f0.set(O,_);return _}function x(O,_){let J=_.get(O);if(J===void 0)J={width:U0().measureText(O).width,containsCJK:p(O)},_.set(O,J);return J}function h(){if(s!==null)return s;if(typeof navigator>"u")return s={lineFitEpsilon:0.005,carryCJKAfterClosingQuote:!1,preferPrefixWidthsForBreakableRuns:!1,preferEarlySoftHyphenBreak:!1},s;let O=navigator.userAgent,J=navigator.vendor==="Apple Computer, Inc."&&O.includes("Safari/")&&!O.includes("Chrome/")&&!O.includes("Chromium/")&&!O.includes("CriOS/")&&!O.includes("FxiOS/")&&!O.includes("EdgiOS/"),Y=O.includes("Chrome/")||O.includes("Chromium/")||O.includes("CriOS/")||O.includes("Edg/");return s={lineFitEpsilon:J?0.015625:0.005,carryCJKAfterClosingQuote:Y,preferPrefixWidthsForBreakableRuns:J,preferEarlySoftHyphenBreak:J},s}function TO(O){let _=O.match(/(\d+(?:\.\d+)?)\s*px/);return _?parseFloat(_[1]):16}function M0(){if(_0===null)_0=new Intl.Segmenter(void 0,{granularity:"grapheme"});return _0}function wO(O){return PO.test(O)||O.includes("️")}function G0(O){return AO.test(O)}function yO(O,_){let J=H0.get(O);if(J!==void 0)return J;let Y=U0();Y.font=O;let X=Y.measureText("\uD83D\uDE00").width;if(J=0,X>_+0.5&&typeof document<"u"&&document.body!==null){let R=document.createElement("span");R.style.font=O,R.style.display="inline-block",R.style.visibility="hidden",R.style.position="absolute",R.textContent="\uD83D\uDE00",document.body.appendChild(R);let Z=R.getBoundingClientRect().width;if(document.body.removeChild(R),X-Z>0.5)J=X-Z}return H0.set(O,J),J}function LO(O){let _=0,J=M0();for(let Y of J.segment(O))if(wO(Y.segment))_++;return _}function WO(O,_){if(_.emojiCount===void 0)_.emojiCount=LO(O);return _.emojiCount}function g(O,_,J){if(J===0)return _.width;return _.width-WO(O,_)*J}function P0(O,_,J,Y){if(_.graphemeWidths!==void 0)return _.graphemeWidths;let X=[],R=M0();for(let Z of R.segment(O)){let Q=x(Z.segment,J);X.push(g(Z.segment,Q,Y))}return _.graphemeWidths=X.length>1?X:null,_.graphemeWidths}function A0(O,_,J,Y){if(_.graphemePrefixWidths!==void 0)return _.graphemePrefixWidths;let X=[],R=M0(),Z="";for(let Q of R.segment(O)){Z+=Q.segment;let f=x(Z,J);X.push(g(Z,f,Y))}return _.graphemePrefixWidths=X.length>1?X:null,_.graphemePrefixWidths}function B0(O,_){let J=U0();J.font=O;let Y=BO(O),X=TO(O),R=_?yO(O,X):0;return{cache:Y,fontSize:X,emojiCorrection:R}}function T0(){f0.clear(),H0.clear(),_0=null}function m(O){return O==="space"||O==="preserved-space"||O==="tab"||O==="zero-width-break"||O==="soft-hyphen"}function SO(O){return O==="space"}function w0(O,_){if(_<=0)return 0;let J=O%_;if(Math.abs(J)<=0.000001)return _;return _-J}function t(O,_,J,Y){if(!Y||_===null)return O[J];return _[J]-(J>0?_[J-1]:0)}function y0(O,_,J,Y,X,R){let Z=0,Q=_;while(Z<O.length){let f=R?_+O[Z]:Q+O[Z];if((Z+1<O.length?f+X:f)>J+Y)break;Q=f,Z++}return{fitCount:Z,fittedWidth:Q}}function L0(O,_){for(let J=0;J<O.chunks.length;J++){let Y=O.chunks[J];if(_<Y.consumedEndSegmentIndex)return J}return-1}function kO(O,_){let{segmentIndex:J,graphemeIndex:Y}=_;if(J>=O.widths.length)return null;if(Y>0)return _;let X=L0(O,J);if(X<0)return null;let R=O.chunks[X];if(R.startSegmentIndex===R.endSegmentIndex&&J===R.startSegmentIndex)return{segmentIndex:J,graphemeIndex:0};if(J<R.startSegmentIndex)J=R.startSegmentIndex;while(J<R.endSegmentIndex){let Z=O.kinds[J];if(Z!=="space"&&Z!=="zero-width-break"&&Z!=="soft-hyphen")return{segmentIndex:J,graphemeIndex:0};J++}if(R.consumedEndSegmentIndex>=O.widths.length)return null;return{segmentIndex:R.consumedEndSegmentIndex,graphemeIndex:0}}function W0(O,_){if(O.simpleLineWalkFastPath)return IO(O,_);return J0(O,_)}function IO(O,_){let{widths:J,kinds:Y,breakableWidths:X,breakablePrefixWidths:R}=O;if(J.length===0)return 0;let Z=h(),Q=Z.lineFitEpsilon,f=0,V=0,$=!1;function u(q){let D=J[q];if(D>_&&X[q]!==null){let b=X[q],K=R[q]??null;V=0;for(let j=0;j<b.length;j++){let B=t(b,K,j,Z.preferPrefixWidthsForBreakableRuns);if(V>0&&V+B>_+Q)f++,V=B;else{if(V===0)f++;V+=B}}}else V=D,f++;$=!0}for(let q=0;q<J.length;q++){let D=J[q],b=Y[q];if(!$){u(q);continue}let K=V+D;if(K>_+Q){if(SO(b))continue;V=0,$=!1,u(q);continue}V=K}if(!$)return f+1;return f}function cO(O,_,J){let{widths:Y,kinds:X,breakableWidths:R,breakablePrefixWidths:Z}=O;if(Y.length===0)return 0;let Q=h(),f=Q.lineFitEpsilon,V=0,$=0,u=!1,q=0,D=0,b=0,K=0,j=-1,B=0;function k(){j=-1,B=0}function y(H=b,z=K,W=$){V++,J?.({startSegmentIndex:q,startGraphemeIndex:D,endSegmentIndex:H,endGraphemeIndex:z,width:W}),$=0,u=!1,k()}function A(H,z){u=!0,q=H,D=0,b=H+1,K=0,$=z}function T(H,z,W){u=!0,q=H,D=z,b=H,K=z+1,$=W}function L(H,z){if(!u){A(H,z);return}$+=z,b=H+1,K=0}function C(H,z){if(!m(X[H]))return;j=H+1,B=$-z}function F(H){P(H,0)}function P(H,z){let W=R[H],c=Z[H]??null;for(let I=z;I<W.length;I++){let o=t(W,c,I,Q.preferPrefixWidthsForBreakableRuns);if(!u){T(H,I,o);continue}if($+o>_+f)y(),T(H,I,o);else $+=o,b=H,K=I+1}if(u&&b===H&&K===W.length)b=H+1,K=0}let E=0;while(E<Y.length){let H=Y[E],z=X[E];if(!u){if(H>_&&R[E]!==null)F(E);else A(E,H);C(E,H),E++;continue}if($+H>_+f){if(m(z)){L(E,H),y(E+1,0,$-H),E++;continue}if(j>=0){y(j,0,B);continue}if(H>_&&R[E]!==null){y(),F(E),E++;continue}y();continue}L(E,H),C(E,H),E++}if(u)y();return V}function J0(O,_,J){if(O.simpleLineWalkFastPath)return cO(O,_,J);let{widths:Y,lineEndFitAdvances:X,lineEndPaintAdvances:R,kinds:Z,breakableWidths:Q,breakablePrefixWidths:f,discretionaryHyphenWidth:V,tabStopAdvance:$,chunks:u}=O;if(Y.length===0||u.length===0)return 0;let q=h(),D=q.lineFitEpsilon,b=0,K=0,j=!1,B=0,k=0,y=0,A=0,T=-1,L=0,C=0,F=null;function P(){T=-1,L=0,C=0,F=null}function E(N=y,M=A,v=K){b++,J?.({startSegmentIndex:B,startGraphemeIndex:k,endSegmentIndex:N,endGraphemeIndex:M,width:v}),K=0,j=!1,P()}function H(N,M){j=!0,B=N,k=0,y=N+1,A=0,K=M}function z(N,M,v){j=!0,B=N,k=M,y=N,A=M+1,K=v}function W(N,M){if(!j){H(N,M);return}K+=M,y=N+1,A=0}function c(N,M){if(!m(Z[N]))return;let v=Z[N]==="tab"?0:X[N],w=Z[N]==="tab"?M:R[N];T=N+1,L=K-M+v,C=K-M+w,F=Z[N]}function I(N){o(N,0)}function o(N,M){let v=Q[N],w=f[N]??null;for(let G=M;G<v.length;G++){let l=t(v,w,G,q.preferPrefixWidthsForBreakableRuns);if(!j){z(N,G,l);continue}if(K+l>_+D)E(),z(N,G,l);else K+=l,y=N,A=G+1}if(j&&y===N&&A===v.length)y=N+1,A=0}function S(N){if(F!=="soft-hyphen")return!1;let M=Q[N];if(M===null)return!1;let v=q.preferPrefixWidthsForBreakableRuns?f[N]??M:M,w=v!==M,{fitCount:G,fittedWidth:l}=y0(v,K,_,D,V,w);if(G===0)return!1;if(K=l,y=N,A=G,P(),G===M.length)return y=N+1,A=0,!0;return E(N,G,l+V),o(N,G),!0}function U(N){b++,J?.({startSegmentIndex:N.startSegmentIndex,startGraphemeIndex:0,endSegmentIndex:N.consumedEndSegmentIndex,endGraphemeIndex:0,width:0}),P()}for(let N=0;N<u.length;N++){let M=u[N];if(M.startSegmentIndex===M.endSegmentIndex){U(M);continue}j=!1,K=0,B=M.startSegmentIndex,k=0,y=M.startSegmentIndex,A=0,P();let v=M.startSegmentIndex;while(v<M.endSegmentIndex){let w=Z[v],G=w==="tab"?w0(K,$):Y[v];if(w==="soft-hyphen"){if(j)y=v+1,A=0,T=v+1,L=K+V,C=K+V,F=w;v++;continue}if(!j){if(G>_&&Q[v]!==null)I(v);else H(v,G);c(v,G),v++;continue}if(K+G>_+D){let n=K+(w==="tab"?0:X[v]),e=K+(w==="tab"?G:R[v]);if(F==="soft-hyphen"&&q.preferEarlySoftHyphenBreak&&L<=_+D){E(T,0,C);continue}if(F==="soft-hyphen"&&S(v)){v++;continue}if(m(w)&&n<=_+D){W(v,G),E(v+1,0,e),v++;continue}if(T>=0&&L<=_+D){E(T,0,C);continue}if(G>_&&Q[v]!==null){E(),I(v),v++;continue}E();continue}W(v,G),c(v,G),v++}if(j){let w=T===M.consumedEndSegmentIndex?C:K;E(M.consumedEndSegmentIndex,0,w)}}return b}function S0(O,_,J){let Y=kO(O,_);if(Y===null)return null;if(O.simpleLineWalkFastPath)return oO(O,Y,J);let X=L0(O,Y.segmentIndex);if(X<0)return null;let R=O.chunks[X];if(R.startSegmentIndex===R.endSegmentIndex)return{startSegmentIndex:R.startSegmentIndex,startGraphemeIndex:0,endSegmentIndex:R.consumedEndSegmentIndex,endGraphemeIndex:0,width:0};let{widths:Z,lineEndFitAdvances:Q,lineEndPaintAdvances:f,kinds:V,breakableWidths:$,breakablePrefixWidths:u,discretionaryHyphenWidth:q,tabStopAdvance:D}=O,b=h(),K=b.lineFitEpsilon,j=0,B=!1,k=Y.segmentIndex,y=Y.graphemeIndex,A=k,T=y,L=-1,C=0,F=0,P=null;function E(){L=-1,C=0,F=0,P=null}function H(U=A,N=T,M=j){if(!B)return null;return{startSegmentIndex:k,startGraphemeIndex:y,endSegmentIndex:U,endGraphemeIndex:N,width:M}}function z(U,N){B=!0,A=U+1,T=0,j=N}function W(U,N,M){B=!0,A=U,T=N+1,j=M}function c(U,N){if(!B){z(U,N);return}j+=N,A=U+1,T=0}function I(U,N){if(!m(V[U]))return;let M=V[U]==="tab"?0:Q[U],v=V[U]==="tab"?N:f[U];L=U+1,C=j-N+M,F=j-N+v,P=V[U]}function o(U,N){let M=$[U],v=u[U]??null;for(let w=N;w<M.length;w++){let G=t(M,v,w,b.preferPrefixWidthsForBreakableRuns);if(!B){W(U,w,G);continue}if(j+G>J+K)return H();j+=G,A=U,T=w+1}if(B&&A===U&&T===M.length)A=U+1,T=0;return null}function S(U){if(P!=="soft-hyphen"||L<0)return null;let N=$[U]??null;if(N!==null){let M=b.preferPrefixWidthsForBreakableRuns?u[U]??N:N,v=M!==N,{fitCount:w,fittedWidth:G}=y0(M,j,J,K,q,v);if(w===N.length)return j=G,A=U+1,T=0,E(),null;if(w>0)return H(U,w,G+q)}if(C<=J+K)return H(L,0,F);return null}for(let U=Y.segmentIndex;U<R.endSegmentIndex;U++){let N=V[U],M=U===Y.segmentIndex?Y.graphemeIndex:0,v=N==="tab"?w0(j,D):Z[U];if(N==="soft-hyphen"&&M===0){if(B)A=U+1,T=0,L=U+1,C=j+q,F=j+q,P=N;continue}if(!B){if(M>0){let G=o(U,M);if(G!==null)return G}else if(v>J&&$[U]!==null){let G=o(U,0);if(G!==null)return G}else z(U,v);I(U,v);continue}if(j+v>J+K){let G=j+(N==="tab"?0:Q[U]),l=j+(N==="tab"?v:f[U]);if(P==="soft-hyphen"&&b.preferEarlySoftHyphenBreak&&C<=J+K)return H(L,0,F);let n=S(U);if(n!==null)return n;if(m(N)&&G<=J+K)return c(U,v),H(U+1,0,l);if(L>=0&&C<=J+K)return H(L,0,F);if(v>J&&$[U]!==null){let e=H();if(e!==null)return e;let v0=o(U,0);if(v0!==null)return v0}return H()}c(U,v),I(U,v)}if(L===R.consumedEndSegmentIndex&&T===0)return H(R.consumedEndSegmentIndex,0,F);return H(R.consumedEndSegmentIndex,0,j)}function oO(O,_,J){let{widths:Y,kinds:X,breakableWidths:R,breakablePrefixWidths:Z}=O,Q=h(),f=Q.lineFitEpsilon,V=0,$=!1,u=_.segmentIndex,q=_.graphemeIndex,D=u,b=q,K=-1,j=0;function B(C=D,F=b,P=V){if(!$)return null;return{startSegmentIndex:u,startGraphemeIndex:q,endSegmentIndex:C,endGraphemeIndex:F,width:P}}function k(C,F){$=!0,D=C+1,b=0,V=F}function y(C,F,P){$=!0,D=C,b=F+1,V=P}function A(C,F){if(!$){k(C,F);return}V+=F,D=C+1,b=0}function T(C,F){if(!m(X[C]))return;K=C+1,j=V-F}function L(C,F){let P=R[C],E=Z[C]??null;for(let H=F;H<P.length;H++){let z=t(P,E,H,Q.preferPrefixWidthsForBreakableRuns);if(!$){y(C,H,z);continue}if(V+z>J+f)return B();V+=z,D=C,b=H+1}if($&&D===C&&b===P.length)D=C+1,b=0;return null}for(let C=_.segmentIndex;C<Y.length;C++){let F=Y[C],P=X[C],E=C===_.segmentIndex?_.graphemeIndex:0;if(!$){if(E>0){let z=L(C,E);if(z!==null)return z}else if(F>J&&R[C]!==null){let z=L(C,0);if(z!==null)return z}else k(C,F);T(C,F);continue}if(V+F>J+f){if(m(P))return A(C,F),B(C+1,0,V-F);if(K>=0)return B(K,0,j);if(F>J&&R[C]!==null){let z=B();if(z!==null)return z;let W=L(C,0);if(W!==null)return W}return B()}A(C,F),T(C,F)}return B()}var R0=null,C0=new WeakMap;function I0(){if(R0===null)R0=new Intl.Segmenter(void 0,{granularity:"grapheme"});return R0}function lO(O){if(O)return{widths:[],lineEndFitAdvances:[],lineEndPaintAdvances:[],kinds:[],simpleLineWalkFastPath:!0,segLevels:null,breakableWidths:[],breakablePrefixWidths:[],discretionaryHyphenWidth:0,tabStopAdvance:0,chunks:[],segments:[]};return{widths:[],lineEndFitAdvances:[],lineEndPaintAdvances:[],kinds:[],simpleLineWalkFastPath:!0,segLevels:null,breakableWidths:[],breakablePrefixWidths:[],discretionaryHyphenWidth:0,tabStopAdvance:0,chunks:[]}}function c0(O,_,J){let Y=I0(),X=h(),{cache:R,emojiCorrection:Z}=B0(_,G0(O.normalized)),Q=g("-",x("-",R),Z),V=g(" ",x(" ",R),Z)*8;if(O.len===0)return lO(J);let $=[],u=[],q=[],D=[],b=O.chunks.length<=1,K=J?[]:null,j=[],B=[],k=J?[]:null,y=Array.from({length:O.len}),A=Array.from({length:O.len});function T(F,P,E,H,z,W,c,I){if(z!=="text"&&z!=="space"&&z!=="zero-width-break")b=!1;if($.push(P),u.push(E),q.push(H),D.push(z),K?.push(W),j.push(c),B.push(I),k!==null)k.push(F)}for(let F=0;F<O.len;F++){y[F]=$.length;let P=O.texts[F],E=O.isWordLike[F],H=O.kinds[F],z=O.starts[F];if(H==="soft-hyphen"){T(P,0,Q,Q,H,z,null,null),A[F]=$.length;continue}if(H==="hard-break"){T(P,0,0,0,H,z,null,null),A[F]=$.length;continue}if(H==="tab"){T(P,0,0,0,H,z,null,null),A[F]=$.length;continue}let W=x(P,R);if(H==="text"&&W.containsCJK){let S="",U=0;for(let N of Y.segment(P)){let M=N.segment;if(S.length===0){S=M,U=N.index;continue}if(i.has(S)||$0.has(M)||r.has(M)||X.carryCJKAfterClosingQuote&&p(M)&&D0(S)){S+=M;continue}let v=x(S,R),w=g(S,v,Z);T(S,w,w,w,"text",z+U,null,null),S=M,U=N.index}if(S.length>0){let N=x(S,R),M=g(S,N,Z);T(S,M,M,M,"text",z+U,null,null)}A[F]=$.length;continue}let c=g(P,W,Z),I=H==="space"||H==="preserved-space"||H==="zero-width-break"?0:c,o=H==="space"||H==="zero-width-break"?0:c;if(E&&P.length>1){let S=P0(P,W,R,Z),U=X.preferPrefixWidthsForBreakableRuns?A0(P,W,R,Z):null;T(P,c,I,o,H,z,S,U)}else T(P,c,I,o,H,z,null,null);A[F]=$.length}let L=hO(O.chunks,y,A),C=K===null?null:u0(O.normalized,K);if(k!==null)return{widths:$,lineEndFitAdvances:u,lineEndPaintAdvances:q,kinds:D,simpleLineWalkFastPath:b,segLevels:C,breakableWidths:j,breakablePrefixWidths:B,discretionaryHyphenWidth:Q,tabStopAdvance:V,chunks:L,segments:k};return{widths:$,lineEndFitAdvances:u,lineEndPaintAdvances:q,kinds:D,simpleLineWalkFastPath:b,segLevels:C,breakableWidths:j,breakablePrefixWidths:B,discretionaryHyphenWidth:Q,tabStopAdvance:V,chunks:L}}function hO(O,_,J){let Y=[];for(let X=0;X<O.length;X++){let R=O[X],Z=R.startSegmentIndex<_.length?_[R.startSegmentIndex]:J[J.length-1]??0,Q=R.endSegmentIndex<_.length?_[R.endSegmentIndex]:J[J.length-1]??0,f=R.consumedEndSegmentIndex<_.length?_[R.consumedEndSegmentIndex]:J[J.length-1]??0;Y.push({startSegmentIndex:Z,endSegmentIndex:Q,consumedEndSegmentIndex:f})}return Y}function o0(O,_,J,Y){let X=N0(O,h(),Y?.whiteSpace);return c0(X,_,J)}function V1(O,_,J){let Y=performance.now(),X=N0(O,h(),J?.whiteSpace),R=performance.now(),Z=c0(X,_,!1),Q=performance.now(),f=0;for(let V of Z.breakableWidths)if(V!==null)f++;return{analysisMs:R-Y,measureMs:Q-R,totalMs:Q-Y,analysisSegments:X.len,preparedSegments:Z.widths.length,breakableSegments:f}}function X1(O,_,J){return o0(O,_,!1,J)}function Y1(O,_,J){return o0(O,_,!0,J)}function F0(O){return O}function Z1(O,_,J){let Y=W0(F0(O),_);return{lineCount:Y,height:Y*J}}function k0(O,_,J){let Y=J.get(O);if(Y!==void 0)return Y;Y=[];let X=I0();for(let R of X.segment(_[O]))Y.push(R.segment);return J.set(O,Y),Y}function l0(O){let _=C0.get(O);if(_!==void 0)return _;return _=new Map,C0.set(O,_),_}function pO(O,_,J,Y){return Y>0&&O[Y-1]==="soft-hyphen"&&!(_===Y&&J>0)}function xO(O,_,J,Y,X,R,Z){let Q="",f=pO(_,Y,X,R);for(let V=Y;V<R;V++){if(_[V]==="soft-hyphen"||_[V]==="hard-break")continue;if(V===Y&&X>0)Q+=k0(V,O,J).slice(X).join("");else Q+=O[V]}if(Z>0){if(f)Q+="-";Q+=k0(R,O,J).slice(Y===R?X:0,Z).join("")}else if(f)Q+="-";return Q}function h0(O,_,J,Y,X,R,Z){return{text:xO(O.segments,O.kinds,_,Y,X,R,Z),width:J,start:{segmentIndex:Y,graphemeIndex:X},end:{segmentIndex:R,graphemeIndex:Z}}}function gO(O,_,J){return h0(O,_,J.width,J.startSegmentIndex,J.startGraphemeIndex,J.endSegmentIndex,J.endGraphemeIndex)}function p0(O){return{width:O.width,start:{segmentIndex:O.startSegmentIndex,graphemeIndex:O.startGraphemeIndex},end:{segmentIndex:O.endSegmentIndex,graphemeIndex:O.endGraphemeIndex}}}function mO(O,_,J){let Y=S0(O,_,J);if(Y===null)return null;return p0(Y)}function rO(O,_){return h0(O,l0(O),_.width,_.start.segmentIndex,_.start.graphemeIndex,_.end.segmentIndex,_.end.graphemeIndex)}function $1(O,_,J){if(O.widths.length===0)return 0;return J0(F0(O),_,(Y)=>{J(p0(Y))})}function Q1(O,_,J){let Y=mO(O,_,J);if(Y===null)return null;return rO(O,Y)}function q1(O,_,J){let Y=[];if(O.widths.length===0)return{lineCount:0,height:0,lines:Y};let X=l0(O),R=J0(F0(O),_,(Z)=>{Y.push(gO(O,X,Z))});return{lineCount:R,height:R*J,lines:Y}}function aO(){z0(),R0=null,C0=new WeakMap,T0()}function D1(O){j0(O),aO()}window.Pretext={walkLineRanges:$1,setLocale:D1,prepareWithSegments:Y1,prepare:X1,layoutWithLines:q1,layoutNextLine:Q1,layout:Z1,clearCache:aO};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = (name) => `<svg class="i"><use href="#i-${name}"/></svg>`;
 const fmtTime = (s) => new Date(s * 1000).toLocaleString('fr-FR', { weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 const fmtHour = (s) => new Date(s * 1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
 const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(1) + ' Go' : (b / 1e6).toFixed(0) + ' Mo';
@@ -134,13 +236,43 @@ async function api(path, body) {
   if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
   return data;
 }
+const errHtml = (m) => `<div class="msg err">${icon('alert')}<span>${esc(m)}</span></div>`;
+
+// --- Texte mesuré avec Pretext : hauteur exacte des descriptions, repliées à 3 lignes ---
+const prepared = new Map();
+async function fitText() {
+  await document.fonts.ready;
+  for (const el of document.querySelectorAll('[data-pretext]')) {
+    const text = el.dataset.text, cs = getComputedStyle(el);
+    const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const lh = parseFloat(cs.lineHeight) || 20;
+    let handle = prepared.get(el);
+    if (!handle || handle.text !== text || handle.font !== font) {
+      handle = { text, font, p: Pretext.prepare(text, font) };
+      prepared.set(el, handle);
+    }
+    const width = el.clientWidth || el.parentElement.clientWidth;
+    if (!width) continue;
+    const { height, lineCount } = Pretext.layout(handle.p, width, lh);
+    const open = el.dataset.open === '1';
+    const clamp = lineCount > 3 && !open;
+    el.style.height = `${(clamp ? 3 : lineCount) * lh}px`;
+    el.textContent = text;
+    el.style.display = '-webkit-box';
+    el.style.webkitBoxOrient = 'vertical';
+    el.style.webkitLineClamp = clamp ? '3' : 'unset';
+    const more = el.nextElementSibling;
+    if (more && more.classList.contains('more')) { more.hidden = lineCount <= 3; more.textContent = open ? 'Réduire' : 'Lire la suite'; }
+  }
+}
+new ResizeObserver(() => fitText()).observe(document.body);
 
 // --- Onglets ---
 let tab = 'channels';
-document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
+document.querySelectorAll('.rail button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
 function show(name) {
   tab = name;
-  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.rail button').forEach((b) => { if (b.dataset.tab === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   for (const t of ['channels', 'recordings', 'settings']) $('tab-' + t).hidden = t !== name;
   if (name === 'recordings') loadRecordings();
 }
@@ -150,13 +282,21 @@ let state = {};
 async function loadState() {
   state = await api('/api/state');
   const u = state.usage;
-  $('usage').textContent = u ? `${fmtSize(u.used)} utilisés · encore ${fmtDur(u.remaining_secs)} possibles` : (state.disk ? '' : 'Dossier des enregistrements introuvable');
+  if (u) {
+    const total = (state.disk && state.disk.total) || 0;
+    const pct = total ? Math.min(100, Math.round(((total - state.disk.free) / total) * 100)) : 0;
+    $('usage').innerHTML = `<b>${fmtSize(u.used)}</b>enregistrés<div class="bar"><i style="width:${pct}%"></i></div>encore ${fmtDur(u.remaining_secs)}`;
+  } else {
+    $('usage').textContent = state.disk ? '' : 'Dossier introuvable';
+  }
   renderAccounts();
   if (!state.configured) show('settings');
   return state;
 }
 function renderAccounts() {
-  $('accounts').innerHTML = state.accounts.length ? state.accounts.map((a) => `<div class="item"><div class="main"><div class="title">${esc(a.label)}</div><div class="sub">${esc(a.server)}${a.recording ? ' · enregistre en ce moment' : ''}</div></div><button class="btn small" data-remove="${a.id}">Retirer</button></div>`).join('') : '<div class="msg">Aucun compte pour l\'instant.</div>';
+  $('accounts').innerHTML = state.accounts.length
+    ? state.accounts.map((a) => `<div class="card row" style="cursor:default"><div class="t"><div>${esc(a.label)}</div><div class="sub">${esc(a.server)}${a.recording ? ' · enregistre en ce moment' : ''}</div></div><button class="btn small" data-remove="${a.id}">Retirer</button></div>`).join('')
+    : '<div class="msg">Aucun compte pour l\'instant.</div>';
 }
 $('accounts').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-remove]'); if (!b) return;
@@ -171,72 +311,86 @@ $('settings').addEventListener('submit', async (e) => {
     $('s-msg').textContent = 'Compte ajouté.';
     $('s-user').value = ''; $('s-pass').value = '';
     await loadState(); await loadChannels();
-  } catch (err) { $('s-msg').className = 'msg err'; $('s-msg').textContent = err.message; }
+  } catch (err) { $('s-msg').className = 'msg err'; $('s-msg').innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`; }
 });
 
 // --- Chaînes ---
-let categoriesLoaded = false;
+let category = '', channel = null;
 async function loadChannels() {
-  const q = encodeURIComponent($('search').value), c = encodeURIComponent($('category').value);
+  const q = encodeURIComponent($('search').value), c = encodeURIComponent(category);
   try {
     const data = await api(`/api/channels?category=${c}&q=${q}`);
-    if (!categoriesLoaded || $('category').options.length <= 1) {
-      $('category').innerHTML = '<option value="">Toutes les catégories</option>' + data.categories.map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
-      $('category').value = decodeURIComponent(c);
-      categoriesLoaded = true;
-    }
+    $('cats').innerHTML = [{ id: '', name: 'Toutes' }, ...data.categories].map((x) =>
+      `<button class="row" data-cat="${esc(x.id)}" aria-selected="${x.id === category}"><span class="t">${esc(x.name)}</span></button>`).join('');
     $('channels').innerHTML = data.channels.length ? data.channels.map((ch) => `
-      <div class="item click" data-id="${ch.id}" data-name="${esc(ch.name)}">
-        ${ch.icon ? `<img src="${esc(ch.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<img alt="" style="visibility:hidden">'}
-        <div class="main"><div class="title">${esc(ch.name)}</div></div>
-      </div>`).join('') : '<div class="empty">Aucune chaîne.</div>';
-  } catch (err) { $('channels').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+      <button class="row" data-id="${ch.id}" data-name="${esc(ch.name)}" data-icon="${esc(ch.icon || '')}" aria-selected="${channel && channel.id === ch.id}">
+        ${ch.icon ? `<img src="${esc(ch.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="ph"></span>'}
+        <span class="t">${esc(ch.name)}</span>
+      </button>`).join('') : '<div class="empty">Aucune chaîne.</div>';
+  } catch (err) { $('channels').innerHTML = errHtml(err.message); }
 }
 let searchTimer;
-$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadChannels, 250); });
-$('category').addEventListener('change', loadChannels);
+$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadChannels, 300); });
+$('cats').addEventListener('click', (e) => { const b = e.target.closest('[data-cat]'); if (b) { category = b.dataset.cat; loadChannels(); } });
 $('channels').addEventListener('click', (e) => {
-  const item = e.target.closest('.item'); if (item) openChannel(Number(item.dataset.id), item.dataset.name);
+  const b = e.target.closest('[data-id]'); if (!b) return;
+  channel = { id: Number(b.dataset.id), name: b.dataset.name, icon: b.dataset.icon };
+  document.querySelectorAll('#channels .row').forEach((r) => r.setAttribute('aria-selected', r === b));
+  loadGuide();
+});
+
+// --- Guide de la chaîne ---
+let programmes = [];
+async function loadGuide() {
+  const { id, name, icon: logo } = channel;
+  $('guide').innerHTML = `
+    <div class="guide-head">${logo ? `<img src="${esc(logo)}" alt="">` : '<span class="ph"></span>'}<h3>${esc(name)}</h3></div>
+    <div class="stack" id="progs"><div class="msg">Chargement du guide…</div></div>
+    <div style="margin-top:14px"><button class="btn" id="manual">${icon('clock')}Enregistrer à la main</button></div>`;
+  $('manual').addEventListener('click', () => openDialog(null));
+  const now = Math.floor(Date.now() / 1000);
+  try {
+    const data = await api('/api/epg?stream_id=' + id);
+    programmes = data.programmes.filter((p) => p.stop > now);
+    $('progs').innerHTML = programmes.length ? programmes.map((p, i) => {
+      const live = p.start <= now;
+      return `<div class="prog">
+        <div><div class="name">${esc(p.title)} ${live ? '<span class="badge live">En direct</span>' : ''}</div><div class="when">${fmtTime(p.start)} – ${fmtHour(p.stop)}</div></div>
+        <button class="btn primary small act" data-i="${i}">${icon('rec')}Enregistrer</button>
+        ${p.description ? `<div class="desc" data-pretext data-text="${esc(p.description)}">${esc(p.description)}</div><button class="more" hidden>Lire la suite</button>` : ''}
+      </div>`;
+    }).join('') : '<div class="msg">Pas de guide pour cette chaîne : utilise l\'enregistrement à la main.</div>';
+    fitText();
+  } catch (err) { $('progs').innerHTML = errHtml(err.message); }
+}
+$('guide').addEventListener('click', (e) => {
+  const rec = e.target.closest('button.act'); if (rec) return openDialog(programmes[Number(rec.dataset.i)]);
+  const more = e.target.closest('.more');
+  if (more) { const d = more.previousElementSibling; d.dataset.open = d.dataset.open === '1' ? '0' : '1'; fitText(); }
 });
 
 // --- Dialogue d'enregistrement ---
-let draft = null; // { stream_id, channel, title, start, stop, manual }
+let draft = null;
 const dlg = $('rec-dialog');
-function toLocalInput(sec) { const d = new Date(sec * 1000 - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); }
-
-async function openChannel(id, name) {
-  draft = { stream_id: id, channel: name };
-  $('rd-title').textContent = name;
-  $('rd-sub').textContent = 'Guide de la chaîne';
-  $('rd-programmes').innerHTML = '<div class="msg">Chargement du guide…</div>';
+const toLocalInput = (sec) => new Date(sec * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+function openDialog(programme) {
+  draft = { stream_id: channel.id, channel: channel.name };
+  $('rd-title').textContent = channel.name;
   $('rd-preview').textContent = ''; $('rd-preview').className = 'msg';
-  const now = Math.floor(Date.now() / 1000);
-  $('rd-start').value = toLocalInput(now + 300 - (now % 300));
-  $('rd-manual').hidden = false;
-  setPickMode(null);
-  dlg.showModal();
-  try {
-    const data = await api('/api/epg?stream_id=' + id);
-    const list = data.programmes.filter((p) => p.stop > now);
-    $('rd-programmes').innerHTML = list.length
-      ? '<div class="list">' + list.map((p, i) => `<div class="item click" data-i="${i}"><div class="main"><div class="title">${esc(p.title)}</div><div class="sub">${fmtTime(p.start)} – ${fmtHour(p.stop)}</div></div><span class="tag">Choisir</span></div>`).join('') + '</div>'
-      : '<div class="msg">Pas de guide pour cette chaîne : utilise l\'enregistrement manuel ci-dessous.</div>';
-    $('rd-programmes').onclick = (e) => { const it = e.target.closest('.item'); if (it) setPickMode(list[Number(it.dataset.i)]); };
-  } catch (err) { $('rd-programmes').innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
-}
-// Programme du guide choisi : début et fin du programme, marges réglables ; sinon enregistrement manuel.
-function setPickMode(programme) {
   if (programme) {
-    draft.title = programme.title; draft.start = programme.start; draft.stop = programme.stop; draft.manual = false;
+    Object.assign(draft, { title: programme.title, start: programme.start, stop: programme.stop, manual: false });
     $('rd-sub').textContent = `${programme.title} · ${fmtTime(programme.start)} – ${fmtHour(programme.stop)}`;
     $('rd-manual').hidden = true;
     $('rd-before').value = 2; $('rd-after').value = 5;
   } else {
-    draft.manual = true; draft.title = 'Enregistrement manuel';
+    Object.assign(draft, { title: 'Enregistrement manuel', manual: true });
+    const now = Math.floor(Date.now() / 1000);
+    $('rd-sub').textContent = 'Enregistrement manuel';
+    $('rd-start').value = toLocalInput(now + 300 - (now % 300));
     $('rd-manual').hidden = false;
     $('rd-before').value = 0; $('rd-after').value = 0;
   }
-  $('rd-preview').textContent = '';
+  dlg.showModal();
 }
 function currentRequest() {
   let { start, stop } = draft;
@@ -256,15 +410,15 @@ $('rd-estimate').addEventListener('click', async () => {
     parts.push(p.measured ? `taille estimée ${fmtSize(p.estimated_bytes)}` : 'taille inconnue (chaîne jamais enregistrée)');
     if (p.merged_into) parts.push('prolonge un enregistrement déjà programmé');
     if (p.margins_shortened) parts.push('marges raccourcies (autre enregistrement)');
-    if (p.missing_bytes > 0) parts.push(`⚠ il manque ${fmtSize(p.missing_bytes)} sur le disque`);
+    if (p.missing_bytes > 0) parts.push(`il manque ${fmtSize(p.missing_bytes)} sur le disque`);
     $('rd-preview').className = 'msg'; $('rd-preview').textContent = parts.join(' · ');
-  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').textContent = err.message; }
+  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`; }
 });
 $('rd-ok').addEventListener('click', async () => {
   try {
     await api('/api/schedule', currentRequest());
     dlg.close(); await loadState(); show('recordings');
-  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').textContent = err.message; }
+  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').innerHTML = `${icon('alert')}<span>${esc(err.message)}</span>`; }
 });
 $('rd-cancel').addEventListener('click', () => dlg.close());
 
@@ -278,24 +432,28 @@ function recItem(r) {
   const title = r.more ? `${r.title} (+${r.more})` : r.title;
   const sub = [r.channel, ...(state.accounts.length > 1 ? [r.account_label] : []), fmtTime(r.start) + ' – ' + fmtHour(r.stop)];
   if (r.bytes) sub.push(fmtSize(r.bytes));
+  const bad = ['incomplete', 'failed', 'missed'].includes(r.state);
   if (r.problem) sub.push(problemLabel[r.problem] || r.problem);
   const playable = !r.volume_missing && r.bytes > 0 && r.state !== 'scheduled';
   const buttons = [];
-  if (playable) buttons.push(`<button class="btn small" data-act="play" data-key="${key}">Lire</button>`);
-  if (r.state === 'scheduled') buttons.push(`<button class="btn small" data-act="cancel" data-key="${key}">Annuler</button>`);
+  if (playable) buttons.push(`<button class="btn small" data-act="play" data-key="${key}">${icon('play')}Lire</button>`);
+  if (r.state === 'scheduled') buttons.push(`<button class="btn small ghost" data-act="cancel" data-key="${key}">Annuler</button>`);
   else if (r.state === 'recording') buttons.push(`<button class="btn small" data-act="cancel" data-key="${key}">Arrêter</button>`);
-  else buttons.push(`<button class="btn small" data-act="delete" data-key="${key}">Supprimer</button>`);
-  return `<div class="item"><div class="main"><div class="title">${esc(title)}</div><div class="sub">${esc(sub.join(' · '))}</div></div><span class="tag ${r.state}">${stateLabel[r.state] || r.state}</span>${buttons.join('')}</div>`;
+  else buttons.push(`<button class="btn small ghost" data-act="delete" data-key="${key}">Supprimer</button>`);
+  const badge = r.state === 'recording' ? '<span class="badge live">En cours</span>'
+    : bad ? `<span class="badge warn">${icon('alert')}${stateLabel[r.state]}</span>`
+    : `<span class="badge">${stateLabel[r.state] || r.state}</span>`;
+  return `<div class="card row" style="cursor:default"><div class="t" style="white-space:normal"><div style="font-weight:600">${esc(title)}</div><div class="sub">${esc(sub.join(' · '))}</div></div>${badge}${buttons.join('')}</div>`;
 }
 async function loadRecordings() {
   try {
     const data = await api('/api/recordings');
     const running = data.scheduled.filter((r) => r.state === 'recording');
     const waiting = data.scheduled.filter((r) => r.state !== 'recording');
-    const block = (t, l) => l.length ? `<h2>${t}</h2><div class="list">${l.map(recItem).join('')}</div>` : '';
+    const block = (t, l) => l.length ? `<div class="section"><h2>${t}</h2><div class="stack">${l.map(recItem).join('')}</div></div>` : '';
     const html = block('En cours', running) + block('Programmés', waiting) + block('Terminés', data.recorded);
     $('recordings').innerHTML = html || '<div class="empty">Aucun enregistrement. Choisis une chaîne pour en programmer un.</div>';
-  } catch (err) { $('recordings').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+  } catch (err) { $('recordings').innerHTML = errHtml(err.message); }
 }
 $('recordings').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -337,7 +495,7 @@ $('play-dialog').addEventListener('close', stopPlayer);
   try {
     await loadState();
     if (state.configured) await loadChannels();
-  } catch (err) { $('channels').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+  } catch (err) { $('channels').innerHTML = errHtml(err.message); }
 })();
 </script>
 </body>
