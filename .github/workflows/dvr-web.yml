@@ -3,6 +3,9 @@ name: dvr-web
 # Appli web locale d'enregistrement (heystream-dvr.exe pour Windows).
 # À la main : Actions › dvr-web › Run workflow.
 on:
+  push:
+    branches: [feat/enregistrement-manuel-0.8.1]
+    paths: ["dvr-web/**", "core/**", ".github/workflows/dvr-web.yml"]
   workflow_dispatch:
 
 jobs:
