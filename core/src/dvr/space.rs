@@ -56,7 +56,38 @@ pub fn volume_space(dir: &Path) -> Option<VolumeSpace> {
     })
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+pub fn volume_space(dir: &Path) -> Option<VolumeSpace> {
+    use std::os::windows::ffi::OsStrExt;
+
+    unsafe extern "system" {
+        fn GetDiskFreeSpaceExW(
+            directory: *const u16,
+            available: *mut u64,
+            total: *mut u64,
+            free: *mut u64,
+        ) -> i32;
+    }
+
+    if !dir.is_dir() {
+        return None;
+    }
+    let wide: Vec<u16> = dir
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let (mut available, mut total, mut free) = (0u64, 0u64, 0u64);
+    // SAFETY : `wide` est une chaîne UTF-16 terminée par un zéro et les trois
+    // pointeurs désignent des entiers valides pour la durée de l'appel.
+    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, &mut total, &mut free) };
+    (ok != 0).then_some(VolumeSpace {
+        total_bytes: total,
+        free_bytes: available,
+    })
+}
+
+#[cfg(not(any(unix, windows)))]
 pub fn volume_space(_dir: &Path) -> Option<VolumeSpace> {
     None
 }

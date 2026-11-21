@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "ffi"]
+members = ["core", "ffi", "dvr-web"]
 resolver = "3"
 
 # Version de l'app : seule source, lue aussi par l'app Android (versionName et

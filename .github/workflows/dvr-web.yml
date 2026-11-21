@@ -1,0 +1,32 @@
+name: dvr-web
+
+# Appli web locale d'enregistrement (heystream-dvr.exe pour Windows).
+# À la main : Actions › dvr-web › Run workflow.
+on:
+  workflow_dispatch:
+
+jobs:
+  moteur:
+    name: tests du moteur d'enregistrement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p xtream-core --test dvr
+      - run: cargo clippy -p heystream-dvr -- -D warnings
+
+  exe:
+    name: heystream-dvr.exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p heystream-dvr
+      - uses: actions/upload-artifact@v4
+        with:
+          name: heystream-dvr-${{ github.sha }}
+          path: target/release/heystream-dvr.exe
+          if-no-files-found: error
+          retention-days: 14

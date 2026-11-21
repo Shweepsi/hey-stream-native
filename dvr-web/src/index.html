@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hey-stream DVR</title>
+<style>
+  :root { color-scheme: dark; --bg:#101216; --panel:#181b21; --line:#262a33; --text:#e8eaee; --dim:#8b92a0; --accent:#e5484d; --ok:#3fb950; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.4 system-ui,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:18px; padding:12px 20px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:16px; margin:0; }
+  nav { display:flex; gap:4px; }
+  nav button { background:none; border:0; color:var(--dim); padding:8px 14px; border-radius:8px; cursor:pointer; font:inherit; }
+  nav button.on { background:var(--panel); color:var(--text); }
+  #usage { margin-left:auto; color:var(--dim); font-size:13px; }
+  main { max-width:960px; margin:0 auto; padding:20px; }
+  .row { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  input, select, button.btn { background:var(--panel); border:1px solid var(--line); color:var(--text); padding:9px 12px; border-radius:8px; font:inherit; }
+  input[type=search], input.grow { flex:1; min-width:180px; }
+  button.btn { cursor:pointer; }
+  button.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.btn.small { padding:5px 10px; font-size:13px; }
+  .list { display:flex; flex-direction:column; gap:2px; }
+  .item { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--panel); border-radius:8px; }
+  .item.click { cursor:pointer; }
+  .item.click:hover { outline:1px solid var(--line); }
+  .item img { width:36px; height:36px; object-fit:contain; border-radius:6px; background:#0c0e11; }
+  .item .main { flex:1; min-width:0; }
+  .item .title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .sub { color:var(--dim); font-size:13px; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--line); color:var(--dim); }
+  .tag.recording { background:var(--accent); color:#fff; }
+  .tag.done { background:#1d3a26; color:var(--ok); }
+  .tag.incomplete, .tag.failed, .tag.missed { background:#4a2a14; color:#f0a35e; }
+  h2 { font-size:14px; color:var(--dim); font-weight:600; margin:22px 0 8px; text-transform:uppercase; letter-spacing:.04em; }
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:20px; width:min(520px,92vw); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  dialog h3 { margin:0 0 4px; font-size:17px; }
+  .field { display:flex; align-items:center; gap:10px; margin:10px 0; }
+  .field label { flex:1; color:var(--dim); }
+  .field input { width:130px; }
+  .msg { margin:10px 0; color:var(--dim); font-size:14px; }
+  .msg.err { color:#f0a35e; }
+  .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
+  video { width:100%; max-height:70vh; background:#000; border-radius:8px; }
+  form.settings { display:flex; flex-direction:column; gap:12px; max-width:520px; }
+  form.settings label { display:flex; flex-direction:column; gap:4px; color:var(--dim); font-size:13px; }
+  form.settings input { width:100%; }
+  .empty { color:var(--dim); padding:30px 0; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>hey-stream DVR</h1>
+  <nav>
+    <button data-tab="channels" class="on">Chaînes</button>
+    <button data-tab="recordings">Enregistrements</button>
+    <button data-tab="settings">Réglages</button>
+  </nav>
+  <div id="usage"></div>
+</header>
+<main>
+  <section id="tab-channels">
+    <div class="row">
+      <select id="category"></select>
+      <input type="search" id="search" placeholder="Chercher une chaîne…">
+    </div>
+    <div id="channels" class="list"></div>
+  </section>
+  <section id="tab-recordings" hidden>
+    <div id="recordings"></div>
+  </section>
+  <section id="tab-settings" hidden>
+    <form class="settings" id="settings">
+      <label>Adresse du serveur <input id="s-server" placeholder="http://exemple.tv:8080" required></label>
+      <label>Identifiant <input id="s-user" autocomplete="username" required></label>
+      <label>Mot de passe <input id="s-pass" type="password" autocomplete="current-password" required></label>
+      <label>Dossier des enregistrements (vide : dossier par défaut) <input id="s-dir"></label>
+      <div class="msg" id="s-msg"></div>
+      <div><button class="btn primary" type="submit">Enregistrer et tester</button></div>
+      <div class="msg">Le mot de passe est gardé en clair dans le dossier de données de ce PC. La page n'est accessible que depuis cet ordinateur.</div>
+    </form>
+  </section>
+</main>
+
+<dialog id="rec-dialog">
+  <h3 id="rd-title"></h3>
+  <div class="sub msg" id="rd-sub"></div>
+  <div id="rd-programmes"></div>
+  <div id="rd-manual">
+    <div class="field"><label>Début</label><input type="datetime-local" id="rd-start" style="width:auto"></div>
+    <div class="field"><label>Durée (minutes)</label><input type="number" id="rd-duration" min="1" max="720" value="60"></div>
+  </div>
+  <div class="field"><label>Commencer avant (min)</label><input type="number" id="rd-before" min="0" max="60" value="2"></div>
+  <div class="field"><label>Finir après (min)</label><input type="number" id="rd-after" min="0" max="60" value="5"></div>
+  <div class="msg" id="rd-preview"></div>
+  <div class="actions">
+    <button class="btn" id="rd-cancel">Fermer</button>
+    <button class="btn" id="rd-estimate">Estimer</button>
+    <button class="btn primary" id="rd-ok">Programmer</button>
+  </div>
+</dialog>
+
+<dialog id="play-dialog">
+  <h3 id="pd-title"></h3>
+  <video id="player" controls></video>
+  <div class="msg" id="pd-msg"></div>
+  <div class="actions">
+    <a class="btn" id="pd-dl" style="text-decoration:none">Télécharger</a>
+    <button class="btn" id="pd-close">Fermer</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtTime = (s) => new Date(s * 1000).toLocaleString('fr-FR', { weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+const fmtHour = (s) => new Date(s * 1000).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(1) + ' Go' : (b / 1e6).toFixed(0) + ' Mo';
+const fmtDur = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} h ${String(m).padStart(2,'0')}` : `${m} min`; };
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  return data;
+}
+
+// --- Onglets ---
+let tab = 'channels';
+document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
+function show(name) {
+  tab = name;
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  for (const t of ['channels', 'recordings', 'settings']) $('tab-' + t).hidden = t !== name;
+  if (name === 'recordings') loadRecordings();
+}
+
+// --- État et réglages ---
+let state = {};
+async function loadState() {
+  state = await api('/api/state');
+  const u = state.usage;
+  $('usage').textContent = u ? `${fmtSize(u.used)} utilisés · encore ${fmtDur(u.remaining_secs)} possibles` : (state.disk ? '' : 'Dossier des enregistrements introuvable');
+  if (!state.configured) show('settings');
+  return state;
+}
+$('settings').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('s-msg').className = 'msg'; $('s-msg').textContent = 'Test de la connexion…';
+  try {
+    await api('/api/login', { server_url: $('s-server').value, username: $('s-user').value, password: $('s-pass').value, dir: $('s-dir').value });
+    $('s-msg').textContent = 'Connecté.';
+    await loadState(); await loadChannels(); show('channels');
+  } catch (err) { $('s-msg').className = 'msg err'; $('s-msg').textContent = err.message; }
+});
+
+// --- Chaînes ---
+let categoriesLoaded = false;
+async function loadChannels() {
+  const q = encodeURIComponent($('search').value), c = encodeURIComponent($('category').value);
+  try {
+    const data = await api(`/api/channels?category=${c}&q=${q}`);
+    if (!categoriesLoaded || $('category').options.length <= 1) {
+      $('category').innerHTML = '<option value="">Toutes les catégories</option>' + data.categories.map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
+      $('category').value = decodeURIComponent(c);
+      categoriesLoaded = true;
+    }
+    $('channels').innerHTML = data.channels.length ? data.channels.map((ch) => `
+      <div class="item click" data-id="${ch.id}" data-name="${esc(ch.name)}">
+        ${ch.icon ? `<img src="${esc(ch.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<img alt="" style="visibility:hidden">'}
+        <div class="main"><div class="title">${esc(ch.name)}</div></div>
+      </div>`).join('') : '<div class="empty">Aucune chaîne.</div>';
+  } catch (err) { $('channels').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+}
+let searchTimer;
+$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadChannels, 250); });
+$('category').addEventListener('change', loadChannels);
+$('channels').addEventListener('click', (e) => {
+  const item = e.target.closest('.item'); if (item) openChannel(Number(item.dataset.id), item.dataset.name);
+});
+
+// --- Dialogue d'enregistrement ---
+let draft = null; // { stream_id, channel, title, start, stop, manual }
+const dlg = $('rec-dialog');
+function toLocalInput(sec) { const d = new Date(sec * 1000 - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); }
+
+async function openChannel(id, name) {
+  draft = { stream_id: id, channel: name };
+  $('rd-title').textContent = name;
+  $('rd-sub').textContent = 'Guide de la chaîne';
+  $('rd-programmes').innerHTML = '<div class="msg">Chargement du guide…</div>';
+  $('rd-preview').textContent = ''; $('rd-preview').className = 'msg';
+  const now = Math.floor(Date.now() / 1000);
+  $('rd-start').value = toLocalInput(now + 300 - (now % 300));
+  $('rd-manual').hidden = false;
+  setPickMode(null);
+  dlg.showModal();
+  try {
+    const data = await api('/api/epg?stream_id=' + id);
+    const list = data.programmes.filter((p) => p.stop > now);
+    $('rd-programmes').innerHTML = list.length
+      ? '<div class="list">' + list.map((p, i) => `<div class="item click" data-i="${i}"><div class="main"><div class="title">${esc(p.title)}</div><div class="sub">${fmtTime(p.start)} – ${fmtHour(p.stop)}</div></div><span class="tag">Choisir</span></div>`).join('') + '</div>'
+      : '<div class="msg">Pas de guide pour cette chaîne : utilise l\'enregistrement manuel ci-dessous.</div>';
+    $('rd-programmes').onclick = (e) => { const it = e.target.closest('.item'); if (it) setPickMode(list[Number(it.dataset.i)]); };
+  } catch (err) { $('rd-programmes').innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+}
+// Programme du guide choisi : début et fin du programme, marges réglables ; sinon enregistrement manuel.
+function setPickMode(programme) {
+  if (programme) {
+    draft.title = programme.title; draft.start = programme.start; draft.stop = programme.stop; draft.manual = false;
+    $('rd-sub').textContent = `${programme.title} · ${fmtTime(programme.start)} – ${fmtHour(programme.stop)}`;
+    $('rd-manual').hidden = true;
+    $('rd-before').value = 2; $('rd-after').value = 5;
+  } else {
+    draft.manual = true; draft.title = 'Enregistrement manuel';
+    $('rd-manual').hidden = false;
+    $('rd-before').value = 0; $('rd-after').value = 0;
+  }
+  $('rd-preview').textContent = '';
+}
+function currentRequest() {
+  let { start, stop } = draft;
+  if (draft.manual) {
+    start = Math.floor(new Date($('rd-start').value).getTime() / 1000);
+    stop = start + Number($('rd-duration').value) * 60;
+    if (!Number.isFinite(start)) throw new Error('Choisis un début.');
+  }
+  return { stream_id: draft.stream_id, channel: draft.channel, title: draft.title, start, stop,
+    before: Number($('rd-before').value) * 60, after: Number($('rd-after').value) * 60 };
+}
+$('rd-estimate').addEventListener('click', async () => {
+  try {
+    const p = await api('/api/preview', currentRequest());
+    const parts = [`${fmtTime(p.start)} → ${fmtHour(p.stop)}`];
+    parts.push(p.measured ? `taille estimée ${fmtSize(p.estimated_bytes)}` : 'taille inconnue (chaîne jamais enregistrée)');
+    if (p.merged_into) parts.push('prolonge un enregistrement déjà programmé');
+    if (p.margins_shortened) parts.push('marges raccourcies (autre enregistrement)');
+    if (p.missing_bytes > 0) parts.push(`⚠ il manque ${fmtSize(p.missing_bytes)} sur le disque`);
+    $('rd-preview').className = 'msg'; $('rd-preview').textContent = parts.join(' · ');
+  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').textContent = err.message; }
+});
+$('rd-ok').addEventListener('click', async () => {
+  try {
+    await api('/api/schedule', currentRequest());
+    dlg.close(); await loadState(); show('recordings');
+  } catch (err) { $('rd-preview').className = 'msg err'; $('rd-preview').textContent = err.message; }
+});
+$('rd-cancel').addEventListener('click', () => dlg.close());
+
+// --- Enregistrements ---
+const stateLabel = { scheduled: 'Programmé', recording: 'En cours', done: 'Terminé', incomplete: 'Incomplet', failed: 'Échec', missed: 'Manqué' };
+const problemLabel = { Gaps: 'des passages manquent', OutOfSpace: 'disque plein', ConnectionLost: 'chaîne injoignable', WriteFailed: 'écriture impossible', VolumeMissing: 'disque absent', Interrupted: 'programme arrêté pendant l\'enregistrement', NotStarted: 'jamais démarré' };
+let recs = {};
+function recItem(r) {
+  recs[r.id] = r;
+  const title = r.more ? `${r.title} (+${r.more})` : r.title;
+  const sub = [r.channel, fmtTime(r.start) + ' – ' + fmtHour(r.stop)];
+  if (r.bytes) sub.push(fmtSize(r.bytes));
+  if (r.problem) sub.push(problemLabel[r.problem] || r.problem);
+  const playable = !r.volume_missing && r.bytes > 0 && r.state !== 'scheduled';
+  const buttons = [];
+  if (playable) buttons.push(`<button class="btn small" data-act="play" data-id="${r.id}">Lire</button>`);
+  if (r.state === 'scheduled') buttons.push(`<button class="btn small" data-act="cancel" data-id="${r.id}">Annuler</button>`);
+  else if (r.state === 'recording') buttons.push(`<button class="btn small" data-act="cancel" data-id="${r.id}">Arrêter</button>`);
+  else buttons.push(`<button class="btn small" data-act="delete" data-id="${r.id}">Supprimer</button>`);
+  return `<div class="item"><div class="main"><div class="title">${esc(title)}</div><div class="sub">${esc(sub.join(' · '))}</div></div><span class="tag ${r.state}">${stateLabel[r.state] || r.state}</span>${buttons.join('')}</div>`;
+}
+async function loadRecordings() {
+  try {
+    const data = await api('/api/recordings');
+    const running = data.scheduled.filter((r) => r.state === 'recording');
+    const waiting = data.scheduled.filter((r) => r.state !== 'recording');
+    const block = (t, l) => l.length ? `<h2>${t}</h2><div class="list">${l.map(recItem).join('')}</div>` : '';
+    const html = block('En cours', running) + block('Programmés', waiting) + block('Terminés', data.recorded);
+    $('recordings').innerHTML = html || '<div class="empty">Aucun enregistrement. Choisis une chaîne pour en programmer un.</div>';
+  } catch (err) { $('recordings').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+}
+$('recordings').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const id = Number(b.dataset.id);
+  try {
+    if (b.dataset.act === 'play') return play(recs[id]);
+    if (b.dataset.act === 'delete' && !confirm('Supprimer cet enregistrement et son fichier ?')) return;
+    await api('/api/' + b.dataset.act, { id });
+    await loadState(); await loadRecordings();
+  } catch (err) { alert(err.message); }
+});
+setInterval(() => { if (tab === 'recordings' && !document.hidden) loadRecordings(); }, 5000);
+
+// --- Lecture ---
+let mpPlayer = null;
+function stopPlayer() {
+  if (mpPlayer) { mpPlayer.destroy(); mpPlayer = null; }
+  const v = $('player'); v.removeAttribute('src'); v.load();
+}
+function play(r) {
+  $('pd-title').textContent = r.title;
+  $('pd-dl').href = `/files/${r.id}?dl=1`;
+  $('pd-msg').textContent = '';
+  $('play-dialog').showModal();
+  if (window.mpegts && mpegts.isSupported()) {
+    mpPlayer = mpegts.createPlayer({ type: 'mpegts', url: `/files/${r.id}`, isLive: false });
+    mpPlayer.attachMediaElement($('player')); mpPlayer.load();
+    mpPlayer.play().catch(() => {});
+    mpPlayer.on(mpegts.Events.ERROR, () => { $('pd-msg').textContent = 'Lecture impossible ici : télécharge le fichier et ouvre-le avec VLC.'; });
+  } else {
+    $('pd-msg').textContent = 'Lecteur indisponible (pas de connexion Internet ?) : télécharge le fichier et ouvre-le avec VLC.';
+  }
+}
+$('pd-close').addEventListener('click', () => $('play-dialog').close());
+$('play-dialog').addEventListener('close', stopPlayer);
+
+// --- Démarrage ---
+(async () => {
+  try {
+    await loadState();
+    if (state.configured) await loadChannels();
+  } catch (err) { $('channels').innerHTML = `<div class="empty">${esc(err.message)}</div>`; }
+})();
+</script>
+</body>
+</html>
