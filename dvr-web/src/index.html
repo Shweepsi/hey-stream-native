@@ -505,6 +505,8 @@ function play(r) {
       hls.recoverMediaError();
       v.currentTime = t + 2;
       v.play().catch(() => {});
+      msg.textContent = 'Passage abîmé du fichier sauté.';
+      setTimeout(() => { if (hlsPlayer === hls) msg.textContent = ''; }, 4000);
     };
     v.onerror = skip;
     hls.on(Hls.Events.MANIFEST_PARSED, () => { msg.textContent = ''; v.play().catch(() => {}); });
@@ -525,7 +527,8 @@ function play(r) {
   }
 }
 $('pd-close').addEventListener('click', () => $('play-dialog').close());
-$('play-dialog').addEventListener('close', stopPlayer);
+// L'événement « close » arrive après coup : s'il a déjà été rouvert pour une autre lecture, on n'y touche pas.
+$('play-dialog').addEventListener('close', () => { if (!$('play-dialog').open) stopPlayer(); });
 
 // --- Démarrage ---
 (async () => {
