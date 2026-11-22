@@ -9,19 +9,26 @@
 //! va sur le premier compte libre à ce moment-là. Accessible depuis cette
 //! machine seulement, sauf avec `--lan`.
 
+mod hls;
+mod range;
+
 use std::fmt::Display;
 use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tiny_http::{Header, Method, Request, Response, Server};
+use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 use xtream_core::{
-    CaptureControl, CaptureOptions, Credentials, GuideProgramme, Margins, Recording, Recordings,
-    ScheduleRequest, SchedulePreview, XtreamClient, capture, volume_space,
+    CaptureControl, CaptureOptions, Credentials, GuideProgramme, Margins, Recording,
+    RecordingState, Recordings, ScheduleRequest, SchedulePreview, XtreamClient, capture,
+    volume_space,
 };
+
+use range::ByteRange;
 
 const PAGE: &str = include_str!("index.html");
 const DEFAULT_PORT: u16 = 8780;
@@ -112,6 +119,8 @@ struct App {
     catalog: Mutex<Option<Catalog>>,
     /// Dernier échec du chargement des chaînes (heure, message).
     failure: Mutex<Option<(Instant, String)>>,
+    /// Un seul calcul d'index de lecture à la fois (il lit tout le fichier).
+    index_lock: Mutex<()>,
     rt: tokio::runtime::Runtime,
 }
 
@@ -161,6 +170,21 @@ impl App {
             ..Config::default()
         };
         save_config(&self.data_dir, &config)
+    }
+
+    /// Où est gardé l'index de lecture d'un enregistrement.
+    fn index_path(&self, account: u32, id: i64) -> PathBuf {
+        self.data_dir.join("hls").join(format!("{account}-{id}.txt"))
+    }
+
+    /// Index de lecture d'un enregistrement : relu s'il est déjà calculé pour ce
+    /// fichier, sinon calculé. Pendant l'enregistrement le fichier grandit : on
+    /// calcule ce qu'il y a, sans le garder.
+    fn playback_index(&self, account: u32, recording: &Recording) -> Result<hls::Index, (u16, String)> {
+        let _one_at_a_time = lock(&self.index_lock);
+        let cache = (recording.state != RecordingState::Recording)
+            .then(|| self.index_path(account, recording.id));
+        hls::build(&recording.path, cache.as_deref()).map_err(|e| (422, e))
     }
 
     fn first_client(&self) -> Result<Arc<XtreamClient>, (u16, String)> {
@@ -295,7 +319,15 @@ fn open_account(data_dir: &Path, config: AccountConfig) -> Result<Arc<Account>, 
 enum Reply {
     Json(Value),
     Html,
-    File(PathBuf, Option<String>),
+    /// Liste de lecture HLS.
+    Playlist(String),
+    File {
+        path: PathBuf,
+        /// Nom proposé au téléchargement.
+        download: Option<String>,
+        /// En-tête `Range` de la requête.
+        range: Option<String>,
+    },
 }
 
 type Res = Result<Reply, (u16, String)>;
@@ -408,7 +440,7 @@ fn recording_json(account: &Account, r: &Recording) -> Value {
     })
 }
 
-fn route(app: &Arc<App>, method: &Method, url: &str, body: &str) -> Res {
+fn route(app: &Arc<App>, method: &Method, url: &str, body: &str, range: Option<String>) -> Res {
     let (path, query) = url.split_once('?').unwrap_or((url, ""));
     match (method, path) {
         (Method::Get, "/") => Ok(Reply::Html),
@@ -422,7 +454,10 @@ fn route(app: &Arc<App>, method: &Method, url: &str, body: &str) -> Res {
         (Method::Get, "/api/recordings") => recordings(app),
         (Method::Post, "/api/cancel") => cancel(app, parse(body)?),
         (Method::Post, "/api/delete") => delete(app, parse(body)?),
-        (Method::Get, p) if p.starts_with("/files/") => file(app, &p["/files/".len()..], query),
+        (Method::Get, p) if p.starts_with("/files/") => {
+            file(app, &p["/files/".len()..], query, range)
+        }
+        (Method::Get, p) if p.starts_with("/hls/") => playlist(app, &p["/hls/".len()..]),
         _ => Err((404, "introuvable".to_owned())),
     }
 }
@@ -699,25 +734,109 @@ fn cancel(app: &Arc<App>, target: RecordingRef) -> Res {
 fn delete(app: &Arc<App>, target: RecordingRef) -> Res {
     let account = find_account(app, target.account)?;
     lock(&account.rec).delete(target.id).map_err(bad)?;
+    let _ = std::fs::remove_file(app.index_path(account.config.id, target.id));
     Ok(Reply::Json(json!({"ok": true})))
 }
 
-fn file(app: &Arc<App>, path: &str, query: &str) -> Res {
-    let (account, id) = path.split_once('/').ok_or((404, "introuvable".to_owned()))?;
-    let account: u32 = account.parse().map_err(|_| (404, "introuvable".to_owned()))?;
-    let id: i64 = id.parse().map_err(|_| (404, "introuvable".to_owned()))?;
+/// `<compte>/<id>` : l'enregistrement demandé.
+fn find_recording(app: &Arc<App>, path: &str) -> Result<(Arc<Account>, Recording), (u16, String)> {
+    let not_found = || -> (u16, String) { (404, "introuvable".to_owned()) };
+    let (account, id) = path.split_once('/').ok_or_else(not_found)?;
+    let account: u32 = account.parse().map_err(|_| not_found())?;
+    let id: i64 = id.parse().map_err(|_| not_found())?;
     let account = find_account(app, account)?;
     let recording = lock(&account.rec)
         .recording(id)
         .map_err(bad)?
         .ok_or((404, "Cet enregistrement n'existe plus.".to_owned()))?;
-    let name = (query_param(query, "dl").as_deref() == Some("1"))
-        .then(|| format!("enregistrement-{}-{id}.ts", account.config.id));
-    Ok(Reply::File(recording.path, name))
+    Ok((account, recording))
+}
+
+fn file(app: &Arc<App>, path: &str, query: &str, range: Option<String>) -> Res {
+    let (account, recording) = find_recording(app, path)?;
+    let download = (query_param(query, "dl").as_deref() == Some("1"))
+        .then(|| format!("enregistrement-{}-{}.ts", account.config.id, recording.id));
+    Ok(Reply::File {
+        path: recording.path,
+        download,
+        range,
+    })
+}
+
+/// `<compte>/<id>.m3u8` : liste de lecture HLS de l'enregistrement. La première fois,
+/// le fichier est lu en entier pour en tirer l'index (quelques secondes).
+fn playlist(app: &Arc<App>, path: &str) -> Res {
+    let path = path
+        .strip_suffix(".m3u8")
+        .ok_or((404, "introuvable".to_owned()))?;
+    let (account, recording) = find_recording(app, path)?;
+    let index = app.playback_index(account.config.id, &recording)?;
+    let media = format!("/files/{}/{}", account.config.id, recording.id);
+    Ok(Reply::Playlist(index.playlist(&media)))
 }
 
 fn header(name: &str, value: &str) -> Header {
     Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("en-tête valide")
+}
+
+/// Réponse d'erreur : `{"error": "…"}`.
+fn error_response(code: u16, message: &str) -> Response<std::io::Cursor<Vec<u8>>> {
+    Response::from_string(json!({"error": message}).to_string())
+        .with_status_code(code)
+        .with_header(header("Content-Type", "application/json; charset=utf-8"))
+}
+
+/// Envoie un fichier, en entier ou seulement la plage demandée (le lecteur vidéo
+/// s'en sert pour se déplacer dans l'enregistrement).
+fn send_file(
+    request: Request,
+    path: &Path,
+    download: Option<String>,
+    range: Option<&str>,
+) -> std::io::Result<()> {
+    let Ok(mut file) = File::open(path) else {
+        return request.respond(error_response(404, "Fichier introuvable (disque débranché ?)."));
+    };
+    let Ok(len) = file.metadata().map(|m| m.len()) else {
+        return request.respond(error_response(500, "Fichier illisible."));
+    };
+    let mut headers = vec![
+        header("Content-Type", "video/mp2t"),
+        header("Accept-Ranges", "bytes"),
+    ];
+    if let Some(name) = download {
+        headers.push(header(
+            "Content-Disposition",
+            &format!("attachment; filename=\"{name}\""),
+        ));
+    }
+    match range::parse(range, len) {
+        ByteRange::Whole => request.respond(Response::new(
+            StatusCode(200),
+            headers,
+            file,
+            usize::try_from(len).ok(),
+            None,
+        )),
+        ByteRange::Partial { start, end } => {
+            if file.seek(SeekFrom::Start(start)).is_err() {
+                return request.respond(error_response(500, "Fichier illisible."));
+            }
+            let count = end - start + 1;
+            headers.push(header("Content-Range", &format!("bytes {start}-{end}/{len}")));
+            request.respond(Response::new(
+                StatusCode(206),
+                headers,
+                file.take(count),
+                usize::try_from(count).ok(),
+                None,
+            ))
+        }
+        ByteRange::Unsatisfiable => request.respond(
+            Response::new_empty(StatusCode(416))
+                .with_header(header("Content-Range", &format!("bytes */{len}"))),
+        ),
+    }
 }
 
 fn handle(app: Arc<App>, mut request: Request) {
@@ -727,7 +846,12 @@ fn handle(app: Arc<App>, mut request: Request) {
     }
     let method = request.method().clone();
     let url = request.url().to_owned();
-    let result = route(&app, &method, &url, &body);
+    let range = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Range"))
+        .map(|h| h.value.as_str().to_owned());
+    let result = route(&app, &method, &url, &body, range);
     let _ = match result {
         Ok(Reply::Json(value)) => request.respond(
             Response::from_string(value.to_string()).with_header(header("Content-Type", "application/json; charset=utf-8")),
@@ -735,28 +859,15 @@ fn handle(app: Arc<App>, mut request: Request) {
         Ok(Reply::Html) => request.respond(
             Response::from_string(PAGE).with_header(header("Content-Type", "text/html; charset=utf-8")),
         ),
-        Ok(Reply::File(path, download)) => match File::open(&path) {
-            Ok(file) => {
-                let mut response = Response::from_file(file).with_header(header("Content-Type", "video/mp2t"));
-                if let Some(name) = download {
-                    response = response.with_header(header(
-                        "Content-Disposition",
-                        &format!("attachment; filename=\"{name}\""),
-                    ));
-                }
-                request.respond(response)
-            }
-            Err(_) => request.respond(
-                Response::from_string(json!({"error": "Fichier introuvable (disque débranché ?)."}).to_string())
-                    .with_status_code(404)
-                    .with_header(header("Content-Type", "application/json; charset=utf-8")),
-            ),
-        },
-        Err((code, message)) => request.respond(
-            Response::from_string(json!({"error": message}).to_string())
-                .with_status_code(code)
-                .with_header(header("Content-Type", "application/json; charset=utf-8")),
+        Ok(Reply::Playlist(text)) => request.respond(
+            Response::from_string(text)
+                .with_header(header("Content-Type", "application/vnd.apple.mpegurl"))
+                .with_header(header("Cache-Control", "no-store")),
         ),
+        Ok(Reply::File { path, download, range }) => {
+            send_file(request, &path, download, range.as_deref())
+        }
+        Err((code, message)) => request.respond(error_response(code, &message)),
     };
 }
 
@@ -810,11 +921,18 @@ fn tick_account(app: &Arc<App>, account: &Arc<Account>) {
         let report = app
             .rt
             .block_on(capture(&account.client, &job, &control, &CaptureOptions::default()));
-        match lock(&account.rec).finish(job.recording_id, &report, self::now()) {
+        let finished = lock(&account.rec).finish(job.recording_id, &report, self::now());
+        match &finished {
             Ok(r) => println!("Enregistrement {} terminé ({:?}).", r.id, r.state),
             Err(e) => eprintln!("Bilan de l'enregistrement {} perdu : {e}", job.recording_id),
         }
         *lock(&account.active) = None;
+        // Index de lecture calculé tout de suite : la première lecture est alors immédiate.
+        if let Ok(r) = finished
+            && r.bytes > 0
+        {
+            let _ = app.playback_index(account.config.id, &r);
+        }
     });
 }
 
@@ -900,6 +1018,7 @@ fn main() {
         accounts: Mutex::new(accounts),
         catalog: Mutex::new(None),
         failure: Mutex::new(None),
+        index_lock: Mutex::new(()),
         rt,
     });
     if let Err(e) = app.apply_dir() {
